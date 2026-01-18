@@ -6,17 +6,21 @@
 
     <%# Actions Container %>
     <div class="flex items-center space-x-2">
-      
 
-      <%# EDIT BUTTON %>
-      <%= link_to "✎", edit_list_path(list),
-          class: "text-gray-400 hover:text-blue-600 text-lg leading-none px-1",
-          data: { turbo_frame: "list_#{list.id}_header" } %>
+      <%# EDIT BUTTON (Pencil) %>
+      <%= link_to edit_list_path(list),
+          class: "text-gray-400 hover:text-blue-600 text-lg leading-none px-1 transition-colors",
+          data: { turbo_frame: "list_#{list.id}_header" } do %>
+        <i class="fa-solid fa-pencil"></i>
+      <% end %>
 
-      <%# DELETE BUTTON %>
-      <%= link_to "×", list_path(list),
-          class: "text-gray-400 hover:text-red-600 font-bold text-lg leading-none px-1",
-          data: { turbo_method: :delete, turbo_confirm: "Delete this list?" } %>
+      <%# DELETE BUTTON (Trash) %>
+      <%= link_to list_path(list),
+          class: "text-gray-400 hover:text-red-600 text-lg leading-none px-1 transition-colors",
+          data: { turbo_method: :delete, turbo_confirm: "Delete this list?" } do %>
+        <i class="fa-solid fa-trash"></i>
+      <% end %>
+
     </div>
   </div>
 <% end %>
