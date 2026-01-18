@@ -8,26 +8,20 @@
     <span class="text-xs text-gray-400">#<%= list.position %></span>
   </div>
 
-  <%# Cards Container %>
+  <%# Cards Container (The Drop Zone) %>
   <div
     class="flex-1 p-2 overflow-y-auto min-h-[50px] space-y-2"
     id="<%= dom_id(list) %>_cards"
     data-controller="drag"
     data-drag-url-value="/cards/:id/move"
   >
-    <% list.cards.order(:position).each do |card| %>
-      <div
-        class="bg-white p-3 rounded shadow-sm cursor-move hover:bg-gray-50"
-        data-id="<%= card.id %>"
-      >
-        <h4 class="text-sm font-medium text-gray-800"><%= card.title %></h4>
-      </div>
-    <% end %>
+    <%# THIS IS THE KEY CHANGE: %>
+    <%# automatically renders app/views/cards/_card.html.erb for each card %>
+    <%= render list.cards.order(:position) %>
   </div>
 
-  <%# List Footer %>
+  <%# List Footer (The "Add Card" Form) %>
   <div class="p-3 border-t border-gray-200">
-     <%# This now loads the _form.html.erb file we just created %>
      <%= render "lists/form", list: list %>
   </div>
 </div>

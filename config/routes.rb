@@ -6,14 +6,14 @@ Rails.application.routes.draw do
 
   resources :boards, only: [:show] do
     # This creates POST /boards/:board_id/lists
-    resources :lists, only: [:create]
+    resources :lists, only: [:create, :update, :destroy]
   end
 
   resources :lists do
       resources :cards, only: [:create]
     end
 
-    resources :cards do
+    resources :cards, only: [:create, :update, :destroy, :edit] do
       member do
         patch :move # Creates a route: PATCH /cards/:id/move
       end

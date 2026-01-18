@@ -57,9 +57,47 @@ class CardsController < ApplicationController
     head :ok
   end
 
+  def destroy
+    @card = Card.find(params[:id])
+    @card.destroy
+
+    respond_to do |format|
+      format.turbo_stream { render turbo_stream: turbo_stream.remove(@card) }
+      format.html { redirect_to board_path(@card.list.board) }
+    end
+  end
+
+  def edit
+    @card = Card.find(params[:id])
+  end
+
+  def update
+    @card = Card.find(params[:id])
+    if @card.update(card_params)
+      # Broadcast change to everyone else
+      broadcast_card_update
+
+      # Respond to the user who made the edit
+      respond_to do |format|
+        format.html { redirect_to board_path(@card.list.board) }
+      end
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
   private
 
   def card_params
     params.require(:card).permit(:title, :position, :list_id)
   end
 end
+
+def broadcast_card_update
+    Turbo::StreamsChannel.broadcast_replace_to(
+      @card.list.board,
+      target: @card,
+      partial: "cards/card",
+      locals: { card: @card }
+    )
+  end
