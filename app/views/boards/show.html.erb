@@ -1,53 +1,12 @@
+<%= turbo_stream_from @board %>
+
 <div class="h-screen bg-blue-600 p-4 overflow-x-auto">
   <div class="flex h-full space-x-4">
 
-    <%# --- Loop through Lists --- %>
-    <% @lists.each do |list| %>
-      <div
-        class="flex-shrink-0 w-72 bg-gray-100 rounded-md shadow-md flex flex-col max-h-full"
-        id="<%= dom_id(list) %>"
-      >
-        <%# List Header %>
-        <div class="p-3 font-bold text-gray-700 border-b border-gray-200 flex justify-between items-center">
-          <%= list.name %>
-          <span class="text-xs text-gray-400">#<%= list.position %></span>
-        </div>
+    <%# This renders the app/views/lists/_list.html.erb partial for each list automatically %>
+    <%= render @lists %>
 
-        <%# --- Cards Container (This is the Drop Zone) --- %>
-        <%# data-controller="drag" connects this specific div to our future JS file %>
-        <%# data-drag-url-value tells the JS where to send the update %>
-        <div
-          class="flex-1 p-2 overflow-y-auto min-h-[50px] space-y-2"
-          id="<%= dom_id(list) %>_cards"
-          data-controller="drag"
-          data-drag-url-value="/cards/:id/move"
-        >
-          <% list.cards.order(:position).each do |card| %>
-
-            <%# The Card Itself %>
-            <div
-              class="bg-white p-3 rounded shadow-sm cursor-move hover:bg-gray-50"
-              data-id="<%= card.id %>"
-            >
-              <h4 class="text-sm font-medium text-gray-800"><%= card.title %></h4>
-              <% if card.description.present? %>
-                <p class="text-xs text-gray-500 mt-1 truncate"><%= card.description %></p>
-              <% end %>
-            </div>
-
-          <% end %>
-        </div>
-
-        <%# List Footer %>
-        <div class="p-3 border-t border-gray-200">
-           <button class="text-gray-500 hover:text-gray-700 text-sm font-medium w-full text-left">
-             + Add a card
-           </button>
-        </div>
-      </div>
-    <% end %>
-
-    <%# --- Add List Button (Placeholder) --- %>
+    <%# --- Add List Button --- %>
     <div class="flex-shrink-0 w-72">
       <button class="w-full bg-blue-500 hover:bg-blue-400 text-white p-3 rounded-md text-left font-bold bg-opacity-50">
         + Add another list

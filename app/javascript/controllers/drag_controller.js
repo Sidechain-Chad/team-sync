@@ -1,26 +1,43 @@
 import { Controller } from "@hotwired/stimulus"
 import Sortable from "sortablejs"
+import { patch } from "@rails/request.js" // Standard Rails helper for AJAX
 
-// Connects to data-controller="drag"
 export default class extends Controller {
+  // ... connect() stays the same ...
   connect() {
     this.sortable = Sortable.create(this.element, {
-      group: 'shared', // Allows dragging between different lists!
+      group: 'shared',
       animation: 150,
       onEnd: this.end.bind(this)
     })
   }
 
   end(event) {
-    // 1. Identify the card being moved
     const id = event.item.dataset.id
 
-    // 2. Identify the new column (List ID)
-    // We access the parent <div> of where the card landed
-    // We will need to parse the ID from the DOM (e.g., "list_5_cards" -> 5)
-    // For now, let's just log it to prove it works.
+    // logic to get list_id from the DOM id "list_5_cards"
+    // event.to is the list <ul> or <div> the card was dropped into
+    const newListId = event.to.id.replace("list_", "").replace("_cards", "")
 
-    console.log(`Card ${id} moved to new index ${event.newIndex}`)
-    console.log(event.to) // The DOM element of the new list
+    // newIndex is 0-based (0, 1, 2), but acts_as_list is 1-based (1, 2, 3)
+    const newPosition = event.newIndex + 1
+
+    this.updateCard(id, newPosition, newListId)
+  }
+
+  updateCard(id, position, list_id) {
+    // We used `data-drag-url-value="/cards/:id/move"` in the HTML
+    // Now we replace :id with the actual card ID
+    const url = this.element.dataset.dragUrlValue.replace(":id", id)
+
+    // Rails Request JS helper (cleaner than fetch)
+    patch(url, {
+      body: JSON.stringify({
+        card: {
+          position: position,
+          list_id: list_id
+        }
+      })
+    })
   }
 }

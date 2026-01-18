@@ -1,7 +1,12 @@
 Rails.application.routes.draw do
+  get 'lists/create'
   devise_for :users
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
   resources :boards, only: [:show]
+
+    resources :lists do
+      resources :cards, only: [:create]
+    end
 
     resources :cards do
       member do
