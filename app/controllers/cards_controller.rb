@@ -1,50 +1,38 @@
 class CardsController < ApplicationController
   before_action :authenticate_user!
 
+  def show
+    @card = Card.find(params[:id])
+    # Renders app/views/cards/show.html.erb (which renders _card.html.erb)
+  end
+
+  def new
+    @list = List.find(params[:list_id])
+    @card = Card.new
+  end
+
   def create
     @list = List.find(params[:list_id])
     @card = @list.cards.new(card_params)
 
     if @card.save
-      # HIRE ME MOMENT:
-      # Instead of redirecting and refreshing the page, we send
-      # a specific HTML snippet back to the browser to "append" the new card.
       respond_to do |format|
         format.turbo_stream
         format.html { redirect_to board_path(@list.board) }
       end
     else
-      # Handle errors (for now just redirect)
       redirect_to board_path(@list.board), alert: "Could not create card"
     end
   end
-
 
   def move
     @card = Card.find(params[:id])
     @card.update(card_params)
 
-    # --- THE MAGIC ---
-    # We need to refresh the lists involved in the move.
-    # If I moved a card from "Todo" to "Done", both lists look different now.
-
-    # 1. Identify the board to broadcast to
     board = @card.list.board
 
-    # 2. Broadcast the update to everyone looking at this board
-    #    We replace the entire list DOM element with the fresh HTML.
-    Turbo::StreamsChannel.broadcast_replace_to(
-      board,
-      target: "list_#{@card.list_id}",
-      partial: "lists/list",
-      locals: { list: @card.list }
-    )
-
-    # 3. Handle the edge case: If we moved it between TWO different lists,
-    #    we need to update the OLD list too (to remove the card from it).
-    #    (To keep this simple for the tutorial, we will just re-render
-    #    ALL lists on the board. In a huge app, you'd optimize this).
-
+    # Re-render all lists on the board to ensure order/counts update correctly
+    # (In a larger app, you would optimize this to only update the old and new lists)
     board.lists.each do |list|
       Turbo::StreamsChannel.broadcast_replace_to(
         board,
@@ -74,12 +62,13 @@ class CardsController < ApplicationController
   def update
     @card = Card.find(params[:id])
     if @card.update(card_params)
-      # Broadcast change to everyone else
+      # Broadcast change to everyone else viewing the board
       broadcast_card_update
 
       # Respond to the user who made the edit
+      # FIX: Redirect to @card so the Turbo Frame swaps back to the card view
       respond_to do |format|
-        format.html { redirect_to board_path(@card.list.board) }
+        format.html { redirect_to @card }
       end
     else
       render :edit, status: :unprocessable_entity
@@ -89,11 +78,11 @@ class CardsController < ApplicationController
   private
 
   def card_params
-    params.require(:card).permit(:title, :position, :list_id)
+    params.require(:card).permit(:title, :description, :list_id, :assignee_id)
   end
-end
 
-def broadcast_card_update
+  # FIX: Moved this INSIDE the class
+  def broadcast_card_update
     Turbo::StreamsChannel.broadcast_replace_to(
       @card.list.board,
       target: @card,
@@ -101,3 +90,4 @@ def broadcast_card_update
       locals: { card: @card }
     )
   end
+end

@@ -1,3 +1,41 @@
-<h1 class="text-3xl font-bold text-blue-600">
-  Tailwind is not working 🚀
-</h1>
+<div class="max-w-5xl mx-auto py-10 px-4">
+
+  <div class="flex justify-between items-center mb-8">
+    <h1 class="text-3xl font-bold text-gray-800">My Workspaces</h1>
+    <%= link_to "New Board", new_board_path, class: "bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium transition" %>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+
+    <%= link_to new_board_path, class: "group block h-40 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition" do %>
+      <div class="h-10 w-10 rounded-full bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center mb-2 transition">
+        <i class="fa-solid fa-plus text-gray-400 group-hover:text-blue-600"></i>
+      </div>
+      <span class="text-gray-500 font-medium group-hover:text-blue-700">Create new board</span>
+    <% end %>
+
+    <% @boards.each do |board| %>
+
+      <%= link_to board_path(board), class: "block bg-white h-40 rounded-lg shadow-sm hover:shadow-md border border-gray-200 p-4 relative transition group" do %>
+
+        <div class="flex items-start justify-between">
+          <% if board.avatar.attached? %>
+            <%= image_tag board.avatar, class: "h-12 w-12 rounded object-cover border" %>
+          <% else %>
+            <div class="h-12 w-12 rounded bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl">
+              <%= board.name.present? ? board.name.first.upcase : "?" %>
+            </div>
+          <% end %>
+
+          <object>
+            <%= link_to edit_board_path(board), class: "text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition p-1" do %>
+               <i class="fa-solid fa-gear"></i>
+            <% end %>
+          </object>
+        </div>
+
+        <h3 class="mt-4 text-lg font-bold text-gray-800 truncate"><%= board.name %></h3>
+        <p class="text-xs text-gray-500 mt-1">Updated <%= time_ago_in_words(board.updated_at) %> ago</p>
+
+      <% end %> <% end %> </div>
+</div>

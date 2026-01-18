@@ -1,25 +1,27 @@
-<div
-  class="flex-shrink-0 w-72 bg-gray-100 rounded-md shadow-md flex flex-col max-h-full"
-  id="<%= dom_id(list) %>"
-  data-id="<%= list.id %>"
->
-  <%# List Header %>
-  <%= render "lists/header", list: list %>
+<div class="w-72 flex-shrink-0 bg-gray-100 rounded-md p-2 mr-3 flex flex-col max-h-full" id="<%= dom_id(list) %>">
 
-  <%# Cards Container (The Drop Zone) %>
-  <div
-    class="flex-1 p-2 overflow-y-auto min-h-[50px] space-y-2"
-    id="<%= dom_id(list) %>_cards"
-    data-controller="drag"
-    data-drag-url-value="/cards/:id/move"
-  >
-    <%# THIS IS THE KEY CHANGE: %>
-    <%# automatically renders app/views/cards/_card.html.erb for each card %>
-    <%= render list.cards.order(:position) %>
+  <div class="flex justify-between items-center mb-2 handle cursor-grab">
+    <h3 class="font-bold text-gray-700 pl-2"><%= list.name %></h3>
+    <div class="relative">
+       </div>
   </div>
 
-  <%# List Footer (The "Add Card" Form) %>
-  <div class="p-3 border-t border-gray-200">
-     <%= render "lists/form", list: list %>
+  <div id="list_<%= list.id %>_cards"
+        class="flex-1 overflow-y-auto min-h-[50px] space-y-2"
+        data-controller="drag"
+        data-drag-url-value="/cards/:id/move"
+        data-list-id="<%= list.id %>">
+
+      <% list.cards.order(:position).each do |card| %>
+        <%= render card %>
+    <% end %>
+
   </div>
+
+  <div class="mt-2">
+    <%= turbo_frame_tag "list_#{list.id}_new_card" do %>
+      <%= link_to "Add a card", new_list_card_path(list), class: "block p-2 text-gray-500 hover:bg-gray-200 rounded text-sm" %>
+    <% end %>
+  </div>
+
 </div>

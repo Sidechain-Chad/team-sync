@@ -1,15 +1,7 @@
-<%# 1. Append the new card to the correct list container %>
-<%= turbo_stream.append "#{dom_id(@list)}_cards" do %>
-  <div
-    class="bg-white p-3 rounded shadow-sm cursor-move hover:bg-gray-50 mb-2"
-    data-id="<%= @card.id %>"
-  >
-    <h4 class="text-sm font-medium text-gray-800"><%= @card.title %></h4>
-  </div>
+<%= turbo_stream.append "list_#{@list.id}_cards" do %>
+  <%= render @card %>
 <% end %>
 
-<%# 2. Reset the form so the user can type another card immediately %>
-<%= turbo_stream.replace "#{dom_id(@list)}_new_card_form" do %>
-  <%# We are just re-rendering the list footer partial effectively clearing the input %>
-   <%= render partial: "lists/form", locals: { list: @list } %>
+<%= turbo_stream.replace "list_#{@list.id}_new_card" do %>
+  <%= link_to "Add a card", new_list_card_path(@list), class: "block p-2 text-gray-500 hover:bg-gray-200 rounded text-sm" %>
 <% end %>
