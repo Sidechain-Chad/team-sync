@@ -1,0 +1,27 @@
+<%# We use turbo_frame_tag so it matches the Edit form's frame %>
+<%= turbo_frame_tag card,
+    class: "bg-white p-3 rounded shadow-sm cursor-move hover:bg-gray-50 mb-2 group relative block",
+    data: { id: card.id } do %>
+
+  <div class="flex justify-between items-start">
+    <h4 class="text-sm font-medium text-gray-800"><%= card.title %></h4>
+
+    <div class="hidden group-hover:flex space-x-2 bg-white px-1">
+
+      <%# EDIT BUTTON %>
+      <%= link_to "Edit", edit_card_path(card),
+          class: "text-xs text-blue-500 hover:text-blue-700 font-bold",
+          data: { turbo_frame: dom_id(card) } %>
+
+      <%# DELETE BUTTON %>
+      <%= link_to "Del", card_path(card),
+          class: "text-xs text-red-500 hover:text-red-700 font-bold",
+          data: { turbo_method: :delete, turbo_confirm: "Are you sure?" } %>
+    </div>
+  </div>
+
+  <% if card.description.present? %>
+    <p class="text-xs text-gray-500 mt-1 truncate"><%= card.description %></p>
+  <% end %>
+
+<% end %>

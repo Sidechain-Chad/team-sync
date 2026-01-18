@@ -1,0 +1,25 @@
+<div
+  class="flex-shrink-0 w-72 bg-gray-100 rounded-md shadow-md flex flex-col max-h-full"
+  id="<%= dom_id(list) %>"
+  data-id="<%= list.id %>"
+>
+  <%# List Header %>
+  <%= render "lists/header", list: list %>
+
+  <%# Cards Container (The Drop Zone) %>
+  <div
+    class="flex-1 p-2 overflow-y-auto min-h-[50px] space-y-2"
+    id="<%= dom_id(list) %>_cards"
+    data-controller="drag"
+    data-drag-url-value="/cards/:id/move"
+  >
+    <%# THIS IS THE KEY CHANGE: %>
+    <%# automatically renders app/views/cards/_card.html.erb for each card %>
+    <%= render list.cards.order(:position) %>
+  </div>
+
+  <%# List Footer (The "Add Card" Form) %>
+  <div class="p-3 border-t border-gray-200">
+     <%= render "lists/form", list: list %>
+  </div>
+</div>

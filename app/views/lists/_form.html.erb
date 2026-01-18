@@ -1,0 +1,8 @@
+<div id="<%= dom_id(list) %>_new_card_form">
+  <%= form_with(model: [list, Card.new], class: "mt-1") do |f| %>
+    <%= f.text_field :title,
+        placeholder: "+ Add a card...",
+        class: "w-full border-0 bg-transparent text-sm focus:ring-0 px-0 py-1 text-gray-800 placeholder-gray-500",
+        autocomplete: "off" %>
+  <% end %>
+</div>
