@@ -1,0 +1,9 @@
+<%# 1. Insert the new list BEFORE the "Add List" button %>
+<%= turbo_stream.before "new_list_form" do %>
+  <%= render partial: "lists/list", locals: { list: @list } %>
+<% end %>
+
+<%# 2. Reset the form input %>
+<%= turbo_stream.replace "new_list_form" do %>
+  <%= render partial: "boards/new_list_form", locals: { board: @board } %>
+<% end %>

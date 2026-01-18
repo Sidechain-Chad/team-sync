@@ -3,15 +3,11 @@
 <div class="h-screen bg-blue-600 p-4 overflow-x-auto">
   <div class="flex h-full space-x-4">
 
-    <%# This renders the app/views/lists/_list.html.erb partial for each list automatically %>
+    <%# This renders the list columns %>
     <%= render @lists %>
 
-    <%# --- Add List Button --- %>
-    <div class="flex-shrink-0 w-72">
-      <button class="w-full bg-blue-500 hover:bg-blue-400 text-white p-3 rounded-md text-left font-bold bg-opacity-50">
-        + Add another list
-      </button>
-    </div>
+    <%# This renders the "Add List" button from the partial file %>
+    <%= render "boards/new_list_form", board: @board %>
 
   </div>
 </div>

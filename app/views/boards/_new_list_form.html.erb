@@ -1,0 +1,12 @@
+<div class="flex-shrink-0 w-72" id="new_list_form">
+  <div class="w-full bg-blue-500 bg-opacity-50 hover:bg-blue-400 hover:bg-opacity-70 rounded-md transition duration-150 ease-in-out">
+
+    <%= form_with(model: [board, List.new], class: "p-0") do |f| %>
+      <%= f.text_field :name,
+          placeholder: "+ Add new list",
+          class: "w-full bg-transparent border-0 text-white placeholder-white font-bold p-3 text-left focus:ring-0 focus:bg-white focus:text-gray-800 focus:placeholder-gray-400 rounded-md transition-colors cursor-pointer focus:cursor-text",
+          autocomplete: "off" %>
+    <% end %>
+
+  </div>
+</div>
