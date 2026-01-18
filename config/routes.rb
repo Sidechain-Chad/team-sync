@@ -10,6 +10,9 @@ Rails.application.routes.draw do
   end
 
   resources :lists do
+      member do
+        patch :move # POST /lists/:id/move
+      end
       resources :cards, only: [:create]
     end
 

@@ -1,0 +1,14 @@
+<%= turbo_frame_tag "list_#{@list.id}_header" do %>
+  <div class="p-2 border-b border-blue-500 bg-blue-50">
+    <%= form_with(model: @list, class: "flex items-center space-x-2") do |f| %>
+
+      <%= f.text_field :name,
+          class: "w-full border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 font-bold text-gray-800 p-1",
+          autofocus: true %>
+
+      <button type="submit" class="text-green-600 hover:text-green-800 font-bold text-lg leading-none">✓</button>
+      <%= link_to "×", board_path(@list.board), class: "text-gray-500 hover:text-gray-700 font-bold text-lg leading-none" %>
+
+    <% end %>
+  </div>
+<% end %>
