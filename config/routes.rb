@@ -16,6 +16,7 @@ Rails.application.routes.draw do
   # To this (Allow all actions so we can create/edit/destroy):
   resources :boards do
     resources :lists, only: [:create, :update, :destroy]
+    resources :board_users, only: [:create, :destroy]
   end
 
   # Lists

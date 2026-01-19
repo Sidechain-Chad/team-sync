@@ -3,8 +3,11 @@ class BoardsController < ApplicationController
   before_action :set_board, only: [:show, :edit, :update, :destroy]
 
   def index
-    # Show only the current user's boards
-    @boards = current_user.boards
+    # Boards I created
+    @created_boards = current_user.boards
+
+    # Boards shared with me
+    @shared_boards = current_user.shared_boards
   end
 
   def show
@@ -20,7 +23,10 @@ class BoardsController < ApplicationController
     @board = current_user.boards.new(board_params)
 
     if @board.save
-      redirect_to @board, notice: "Board created!"
+      # NEW: Process the invites if any emails were entered
+      invite_users_from_params if params[:emails].present?
+
+      redirect_to @board, notice: "Board created successfully!"
     else
       render :new, status: :unprocessable_entity
     end
@@ -44,6 +50,21 @@ class BoardsController < ApplicationController
   end
 
   private
+
+  def invite_users_from_params
+    # 1. Split the string by commas (e.g. "bob@test.com, alice@test.com")
+    emails = params[:emails].split(',').map(&:strip)
+
+    emails.each do |email|
+      # 2. Find the user (if they exist)
+      user = User.find_by(email: email)
+
+      # 3. Add them to the board if found
+      if user && user != current_user
+        @board.board_users.create(user: user)
+      end
+    end
+  end
 
   def set_board
     @board = current_user.boards.find(params[:id])

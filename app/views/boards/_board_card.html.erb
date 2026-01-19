@@ -1,0 +1,24 @@
+<%= link_to board_path(board), class: "block bg-white h-40 rounded-lg shadow-sm hover:shadow-md border border-gray-200 p-4 relative transition group" do %>
+
+  <div class="flex items-start justify-between">
+    <% if board.avatar.attached? %>
+      <%= image_tag board.avatar, class: "h-12 w-12 rounded object-cover border" %>
+    <% else %>
+      <div class="h-12 w-12 rounded bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl">
+        <%= board.name.present? ? board.name.first.upcase : "?" %>
+      </div>
+    <% end %>
+
+    <% if board.user == current_user %>
+      <object>
+        <%= link_to edit_board_path(board), class: "text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition p-1" do %>
+            <i class="fa-solid fa-gear"></i>
+        <% end %>
+      </object>
+    <% end %>
+  </div>
+
+  <h3 class="mt-4 text-lg font-bold text-gray-800 truncate"><%= board.name %></h3>
+  <p class="text-xs text-gray-500 mt-1">Updated <%= time_ago_in_words(board.updated_at) %> ago</p>
+
+<% end %>
