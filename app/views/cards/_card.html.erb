@@ -7,7 +7,9 @@
 
     <%# Left Side: Title & Description %>
     <div class="flex-1 pr-2">
-      <h4 class="text-sm font-medium text-gray-800 leading-tight"><%= card.title %></h4>
+      <h4 class="text-sm font-medium text-gray-800 leading-tight">
+        <%= link_to card.title, card_path(card), class: "hover:text-blue-600 hover:underline", data: { turbo_frame: "modal" } %>
+      </h4>
       <% if card.description.present? %>
         <p class="text-xs text-gray-500 mt-1 line-clamp-2"><%= card.description %></p>
       <% end %>
