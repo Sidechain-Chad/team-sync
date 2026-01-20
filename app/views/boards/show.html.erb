@@ -1,12 +1,15 @@
 <%= turbo_stream_from @board %>
 
 <div class="h-screen bg-blue-600 p-4 overflow-x-auto">
-    <div class="flex h-full space-x-4" data-controller="list-sort">
+
+    <div id="board_lists" class="flex h-full space-x-4" data-controller="list-sort">
 
     <%# This renders the list columns %>
     <%= render @lists %>
 
-    <%# This renders the "Add List" button from the partial file %>
+    <%# This renders the "Add List" button %>
+    <%# NOTE: Make sure you actually created the file app/views/boards/_new_list_form.html.erb %>
+    <%# If you didn't create that file, paste the full form code here instead. %>
     <%= render "boards/new_list_form", board: @board %>
 
   </div>

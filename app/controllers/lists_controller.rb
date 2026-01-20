@@ -7,7 +7,16 @@ class ListsController < ApplicationController
 
     if @list.save
       respond_to do |format|
-        format.turbo_stream
+        format.turbo_stream do
+          render turbo_stream: [
+            # 1. Insert the new list before the button
+            turbo_stream.before("new_list_form", partial: "lists/list", locals: { list: @list }),
+
+            # 2. Replace the form with a fresh, empty copy (this clears the input)
+            turbo_stream.replace("new_list_form", partial: "boards/new_list_form", locals: { board: @board })
+          ]
+        end
+
         format.html { redirect_to board_path(@board) }
       end
     else
@@ -24,9 +33,12 @@ class ListsController < ApplicationController
     if @list.update(list_params)
       respond_to do |format|
         format.html { redirect_to board_path(@list.board) }
-        format.turbo_stream { render turbo_stream: turbo_stream.replace("list_#{@list.id}_header", partial: "lists/header", locals: { list: @list }) }
+
+        # FIX: Now we simply replace the header partial!
+        format.turbo_stream { render turbo_stream: turbo_stream.replace(helpers.dom_id(@list, :header), partial: "lists/header", locals: { list: @list }) }
       end
     else
+      # If validation fails, re-render the edit form (inline)
       render :edit, status: :unprocessable_entity
     end
   end
