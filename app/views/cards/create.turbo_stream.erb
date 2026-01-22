@@ -1,7 +1,9 @@
+<%# 1. Append the new card to the correct list %>
 <%= turbo_stream.append "list_#{@list.id}_cards" do %>
   <%= render @card %>
 <% end %>
 
+<%# 2. Reset the "Add a card" link so it is empty again %>
 <%= turbo_stream.replace "list_#{@list.id}_new_card" do %>
   <%= link_to "Add a card", new_list_card_path(@list), class: "block p-2 text-gray-500 hover:bg-gray-200 rounded text-sm" %>
 <% end %>

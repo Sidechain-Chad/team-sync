@@ -1,34 +1,121 @@
 <%= turbo_frame_tag "modal" do %>
-  <div class="fixed inset-0 bg-gray-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-       onclick="this.closest('turbo-frame').src = ''; this.closest('turbo-frame').innerHTML = ''">
 
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col relative"
-         onclick="event.stopPropagation()">
+  <div class="fixed inset-0 z-[9999] flex items-center justify-center">
 
-      <button type="button"
-              class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-              onclick="this.closest('turbo-frame').src = ''; this.closest('turbo-frame').innerHTML = ''">
-        <i class="fa-solid fa-xmark text-xl"></i>
-      </button>
+    <%= link_to board_path(@card.list.board),
+        class: "absolute inset-0 bg-black/60 cursor-default",
+        data: { turbo_action: "advance" } do %>
+    <% end %>
 
-      <div class="p-6 overflow-y-auto">
-        <div class="mb-6">
-          <h2 class="text-2xl font-bold text-gray-800"><%= @card.title %></h2>
-          <div class="text-sm text-gray-500">in list <span class="font-bold"><%= @card.list.name %></span></div>
-        </div>
+    <div class="relative z-[10000] bg-[#f4f5f7] w-full max-w-3xl h-[90vh] rounded-lg shadow-2xl overflow-y-auto flex flex-col text-gray-700 m-4 pointer-events-auto">
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div class="md:col-span-2">
-            <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Description</h3>
-            <p class="text-gray-700 text-sm whitespace-pre-wrap"><%= @card.description.presence || "No description provided." %></p>
+      <%= link_to board_path(@card.list.board),
+          class: "absolute top-2 right-2 h-8 w-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition z-50",
+          data: { turbo_action: "advance" } do %>
+        <i class="fa-solid fa-xmark text-lg"></i>
+      <% end %>
+
+      <div class="p-6 grid grid-cols-[1fr_200px] gap-8 text-left">
+
+        <div class="space-y-6">
+
+          <div class="flex items-start gap-3">
+             <i class="fa-solid fa-window-maximize mt-1.5 text-gray-600"></i>
+             <div class="w-full">
+               <h2 class="text-xl font-bold text-gray-800"><%= @card.title %></h2>
+               <p class="text-xs text-gray-500">in list <span class="underline"><%= @card.list.name %></span></p>
+             </div>
           </div>
 
-          <div>
-             <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Actions</h3>
-             <%= link_to "Edit", edit_card_path(@card), class: "block w-full text-center bg-gray-100 p-2 rounded text-sm mb-2" %>
-             <%= button_to "Delete", card_path(@card), method: :delete, class: "block w-full text-center bg-red-50 text-red-600 p-2 rounded text-sm" %>
+          <div class="ml-8">
+             <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Members</h3>
+
+             <div class="flex items-center gap-1">
+
+               <div id="card_face_avatars_<%= @card.id %>" class="flex gap-1">
+                 <%= render "cards/avatars", card: @card %>
+               </div>
+
+               <div class="relative" data-controller="dropdown">
+
+                 <button type="button"
+                         data-action="click->dropdown#toggle"
+                         class="h-6 w-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
+                   <i class="fa-solid fa-plus text-xs"></i>
+                 </button>
+
+                 <div data-dropdown-target="menu" class="hidden absolute top-8 left-0 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-3 flex flex-col gap-3">
+
+                    <div>
+                      <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">Card members</div>
+                      <div id="assigned_members_list" class="space-y-1 min-h-[10px]">
+                        <% @card.members.each do |user| %>
+                          <%= render "cards/member_row", card: @card, user: user, assigned: true %>
+                        <% end %>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">Board members</div>
+                      <div id="available_members_list" class="space-y-1 max-h-48 overflow-y-auto">
+                         <% (User.all - @card.members).each do |user| %>
+                            <%= render "cards/member_row", card: @card, user: user, assigned: false %>
+                         <% end %>
+                      </div>
+                    </div>
+
+                 </div>
+               </div>
+             </div>
           </div>
+
+          <div class="ml-8">
+            <div class="flex items-center gap-2 mb-2">
+              <i class="fa-solid fa-align-left text-gray-600"></i>
+              <h3 class="font-bold text-base">Description</h3>
+            </div>
+
+            <%= turbo_frame_tag dom_id(@card, :description) do %>
+              <% if @card.description.present? %>
+                <%# READ MODE %>
+                <%= link_to edit_description_card_path(@card), class: "block min-h-[40px] cursor-pointer hover:bg-gray-200 rounded p-2 -ml-2 text-sm text-gray-800" do %>
+                  <%= simple_format(@card.description) %>
+                <% end %>
+              <% else %>
+                <%# EMPTY MODE %>
+                <%= link_to edit_description_card_path(@card), class: "block bg-gray-200 hover:bg-gray-300 rounded p-3 text-sm text-gray-600 font-medium h-16" do %>
+                  Add a more detailed description...
+                <% end %>
+              <% end %>
+            <% end %>
+          </div>
+
         </div>
+
+        <div class="space-y-4 pt-8">
+
+          <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Add to card</h4>
+
+          <a href="#" class="block bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition">
+            <i class="fa-regular fa-user mr-1.5 w-4"></i> Members
+          </a>
+          <a href="#" class="block bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition">
+             <i class="fa-solid fa-tag mr-1.5 w-4"></i> Labels
+          </a>
+          <a href="#" class="block bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition">
+             <i class="fa-regular fa-square-check mr-1.5 w-4"></i> Checklist
+          </a>
+
+          <div class="my-4 border-b border-gray-300"></div>
+
+          <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Actions</h4>
+
+          <%= button_to card_path(@card), method: :delete, class: "w-full text-left bg-gray-200 hover:bg-red-100 hover:text-red-700 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition", form: {data: {turbo_confirm: "Delete card?"}} do %>
+             <i class="fa-solid fa-trash mr-1.5 w-4"></i> Delete
+          <% end %>
+
+        </div>
+
       </div>
 
     </div>

@@ -7,6 +7,8 @@ class User < ApplicationRecord
   has_many :boards, dependent: :destroy
   has_many :board_users, dependent: :destroy
   has_many :shared_boards, through: :board_users, source: :board
+  has_many :card_members
+  has_many :assigned_cards, through: :card_members, source: :card
 
   def name
     # If a name column exists in the DB, use it.

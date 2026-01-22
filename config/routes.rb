@@ -31,8 +31,10 @@ Rails.application.routes.draw do
   # Cards (Top level access)
   # :show is crucial for Turbo to "cancel" edits
   resources :cards, only: [:edit, :update, :destroy, :show] do
+    resources :members, only: [:create, :destroy], controller: 'card_members', param: :user_id
     member do
       patch :move # For dragging cards around
+      get :edit_description # NEW
     end
   end
 end

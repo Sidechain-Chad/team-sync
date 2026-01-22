@@ -14,9 +14,10 @@
   </head>
 
   <body>
-    <%= turbo_frame_tag "modal", target: "_top", data: { controller: "modal", action: "turbo:before-render@document->modal#close" } %>
+
     <main class="container mx-auto mt-28 px-5 flex">
       <%= yield %>
     </main>
+    <%= turbo_frame_tag "modal", target: "_top", data: { controller: "modal", action: "turbo:before-render@document->modal#close" } %>
   </body>
 </html>

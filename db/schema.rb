@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_18_190247) do
+ActiveRecord::Schema[7.1].define(version: 2026_01_21_172710) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -59,6 +59,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_18_190247) do
     t.index ["user_id"], name: "index_boards_on_user_id"
   end
 
+  create_table "card_members", force: :cascade do |t|
+    t.bigint "card_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["card_id"], name: "index_card_members_on_card_id"
+    t.index ["user_id"], name: "index_card_members_on_user_id"
+  end
+
   create_table "cards", force: :cascade do |t|
     t.string "title"
     t.text "description"
@@ -97,6 +106,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_18_190247) do
   add_foreign_key "board_users", "boards"
   add_foreign_key "board_users", "users"
   add_foreign_key "boards", "users"
+  add_foreign_key "card_members", "cards"
+  add_foreign_key "card_members", "users"
   add_foreign_key "cards", "lists"
   add_foreign_key "cards", "users", column: "assignee_id"
   add_foreign_key "lists", "boards"

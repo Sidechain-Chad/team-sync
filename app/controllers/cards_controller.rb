@@ -59,26 +59,31 @@ class CardsController < ApplicationController
     @card = Card.find(params[:id])
   end
 
-  def update
+  def edit_description
     @card = Card.find(params[:id])
-    if @card.update(card_params)
-      # Broadcast change to everyone else viewing the board
-      broadcast_card_update
+    # This renders app/views/cards/edit_description.html.erb
+  end
 
-      # Respond to the user who made the edit
-      # FIX: Redirect to @card so the Turbo Frame swaps back to the card view
-      respond_to do |format|
-        format.html { redirect_to @card }
+  def update
+      @card = Card.find(params[:id])
+      if @card.update(card_params)
+        # Broadcast change to everyone else viewing the board
+        broadcast_card_update
+
+        # FIX: Redirect to @card (the modal view) instead of the board
+        # This ensures the Description frame updates in-place correctly.
+        respond_to do |format|
+          format.html { redirect_to @card }
+        end
+      else
+        render :edit, status: :unprocessable_entity
       end
-    else
-      render :edit, status: :unprocessable_entity
-    end
   end
 
   private
 
   def card_params
-    params.require(:card).permit(:title, :description, :list_id, :assignee_id)
+    params.require(:card).permit(:title, :description, :list_id, :due_date, member_ids: [])
   end
 
   # FIX: Moved this INSIDE the class

@@ -1,0 +1,17 @@
+<%= turbo_frame_tag dom_id(@card, :description) do %>
+  <%= form_with(model: @card, class: "space-y-2") do |f| %>
+
+    <%= f.text_area :description,
+        rows: 5,
+        class: "w-full border-2 border-blue-500 rounded p-2 text-sm focus:outline-none focus:ring-0 bg-white",
+        placeholder: "Add a more detailed description...",
+        autofocus: true %>
+
+    <div class="flex items-center gap-2">
+      <%= f.submit "Save", class: "bg-blue-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-blue-700 cursor-pointer" %>
+
+      <%= link_to "Cancel", card_path(@card), class: "text-gray-600 hover:bg-gray-200 px-3 py-1.5 rounded text-sm font-medium no-underline" %>
+    </div>
+
+  <% end %>
+<% end %>
