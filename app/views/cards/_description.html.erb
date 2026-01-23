@@ -1,0 +1,24 @@
+<%# app/views/cards/_description.html.erb %>
+<%= turbo_frame_tag dom_id(card, :description) do %>
+  <% if card.description.present? %>
+    <%# FILLED STATE %>
+    <div class="group relative">
+      <%= link_to edit_description_card_path(card),
+          class: "block w-full text-sm text-gray-700 min-h-[40px] cursor-pointer hover:bg-gray-100 rounded-md p-2 -ml-2 transition-colors" do %>
+
+        <%# Display simple text with line breaks %>
+        <%= simple_format(card.description, {}, wrapper_tag: "div") %>
+      <% end %>
+
+      <%# Optional: Tiny 'Edit' button that appears on hover (Like Trello) %>
+      <%= link_to "Edit", edit_description_card_path(card), class: "absolute top-0 right-0 hidden group-hover:block bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded hover:bg-gray-300" %>
+    </div>
+
+  <% else %>
+    <%# EMPTY STATE (The gray box from your screenshot) %>
+    <%= link_to edit_description_card_path(card),
+        class: "block bg-gray-100 hover:bg-gray-200 h-24 rounded-md p-3 text-sm text-gray-500 font-medium transition-colors cursor-pointer flex flex-col justify-start" do %>
+      <span class="mb-1">Add a more detailed description...</span>
+    <% end %>
+  <% end %>
+<% end %>

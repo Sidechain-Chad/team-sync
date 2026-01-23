@@ -64,6 +64,14 @@ class CardsController < ApplicationController
     # This renders app/views/cards/edit_description.html.erb
   end
 
+  def update_description
+    @card = Card.find(params[:id])
+    @card.update(card_params)
+
+    # After update, we render the 'description' partial again to switch back to read mode
+    render partial: "cards/description", locals: { card: @card }
+  end
+
   def update
       @card = Card.find(params[:id])
       if @card.update(card_params)

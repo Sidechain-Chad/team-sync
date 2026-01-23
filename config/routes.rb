@@ -35,6 +35,7 @@ Rails.application.routes.draw do
     member do
       patch :move # For dragging cards around
       get :edit_description # NEW
+      patch :update_description # Submits the for
     end
   end
 end

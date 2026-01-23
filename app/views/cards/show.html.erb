@@ -92,28 +92,15 @@
 
         </div>
 
+        <%# The Right Sidebar %>
         <div class="space-y-4 pt-8">
-
-          <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Add to card</h4>
-
-          <a href="#" class="block bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition">
-            <i class="fa-regular fa-user mr-1.5 w-4"></i> Members
-          </a>
-          <a href="#" class="block bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition">
-             <i class="fa-solid fa-tag mr-1.5 w-4"></i> Labels
-          </a>
-          <a href="#" class="block bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition">
-             <i class="fa-regular fa-square-check mr-1.5 w-4"></i> Checklist
-          </a>
-
-          <div class="my-4 border-b border-gray-300"></div>
+          <%# We removed the "Add to card" section as requested %>
 
           <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Actions</h4>
 
           <%= button_to card_path(@card), method: :delete, class: "w-full text-left bg-gray-200 hover:bg-red-100 hover:text-red-700 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition", form: {data: {turbo_confirm: "Delete card?"}} do %>
-             <i class="fa-solid fa-trash mr-1.5 w-4"></i> Delete
+            <i class="fa-solid fa-trash mr-1.5 w-4"></i> Delete
           <% end %>
-
         </div>
 
       </div>
