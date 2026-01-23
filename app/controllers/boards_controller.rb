@@ -67,7 +67,8 @@ class BoardsController < ApplicationController
   end
 
   def set_board
-    @board = current_user.boards.find(params[:id])
+    # Finds the board regardless of who created it
+    @board = Board.find(params[:id])
   end
 
   def board_params
