@@ -3,39 +3,21 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = ["menu"]
 
-  connect() {
-    // Bind the close method so we can remove the listener later
-    this.close = this.close.bind(this)
-  }
-
   toggle(event) {
+    // Stop the click from bubbling up to the window immediately,
+    // otherwise the 'click@window' action will catch it and close the menu instantly.
     event.preventDefault()
-    event.stopPropagation() // Stop click from immediately bubbling to window
+    event.stopPropagation()
 
-    if (this.menuTarget.classList.contains("hidden")) {
-      this.openMenu()
-    } else {
-      this.closeMenu()
-    }
+    this.menuTarget.classList.toggle("hidden")
   }
 
-  openMenu() {
-    this.menuTarget.classList.remove("hidden")
-    // Listen for clicks anywhere on the screen
-    window.addEventListener("click", this.close)
-  }
-
-  closeMenu() {
-    this.menuTarget.classList.add("hidden")
-    // Stop listening to save memory
-    window.removeEventListener("click", this.close)
-  }
-
-  close(event) {
-    // If the click happened inside the dropdown, do nothing (keep it open)
+  // Close if clicked outside (Triggered by data-action="click@window->dropdown#hide")
+  hide(event) {
+    // If the click is inside this dropdown wrapper, do nothing
     if (this.element.contains(event.target)) return
 
-    // If click happened outside, close it
-    this.closeMenu()
+    // Otherwise, hide the menu
+    this.menuTarget.classList.add("hidden")
   }
 }

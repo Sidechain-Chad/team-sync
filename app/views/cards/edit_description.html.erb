@@ -1,25 +1,158 @@
-<%# app/views/cards/edit_description.html.erb %>
 <%= turbo_frame_tag dom_id(@card, :description) do %>
-  <%= form_with model: @card, url: update_description_card_path(@card), method: :patch, class: "space-y-3" do |f| %>
 
-    <%# The Text Area %>
-    <div class="relative">
-      <%= f.text_area :description,
-          rows: 6,
-          class: "w-full p-3 text-sm text-gray-700 border-2 border-blue-500 rounded-md focus:ring-0 focus:border-blue-500 bg-white shadow-sm resize-y",
-          placeholder: "Add a more detailed description...",
-          autofocus: true
-      %>
+  <%= form_with(model: @card, url: update_description_card_path(@card), method: :patch, class: "space-y-3") do |f| %>
+
+    <%# EDITOR CONTAINER %>
+    <div class="border border-gray-300 rounded-md bg-white shadow-sm overflow-visible relative group"
+         data-controller="tiptap">
+
+      <%# --- TOOLBAR --- %>
+      <%# --- TOOLBAR --- %>
+      <div class="flex items-center gap-1 p-1 border-b border-gray-200 bg-gray-50 text-gray-600 rounded-t-md relative z-20" data-tiptap-target="toolbar">
+
+        <%# 1. TEXT STYLES (Tt) %>
+        <div class="relative">
+          <button type="button" data-action="click->tiptap#toggleHeadingMenu" class="hover:bg-gray-200 p-1.5 rounded flex items-center gap-1 text-sm font-semibold px-2" title="Text styles">
+             <span class="font-serif font-bold text-lg leading-none">Tt</span>
+             <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
+          </button>
+          <div data-tiptap-target="headingMenu" class="hidden absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 shadow-xl rounded-md z-50 py-2 flex flex-col text-left max-h-[300px] overflow-y-auto">
+             <%# Normal %>
+             <button type="button" data-action="click->tiptap#setHeading" data-level="0" class="flex items-center justify-between w-full px-4 py-2 hover:bg-gray-100 group">
+               <span class="text-sm text-gray-700">Normal text</span>
+               <span class="text-xs text-gray-400 group-hover:text-gray-500">Ctrl+Alt+0</span>
+             </button>
+             <%# Headings 1-6 %>
+             <% (1..6).each do |i| %>
+               <button type="button" data-action="click->tiptap#setHeading" data-level="<%= i %>" class="flex items-center justify-between w-full px-4 py-2 hover:bg-gray-100 group">
+                 <span class="<%= case i; when 1 then 'text-2xl'; when 2 then 'text-xl'; when 3 then 'text-lg'; else 'text-base'; end %> font-bold text-gray-800">Heading <%= i %></span>
+                 <span class="text-xs text-gray-400 group-hover:text-gray-500 font-normal">Ctrl+Alt+<%= i %></span>
+               </button>
+             <% end %>
+          </div>
+        </div>
+
+        <div class="w-px h-4 bg-gray-300 mx-1"></div>
+
+        <%# 2. BASIC FORMATTING %>
+        <button type="button" data-action="click->tiptap#toggleBold" class="hover:bg-gray-200 p-1.5 rounded" title="Bold (Ctrl+B)">
+          <i class="fa-solid fa-bold"></i>
+        </button>
+        <button type="button" data-action="click->tiptap#toggleItalic" class="hover:bg-gray-200 p-1.5 rounded" title="Italic (Ctrl+I)">
+          <i class="fa-solid fa-italic"></i>
+        </button>
+
+        <%# 3. MORE OPTIONS (...) %>
+        <div class="relative">
+          <button type="button" data-action="click->tiptap#toggleMoreMenu" class="hover:bg-gray-200 p-1.5 rounded" title="More formatting">
+            <i class="fa-solid fa-ellipsis"></i>
+          </button>
+          <div data-tiptap-target="moreMenu" class="hidden absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 shadow-xl rounded-md z-50 py-1 flex flex-col text-left">
+            <button type="button" data-action="click->tiptap#toggleStrike" class="flex items-center justify-between w-full px-4 py-2 hover:bg-gray-100 group text-sm">
+              <span class="text-gray-700 line-through">Strikethrough</span>
+              <span class="text-xs text-gray-400">Ctrl+Shift+S</span>
+            </button>
+            <button type="button" data-action="click->tiptap#toggleCode" class="flex items-center justify-between w-full px-4 py-2 hover:bg-gray-100 group text-sm">
+              <span class="text-gray-700 font-mono bg-gray-100 px-1 rounded">Code</span>
+              <span class="text-xs text-gray-400">Ctrl+Shift+M</span>
+            </button>
+            <div class="h-px bg-gray-200 my-1"></div>
+            <button type="button" data-action="click->tiptap#clearFormatting" class="flex items-center justify-between w-full px-4 py-2 hover:bg-gray-100 group text-sm text-red-600">
+              <span>Clear formatting</span>
+              <span class="text-xs text-gray-400">Ctrl+\</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="w-px h-4 bg-gray-300 mx-1"></div>
+
+        <%# 4. LISTS %>
+        <button type="button" data-action="click->tiptap#toggleBulletList" class="hover:bg-gray-200 p-1.5 rounded" title="Bullet List">
+          <i class="fa-solid fa-list-ul"></i>
+        </button>
+        <button type="button" data-action="click->tiptap#toggleOrderedList" class="hover:bg-gray-200 p-1.5 rounded" title="Numbered List">
+          <i class="fa-solid fa-list-ol"></i>
+        </button>
+
+        <div class="w-px h-4 bg-gray-300 mx-1"></div>
+
+        <%# 5. LINK %>
+        <div class="relative">
+           <button type="button" data-action="click->tiptap#toggleLinkMenu" class="hover:bg-gray-200 p-1.5 rounded" title="Link">
+             <i class="fa-solid fa-link"></i>
+           </button>
+           <div data-tiptap-target="linkMenu" class="hidden absolute top-full left-0 mt-1 w-72 bg-white border border-gray-200 shadow-xl rounded-md z-50 p-3">
+             <div class="mb-2">
+               <label class="block text-xs font-bold text-gray-500 mb-1">Link</label>
+               <input type="text" id="link-url-input" class="w-full text-sm border border-gray-300 rounded p-1.5" placeholder="Paste a link">
+             </div>
+             <div class="mb-3">
+               <label class="block text-xs font-bold text-gray-500 mb-1">Text to display</label>
+               <input type="text" id="link-text-input" class="w-full text-sm border border-gray-300 rounded p-1.5" placeholder="Text to display">
+             </div>
+             <div class="flex gap-2">
+               <button type="button" data-action="click->tiptap#setLink" class="bg-blue-600 text-white text-sm px-3 py-1 rounded hover:bg-blue-700">Insert</button>
+               <button type="button" data-action="click->tiptap#toggleLinkMenu" class="text-gray-500 text-sm px-3 py-1 hover:text-gray-700">Cancel</button>
+             </div>
+           </div>
+        </div>
+
+        <%# 6. IMAGE %>
+        <div class="relative">
+          <button type="button" data-action="click->tiptap#toggleImageMenu" class="hover:bg-gray-200 p-1.5 rounded" title="Image">
+            <i class="fa-regular fa-image"></i>
+          </button>
+          <div data-tiptap-target="imageMenu" class="hidden absolute top-full left-0 mt-1 w-72 bg-white border border-gray-200 shadow-xl rounded-md z-50 p-3">
+             <div class="mb-2">
+               <label class="block text-xs font-bold text-gray-500 mb-1">Attach an image link</label>
+               <div class="flex gap-1">
+                 <input type="text" id="image-url-input" class="w-full text-sm border border-gray-300 rounded p-1.5" placeholder="https://example.com/image.png">
+                 <button type="button" data-action="click->tiptap#setImage" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded text-sm font-medium">Add</button>
+               </div>
+             </div>
+             <div class="text-center mt-2 border-t border-gray-100 pt-2">
+               <span class="text-xs text-gray-400">Upload from computer (Pro)</span>
+             </div>
+          </div>
+        </div>
+
+        <%# 7. INSERT ELEMENTS (+) %>
+        <div class="relative">
+          <button type="button" data-action="click->tiptap#toggleInsertMenu" class="hover:bg-gray-200 p-1.5 rounded" title="Insert elements">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+          <div data-tiptap-target="insertMenu" class="hidden absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 shadow-xl rounded-md z-50 py-1 flex flex-col text-left">
+            <div class="px-4 py-1 text-xs font-bold text-gray-500 uppercase">Insert</div>
+            <button type="button" data-action="click->tiptap#addDivider" class="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
+              <i class="fa-solid fa-minus text-gray-400 w-4"></i> Divider
+            </button>
+            <button type="button" data-action="click->tiptap#toggleBlockquote" class="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
+              <i class="fa-solid fa-quote-right text-gray-400 w-4"></i> Quote
+            </button>
+            <button type="button" data-action="click->tiptap#toggleCodeBlock" class="flex items-center gap-3 w-full px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
+              <i class="fa-solid fa-file-code text-gray-400 w-4"></i> Code snippet
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <%# --- THE EDITOR CONTENT --- %>
+      <%# This is where TipTap renders the text %>
+      <div data-tiptap-target="element" class="prose prose-sm max-w-none p-4 min-h-[120px] focus:outline-none"></div>
+
+      <%# HIDDEN INPUT to sync data to Rails %>
+      <%= f.hidden_field :description, data: { tiptap_target: "input" } %>
+
     </div>
 
-    <%# The Toolbar %>
-    <div class="flex items-center gap-2">
-      <%= f.submit "Save", class: "bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 rounded transition-colors cursor-pointer" %>
-
-      <%# Cancel Button %>
-      <%# Clicking this requests the 'show' page. Turbo extracts the read-only frame from it. %>
-      <%= link_to "Cancel", card_path(@card), class: "text-gray-500 hover:text-gray-700 text-sm px-3 py-1.5 hover:bg-gray-100 rounded transition-colors" %>
+    <%# SAVE / CANCEL BUTTONS %>
+    <div class="flex items-center gap-2 mt-2">
+      <%= f.submit "Save", class: "bg-blue-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-blue-700 cursor-pointer shadow-sm" %>
+      <%= link_to "Cancel", card_path(@card),
+          class: "text-gray-600 hover:bg-gray-200 px-3 py-1.5 rounded text-sm transition-colors" %>
     </div>
 
   <% end %>
+
 <% end %>

@@ -8,31 +8,87 @@
     <% end %>
 
     <%# THE MODAL BOX %>
-    <%# 1. Width: max-w-6xl to allow side-by-side layout %>
-    <%# 2. Height: Fixed h-[90vh] so scrolling happens inside %>
     <div class="relative z-[10000] bg-[#f4f5f7] w-full max-w-6xl h-[90vh] rounded-lg shadow-2xl flex flex-col text-gray-700 m-4 pointer-events-auto">
 
-      <%# Close Button %>
-      <%= link_to board_path(@card.list.board),
-          class: "absolute top-4 right-4 h-8 w-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition z-50 text-gray-500",
-          data: { turbo_action: "advance" } do %>
-        <i class="fa-solid fa-xmark text-xl"></i>
-      <% end %>
+      <%# --- HEADER SECTION (With Move Card Popover) --- %>
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-300 bg-[#f4f5f7] rounded-t-lg shrink-0 z-20 relative">
+
+        <%# LIST DROPDOWN (Triggers Move Menu) %>
+        <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
+
+          <%# 1. The Trigger Button %>
+          <button type="button" data-action="click->dropdown#toggle" class="flex items-center gap-2 bg-[#e9ebee] hover:bg-gray-300 px-3 py-1.5 rounded text-sm font-semibold text-gray-700 cursor-pointer transition-colors">
+            <span><%= @card.list.name %></span>
+            <i class="fa-solid fa-chevron-down text-xs"></i>
+          </button>
+
+          <%# 2. The Move Menu Popover %>
+          <div data-dropdown-target="menu" class="hidden absolute top-full left-0 mt-2 w-72 bg-white border border-gray-300 rounded-lg shadow-xl z-[1001] flex flex-col text-left">
+
+            <%# Popover Header %>
+            <div class="p-2 border-b border-gray-200 flex items-center justify-center relative">
+              <span class="text-xs font-bold text-gray-500">Move card</span>
+              <button type="button" data-action="click->dropdown#toggle" class="absolute right-2 top-2 text-gray-400 hover:text-gray-600 p-1">
+                <i class="fa-solid fa-xmark text-sm"></i>
+              </button>
+            </div>
+
+            <%# Popover Body (The Form) %>
+            <div class="p-3 bg-gray-50 rounded-b-lg">
+              <div class="text-xs font-bold text-gray-500 mb-2 uppercase">Select destination</div>
+
+              <%= form_with model: @card, method: :patch, class: "space-y-3" do |f| %>
+
+                <%# Board Field (Read Only) %>
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 mb-1">Board</label>
+                  <div class="w-full p-2 bg-gray-200 border border-gray-300 rounded text-sm text-gray-600 cursor-not-allowed truncate">
+                    <%= @card.list.board.name %>
+                  </div>
+                </div>
+
+                <%# List Select %>
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 mb-1">List</label>
+                  <%= f.collection_select :list_id,
+                      @card.list.board.lists.order(:position),
+                      :id,
+                      :name,
+                      { selected: @card.list_id },
+                      { class: "w-full p-2 bg-white border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }
+                  %>
+                </div>
+
+                <%# Move Button %>
+                <%= f.submit "Move", class: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer mt-2 shadow-sm transition-colors" %>
+
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <%# CLOSE BUTTON %>
+        <div class="flex items-center gap-3">
+           <%= link_to board_path(@card.list.board),
+              class: "text-gray-500 hover:text-gray-700 transition flex items-center justify-center p-1",
+              data: { turbo_action: "advance" } do %>
+            <i class="fa-solid fa-xmark text-xl"></i>
+          <% end %>
+        </div>
+      </div>
 
       <%# MAIN GRID LAYOUT %>
-      <%# grid-cols-[1fr_400px]: Left side expands, Right side is fixed at 400px (Chat width) %>
       <div class="flex-1 grid grid-cols-[1fr_400px] overflow-hidden">
 
-        <%# --- LEFT COLUMN: Description & Details (Scrollable) --- %>
+        <%# --- LEFT COLUMN --- %>
         <div class="p-8 overflow-y-auto border-r border-gray-200">
           <div class="space-y-8">
 
-            <%# 1. Header %>
+            <%# 1. Title %>
             <div class="flex items-start gap-4">
                <i class="fa-solid fa-window-maximize mt-1.5 text-gray-600 text-lg"></i>
                <div class="w-full">
                  <h2 class="text-xl font-bold text-gray-800 leading-tight"><%= @card.title %></h2>
-                 <p class="text-sm text-gray-500 mt-1">in list <span class="underline text-gray-700"><%= @card.list.name %></span></p>
                </div>
             </div>
 
@@ -73,28 +129,40 @@
             <%# 3. Description %>
             <div class="ml-9">
               <div class="flex items-center justify-between mb-3">
-  <div class="flex items-center gap-3">
-    <i class="fa-solid fa-align-left text-gray-600 text-lg"></i>
-    <h3 class="font-bold text-lg text-gray-800">Description</h3>
-  </div>
+                <div class="flex items-center gap-3">
+                  <i class="fa-solid fa-align-left text-gray-600 text-lg"></i>
+                  <h3 class="font-bold text-lg text-gray-800">Description</h3>
+                </div>
 
-  <%# Always visible Edit button %>
-  <%= link_to "Edit", edit_description_card_path(@card),
-      class: "bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium px-3 py-1 rounded transition-colors" %>
-</div>
+                <%# FIX: Added data: { turbo_frame: dom_id(@card, :description) } %>
+                <%# This tells Rails: "Don't go to a new page. Load the result INSIDE the description box below." %>
+                <%= link_to "Edit", edit_description_card_path(@card),
+                    class: "bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium px-3 py-1 rounded transition-colors",
+                    data: { turbo_frame: dom_id(@card, :description) } %>
+              </div>
+
               <%= render "cards/description", card: @card %>
             </div>
 
           </div>
         </div>
 
-        <%# --- RIGHT COLUMN: Activity & Comments (Scrollable) --- %>
-        <div class="bg-gray-50 p-6 overflow-y-auto flex flex-col h-full">
+        <%# --- RIGHT COLUMN --- %>
+        <div class="bg-gray-50 p-6 overflow-y-auto flex flex-col h-full" data-controller="activity-toggle">
 
-          <%# Header %>
-          <div class="flex items-center gap-2 mb-4 shrink-0">
-            <i class="fa-solid fa-list-ul text-gray-600"></i>
-            <h3 class="font-bold text-base text-gray-800">Activity</h3>
+          <%# Header with Toggle Button %>
+          <div class="flex items-center justify-between mb-4 shrink-0">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-list-ul text-gray-600"></i>
+              <h3 class="font-bold text-base text-gray-800">Activity</h3>
+            </div>
+
+            <button type="button"
+                    data-activity-toggle-target="button"
+                    data-action="click->activity-toggle#toggle"
+                    class="text-xs font-medium text-gray-600 hover:text-gray-800 bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded transition-colors">
+              Hide details
+            </button>
           </div>
 
           <%# Comment Input %>
@@ -103,14 +171,14 @@
           </div>
 
           <%# Comment Stream %>
-          <div class="flex-1 overflow-y-auto pr-2 space-y-4">
+          <div class="flex-1 overflow-y-auto pr-2 space-y-4 transition-all" data-activity-toggle-target="list">
             <%= turbo_stream_from @card %>
             <div id="comments_list" class="space-y-4">
               <%= render @card.comments.order(created_at: :desc) %>
             </div>
           </div>
 
-          <%# Actions (Delete) - Pushed to bottom %>
+          <%# Actions (Delete) %>
           <div class="mt-6 pt-4 border-t border-gray-200 shrink-0">
             <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Actions</h4>
             <%= button_to card_path(@card), method: :delete, class: "w-full text-left bg-gray-200 hover:bg-red-100 hover:text-red-700 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 justify-center", form: {data: {turbo_confirm: "Delete card?"}} do %>

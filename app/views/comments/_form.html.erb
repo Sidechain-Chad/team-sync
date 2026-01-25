@@ -1,22 +1,29 @@
 <%= turbo_frame_tag "new_comment_form" do %>
-  <%= form_with(model: [card, Comment.new], class: "relative group") do |f| %>
+  <%# Attach controller and 'click@window' listener %>
+  <%= form_with(model: [card, Comment.new],
+      class: "relative group",
+      data: {
+        controller: "comment-form",
+        action: "click@window->comment-form#clickOutside"
+      }) do |f| %>
 
     <%= f.text_area :content,
         rows: 1,
-        class: "w-full border border-gray-200 rounded-md py-2 px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all placeholder-gray-500",
+        class: "w-full border border-gray-200 rounded-md py-2 px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all placeholder-gray-500 resize-none",
         placeholder: "Write a comment...",
         style: "min-height: 40px;",
         data: {
-          controller: "submit-on-enter",
-          action: "keydown->submit-on-enter#submit"
-        },
-        onclick: "this.rows = 3; document.getElementById('comment_toolbar').classList.remove('hidden');"
+          comment_form_target: "input",
+          action: "focus->comment-form#expand keydown->comment-form#submitOnEnter"
+        }
     %>
 
-    <%# Changed 'hidden' logic slightly so it stays visible if typing %>
-    <div id="comment_toolbar" class="hidden mt-2 flex items-center gap-2">
-       <%# CHANGED LABEL TO 'Send' %>
-       <%= f.submit "Send", class: "bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 cursor-pointer shadow-sm" %>
+    <%# Toolbar (Contains the SEND BUTTON) %>
+    <%# This starts hidden, but the controller reveals it when you click the input %>
+    <div data-comment_form_target="toolbar" class="hidden mt-2 flex items-center gap-2">
+       <%= f.submit "Send",
+           class: "bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 cursor-pointer shadow-sm",
+           data: { comment_form_target: "submitButton" } %>
     </div>
 
   <% end %>
