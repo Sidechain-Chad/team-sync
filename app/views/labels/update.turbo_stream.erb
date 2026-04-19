@@ -1,0 +1,23 @@
+<% card = Card.find(params[:card_id]) %>
+
+<%# 1. Replace the row's frame back with the read-only row %>
+<%= turbo_stream.replace "label_row_#{@label.id}" do %>
+  <%= render "cards/label_row", card: card, label: @label %>
+<% end %>
+
+<%# 2. Refresh the pill strip on the card we're editing from %>
+<%= turbo_stream.update "card_labels_pills_#{card.id}" do %>
+  <%= render "cards/label_pills", card: card %>
+<% end %>
+
+<%# 3. Broadcast the renamed/recolored label to all cards on the board
+       so their pills update too. (Cheap: just re-broadcasts each card
+       that uses this label.) %>
+<% @label.cards.each do |c| %>
+  <% Turbo::StreamsChannel.broadcast_replace_to(
+       @board,
+       target: c,
+       partial: "cards/card",
+       locals: { card: c }
+     ) %>
+<% end %>

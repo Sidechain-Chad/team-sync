@@ -17,7 +17,14 @@ Rails.application.routes.draw do
   resources :boards do
     resources :lists, only: [:create, :update, :destroy]
     resources :board_users, only: [:create, :destroy]
+    resources :labels, only: [:new, :create, :edit, :update, :destroy]
   end
+
+  # Cancel routes for the inline label edit/create forms.
+  # They just re-render the read-only row (or the create trigger)
+  # back into the Turbo frame.
+  get "cards/:card_id/labels/:label_id/cancel_edit", to: "labels#cancel_edit", as: :label_row_cancel
+  get "cards/:card_id/labels/cancel_new",            to: "labels#cancel_new",  as: :new_label_cancel
 
   # Lists
   resources :lists do
@@ -33,6 +40,7 @@ Rails.application.routes.draw do
   resources :cards, only: [:edit, :update, :destroy, :show] do
     resources :members, only: [:create, :destroy], controller: 'card_members', param: :user_id
     resources :comments, only: [:create, :destroy]
+    resources :labels, only: [:create, :destroy], controller: 'card_labels', param: :label_id
     member do
       patch :move # For dragging cards around
       get :edit_description # NEW

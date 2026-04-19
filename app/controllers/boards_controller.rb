@@ -11,8 +11,9 @@ class BoardsController < ApplicationController
   end
 
   def show
-    # Fetch all lists belonging to this board so the view can render them
-    @lists = @board.lists.order(:created_at)
+    # Fetch lists in their drag-and-drop order, not creation order,
+    # otherwise reordered lists snap back on every page refresh.
+    @lists = @board.lists.order(:position)
   end
 
   def new

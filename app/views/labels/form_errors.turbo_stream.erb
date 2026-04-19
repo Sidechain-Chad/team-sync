@@ -1,0 +1,8 @@
+<% card = Card.find(params[:card_id]) %>
+<% frame_id = @label.new_record? ? "new_label_row" : "label_row_#{@label.id}" %>
+<%= turbo_stream.replace frame_id do %>
+  <div class="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+    Could not save label: <%= @label.errors.full_messages.to_sentence %>
+  </div>
+  <%= render "cards/label_form", board: @board, label: @label, card: card %>
+<% end %>

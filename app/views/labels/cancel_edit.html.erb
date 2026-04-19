@@ -1,0 +1,4 @@
+<%# Wrap in the same frame the form lives in, so Turbo can find it. %>
+<%= turbo_frame_tag "label_row_#{@label.id}" do %>
+  <%= render "cards/label_row", card: @card, label: @label %>
+<% end %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_20_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -59,6 +59,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
     t.index ["user_id"], name: "index_boards_on_user_id"
   end
 
+  create_table "card_labels", force: :cascade do |t|
+    t.bigint "card_id", null: false
+    t.bigint "label_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["card_id", "label_id"], name: "index_card_labels_on_card_id_and_label_id", unique: true
+    t.index ["card_id"], name: "index_card_labels_on_card_id"
+    t.index ["label_id"], name: "index_card_labels_on_label_id"
+  end
+
   create_table "card_members", force: :cascade do |t|
     t.bigint "card_id", null: false
     t.bigint "user_id", null: false
@@ -76,6 +86,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "assignee_id"
+    t.datetime "due_date"
+    t.boolean "completed"
     t.index ["assignee_id"], name: "index_cards_on_assignee_id"
     t.index ["list_id"], name: "index_cards_on_list_id"
   end
@@ -88,6 +100,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
     t.datetime "updated_at", null: false
     t.index ["card_id"], name: "index_comments_on_card_id"
     t.index ["user_id"], name: "index_comments_on_user_id"
+  end
+
+  create_table "labels", force: :cascade do |t|
+    t.bigint "board_id", null: false
+    t.string "name"
+    t.string "color", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["board_id"], name: "index_labels_on_board_id"
   end
 
   create_table "lists", force: :cascade do |t|
@@ -116,11 +137,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
   add_foreign_key "board_users", "boards"
   add_foreign_key "board_users", "users"
   add_foreign_key "boards", "users"
+  add_foreign_key "card_labels", "cards"
+  add_foreign_key "card_labels", "labels"
   add_foreign_key "card_members", "cards"
   add_foreign_key "card_members", "users"
   add_foreign_key "cards", "lists"
   add_foreign_key "cards", "users", column: "assignee_id"
   add_foreign_key "comments", "cards"
   add_foreign_key "comments", "users"
+  add_foreign_key "labels", "boards"
   add_foreign_key "lists", "boards"
 end

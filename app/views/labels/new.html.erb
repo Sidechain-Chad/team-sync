@@ -1,0 +1,2 @@
+<% card = Card.find(params[:card_id]) %>
+<%= render "cards/label_form", board: @board, label: @label, card: card %>

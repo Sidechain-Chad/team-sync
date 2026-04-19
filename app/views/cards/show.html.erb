@@ -1,7 +1,7 @@
 <%= turbo_frame_tag "modal" do %>
   <div class="fixed inset-0 z-[9999] flex items-center justify-center">
 
-    <%# Overlay %>
+    <%# Overlay (clicking it closes the modal by navigating back to the board) %>
     <%= link_to board_path(@card.list.board),
         class: "absolute inset-0 bg-black/60 cursor-default",
         data: { turbo_action: "advance" } do %>
@@ -10,36 +10,38 @@
     <%# THE MODAL BOX %>
     <div class="relative z-[10000] bg-[#f4f5f7] w-full max-w-6xl h-[90vh] rounded-lg shadow-2xl flex flex-col text-gray-700 m-4 pointer-events-auto">
 
-      <%# --- HEADER SECTION (With Move Card Popover) --- %>
+      <%# =========================================================== %>
+      <%# HEADER — current list name (click to open Move Card popover) %>
+      <%# =========================================================== %>
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-300 bg-[#f4f5f7] rounded-t-lg shrink-0 z-20 relative">
 
-        <%# LIST DROPDOWN (Triggers Move Menu) %>
+        <%# MOVE CARD POPOVER %>
         <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
 
-          <%# 1. The Trigger Button %>
-          <button type="button" data-action="click->dropdown#toggle" class="flex items-center gap-2 bg-[#e9ebee] hover:bg-gray-300 px-3 py-1.5 rounded text-sm font-semibold text-gray-700 cursor-pointer transition-colors">
+          <%# Trigger: shows the current list name, clicking opens the Move popover %>
+          <button type="button" data-action="click->dropdown#toggle"
+                  class="flex items-center gap-2 bg-[#e9ebee] hover:bg-gray-300 px-3 py-1.5 rounded text-sm font-semibold text-gray-700 cursor-pointer transition-colors">
             <span><%= @card.list.name %></span>
             <i class="fa-solid fa-chevron-down text-xs"></i>
           </button>
 
-          <%# 2. The Move Menu Popover %>
-          <div data-dropdown-target="menu" class="hidden absolute top-full left-0 mt-2 w-72 bg-white border border-gray-300 rounded-lg shadow-xl z-[1001] flex flex-col text-left">
+          <%# Popover body %>
+          <div data-dropdown-target="menu"
+               class="hidden absolute top-full left-0 mt-2 w-72 bg-white border border-gray-300 rounded-lg shadow-xl z-[1001] flex flex-col text-left">
 
-            <%# Popover Header %>
             <div class="p-2 border-b border-gray-200 flex items-center justify-center relative">
               <span class="text-xs font-bold text-gray-500">Move card</span>
-              <button type="button" data-action="click->dropdown#toggle" class="absolute right-2 top-2 text-gray-400 hover:text-gray-600 p-1">
+              <button type="button" data-action="click->dropdown#toggle"
+                      class="absolute right-2 top-2 text-gray-400 hover:text-gray-600 p-1">
                 <i class="fa-solid fa-xmark text-sm"></i>
               </button>
             </div>
 
-            <%# Popover Body (The Form) %>
             <div class="p-3 bg-gray-50 rounded-b-lg">
               <div class="text-xs font-bold text-gray-500 mb-2 uppercase">Select destination</div>
 
               <%= form_with model: @card, method: :patch, class: "space-y-3" do |f| %>
 
-                <%# Board Field (Read Only) %>
                 <div>
                   <label class="block text-xs font-bold text-gray-700 mb-1">Board</label>
                   <div class="w-full p-2 bg-gray-200 border border-gray-300 rounded text-sm text-gray-600 cursor-not-allowed truncate">
@@ -47,7 +49,6 @@
                   </div>
                 </div>
 
-                <%# List Select %>
                 <div>
                   <label class="block text-xs font-bold text-gray-700 mb-1">List</label>
                   <%= f.collection_select :list_id,
@@ -55,12 +56,11 @@
                       :id,
                       :name,
                       { selected: @card.list_id },
-                      { class: "w-full p-2 bg-white border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }
-                  %>
+                      { class: "w-full p-2 bg-white border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" } %>
                 </div>
 
-                <%# Move Button %>
-                <%= f.submit "Move", class: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer mt-2 shadow-sm transition-colors" %>
+                <%= f.submit "Move",
+                    class: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer mt-2 shadow-sm transition-colors" %>
 
               <% end %>
             </div>
@@ -69,7 +69,7 @@
 
         <%# CLOSE BUTTON %>
         <div class="flex items-center gap-3">
-           <%= link_to board_path(@card.list.board),
+          <%= link_to board_path(@card.list.board),
               class: "text-gray-500 hover:text-gray-700 transition flex items-center justify-center p-1",
               data: { turbo_action: "advance" } do %>
             <i class="fa-solid fa-xmark text-xl"></i>
@@ -77,7 +77,9 @@
         </div>
       </div>
 
-      <%# MAIN GRID LAYOUT %>
+      <%# =========================================================== %>
+      <%# MAIN GRID — left content + right sidebar                    %>
+      <%# =========================================================== %>
       <div class="flex-1 grid grid-cols-[1fr_400px] overflow-hidden">
 
         <%# --- LEFT COLUMN --- %>
@@ -86,44 +88,131 @@
 
             <%# 1. Title %>
             <div class="flex items-start gap-4">
-               <i class="fa-solid fa-window-maximize mt-1.5 text-gray-600 text-lg"></i>
-               <div class="w-full">
-                 <h2 class="text-xl font-bold text-gray-800 leading-tight"><%= @card.title %></h2>
-               </div>
+              <i class="fa-solid fa-window-maximize mt-1.5 text-gray-600 text-lg"></i>
+              <div class="w-full">
+                <h2 class="text-xl font-bold text-gray-800 leading-tight"><%= @card.title %></h2>
+              </div>
             </div>
 
             <%# 2. Members %>
             <div class="ml-9">
-               <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Members</h3>
-               <div class="flex items-center gap-1">
-                 <div id="card_face_avatars_<%= @card.id %>" class="flex gap-1">
-                   <%= render "cards/avatars", card: @card %>
-                 </div>
+              <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Members</h3>
+              <div class="flex items-center gap-1">
 
-                 <div class="relative" data-controller="dropdown">
-                   <button type="button" data-action="click->dropdown#toggle" class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
-                     <i class="fa-solid fa-plus text-sm text-gray-600"></i>
-                   </button>
-                   <div data-dropdown-target="menu" class="hidden absolute top-10 left-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-3 flex flex-col gap-3">
-                     <div>
-                       <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">Card members</div>
-                       <div id="assigned_members_list" class="space-y-1">
-                         <% @card.members.each do |user| %>
-                           <%= render "cards/member_row", card: @card, user: user, assigned: true %>
-                         <% end %>
-                       </div>
-                     </div>
-                     <div>
-                       <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">Board members</div>
-                       <div id="available_members_list" class="space-y-1 max-h-48 overflow-y-auto">
-                          <% (User.all - @card.members).each do |user| %>
-                             <%= render "cards/member_row", card: @card, user: user, assigned: false %>
-                          <% end %>
-                       </div>
-                     </div>
-                   </div>
-                 </div>
-               </div>
+                <%# Avatars of currently assigned members %>
+                <div id="card_face_avatars_<%= @card.id %>" class="flex gap-1">
+                  <%= render "cards/avatars", card: @card %>
+                </div>
+
+                <%# Member-picker dropdown %>
+                <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
+                  <button type="button" data-action="click->dropdown#toggle"
+                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-plus text-sm text-gray-600"></i>
+                  </button>
+
+                  <div data-dropdown-target="menu"
+                       class="hidden absolute top-10 left-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-3 flex flex-col gap-3">
+
+                    <%# Members already on this card %>
+                    <div>
+                      <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">Card members</div>
+                      <div id="assigned_members_list" class="space-y-1">
+                        <% @card.members.each do |user| %>
+                          <%= render "cards/member_row", card: @card, user: user, assigned: true %>
+                        <% end %>
+                      </div>
+                    </div>
+
+                    <%# Board members (owner + invited) not yet on this card %>
+                    <div>
+                      <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">Board members</div>
+                      <div id="available_members_list" class="space-y-1 max-h-48 overflow-y-auto">
+                        <% board = @card.list.board %>
+                        <% board_users = ([board.user] + board.members).uniq %>
+                        <% (board_users - @card.members).each do |user| %>
+                          <%= render "cards/member_row", card: @card, user: user, assigned: false %>
+                        <% end %>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <%# Labels %>
+            <div class="ml-9">
+              <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Labels</h3>
+              <div class="flex items-center gap-1 flex-wrap">
+
+                <%# Existing label pills %>
+                <div id="card_labels_pills_<%= @card.id %>" class="flex flex-wrap gap-1">
+                  <%= render "cards/label_pills", card: @card %>
+                </div>
+
+                <%# Picker dropdown %>
+                <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
+                  <button type="button" data-action="click->dropdown#toggle"
+                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+                          title="Add labels">
+                    <i class="fa-solid fa-plus text-sm text-gray-600"></i>
+                  </button>
+
+                  <div data-dropdown-target="menu"
+                       class="hidden absolute top-10 left-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-3 flex flex-col gap-2">
+                    <div class="text-[10px] font-bold text-gray-500 uppercase">Labels</div>
+
+                    <div id="labels_list_<%= @card.list.board.id %>" class="space-y-1 max-h-64 overflow-y-auto">
+                      <% @card.list.board.labels.order(:id).each do |label| %>
+                        <%= render "cards/label_row", card: @card, label: label %>
+                      <% end %>
+                    </div>
+
+                    <%# "Create new label" — Turbo frame swap to inline form %>
+                    <%= turbo_frame_tag "new_label_row" do %>
+                      <%= link_to new_board_label_path(@card.list.board, card_id: @card.id),
+                          data: { turbo_frame: "new_label_row" },
+                          class: "block w-full text-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 rounded" do %>
+                        <i class="fa-solid fa-plus text-xs mr-1"></i> Create a new label
+                      <% end %>
+                    <% end %>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <%# Due date %>
+            <div class="ml-9">
+              <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Due date</h3>
+              <div class="flex items-center gap-2">
+
+                <%# Existing pill (or "None" placeholder) %>
+                <%= turbo_frame_tag "card_due_pill_#{@card.id}" do %>
+                  <% if @card.due_date.present? %>
+                    <%= render "cards/due_pill", card: @card %>
+                  <% else %>
+                    <span class="text-sm text-gray-400 italic">No due date</span>
+                  <% end %>
+                <% end %>
+
+                <%# Picker dropdown %>
+                <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
+                  <button type="button" data-action="click->dropdown#toggle"
+                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+                          title="Set due date">
+                    <i class="fa-solid fa-clock text-sm text-gray-600"></i>
+                  </button>
+
+                  <div data-dropdown-target="menu"
+                       class="hidden absolute top-10 left-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
+                    <%= render "cards/due_form", card: @card %>
+                  </div>
+                </div>
+
+              </div>
             </div>
 
             <%# 3. Description %>
@@ -134,8 +223,6 @@
                   <h3 class="font-bold text-lg text-gray-800">Description</h3>
                 </div>
 
-                <%# FIX: Added data: { turbo_frame: dom_id(@card, :description) } %>
-                <%# This tells Rails: "Don't go to a new page. Load the result INSIDE the description box below." %>
                 <%= link_to "Edit", edit_description_card_path(@card),
                     class: "bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium px-3 py-1 rounded transition-colors",
                     data: { turbo_frame: dom_id(@card, :description) } %>
@@ -150,7 +237,6 @@
         <%# --- RIGHT COLUMN --- %>
         <div class="bg-gray-50 p-6 overflow-y-auto flex flex-col h-full" data-controller="activity-toggle">
 
-          <%# Header with Toggle Button %>
           <div class="flex items-center justify-between mb-4 shrink-0">
             <div class="flex items-center gap-2">
               <i class="fa-solid fa-list-ul text-gray-600"></i>
@@ -165,12 +251,12 @@
             </button>
           </div>
 
-          <%# Comment Input %>
+          <%# Comment input %>
           <div class="mb-6 shrink-0">
-             <%= render "comments/form", card: @card %>
+            <%= render "comments/form", card: @card %>
           </div>
 
-          <%# Comment Stream %>
+          <%# Comment stream %>
           <div class="flex-1 overflow-y-auto pr-2 space-y-4 transition-all" data-activity-toggle-target="list">
             <%= turbo_stream_from @card %>
             <div id="comments_list" class="space-y-4">
@@ -178,11 +264,14 @@
             </div>
           </div>
 
-          <%# Actions (Delete) %>
+          <%# Delete action %>
           <div class="mt-6 pt-4 border-t border-gray-200 shrink-0">
             <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Actions</h4>
-            <%= button_to card_path(@card), method: :delete, class: "w-full text-left bg-gray-200 hover:bg-red-100 hover:text-red-700 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 justify-center", form: {data: {turbo_confirm: "Delete card?"}} do %>
-               <i class="fa-solid fa-trash w-4"></i> Delete Card
+            <%= button_to card_path(@card),
+                method: :delete,
+                class: "w-full text-left bg-gray-200 hover:bg-red-100 hover:text-red-700 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 justify-center",
+                form: { data: { turbo_confirm: "Delete card?" } } do %>
+              <i class="fa-solid fa-trash w-4"></i> Delete Card
             <% end %>
           </div>
 

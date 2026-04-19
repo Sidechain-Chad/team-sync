@@ -17,10 +17,10 @@ class CardMembersController < ApplicationController
   def destroy
     @user = User.find(params[:user_id])
 
-    # Destroy the relationship
-    @card.members.destroy(@user)
+    # Destroy the join row, not the user. find_by + safe-nav
+    # avoids raising if it was already removed in another tab.
+    @card.card_members.find_by(user: @user)&.destroy
 
-    # Render Turbo Stream to move the UI elements
     respond_to do |format|
       format.turbo_stream
     end

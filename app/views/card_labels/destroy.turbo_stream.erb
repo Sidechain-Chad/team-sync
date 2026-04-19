@@ -1,0 +1,9 @@
+<%# 1. Replace the row in the picker so the checkmark disappears %>
+<%= turbo_stream.replace "label_row_#{@label.id}",
+    partial: "cards/label_row",
+    locals: { card: @card, label: @label } %>
+
+<%# 2. Update the label-pills strip in the modal %>
+<%= turbo_stream.update "card_labels_pills_#{@card.id}" do %>
+  <%= render "cards/label_pills", card: @card %>
+<% end %>

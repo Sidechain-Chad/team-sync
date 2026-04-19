@@ -4,20 +4,39 @@ export default class extends Controller {
   static targets = ["menu"]
 
   toggle(event) {
-    // Stop the click from bubbling up to the window immediately,
-    // otherwise the 'click@window' action will catch it and close the menu instantly.
     event.preventDefault()
     event.stopPropagation()
+
+    const willOpen = this.menuTarget.classList.contains("hidden")
+
+    if (willOpen) {
+      this.closeOtherDropdowns()
+      this.closeOpenDescriptionEditor()
+    }
 
     this.menuTarget.classList.toggle("hidden")
   }
 
-  // Close if clicked outside (Triggered by data-action="click@window->dropdown#hide")
   hide(event) {
-    // If the click is inside this dropdown wrapper, do nothing
     if (this.element.contains(event.target)) return
-
-    // Otherwise, hide the menu
     this.menuTarget.classList.add("hidden")
+  }
+
+  closeOtherDropdowns() {
+    document.querySelectorAll('[data-controller~="dropdown"]').forEach((el) => {
+      if (el === this.element) return
+      const menu = el.querySelector('[data-dropdown-target="menu"]')
+      if (menu) menu.classList.add("hidden")
+    })
+  }
+
+  // If the description is currently in edit mode, click its Cancel link
+  // so the TipTap editor collapses back to read mode. Mirrors Trello —
+  // opening a popover discards an in-progress description edit.
+  closeOpenDescriptionEditor() {
+    const editor = document.querySelector('[data-controller~="tiptap"]')
+    if (!editor) return
+    const cancelLink = editor.closest('turbo-frame')?.querySelector('a[href*="/cards/"]')
+    if (cancelLink) cancelLink.click()
   }
 }

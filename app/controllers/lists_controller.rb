@@ -56,6 +56,19 @@ class ListsController < ApplicationController
   def move
     @list = List.find(params[:id])
     @list.insert_at(list_params[:position].to_i)
+
+    # Broadcast new ordering to everyone viewing the board so other
+    # users see the reorder without a refresh.
+    board = @list.board
+    board.lists.each do |list|
+      Turbo::StreamsChannel.broadcast_replace_to(
+        board,
+        target: helpers.dom_id(list),
+        partial: "lists/list",
+        locals: { list: list }
+      )
+    end
+
     head :ok
   end
 
