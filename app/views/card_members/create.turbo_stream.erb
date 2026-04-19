@@ -1,0 +1,12 @@
+<%# 1. FIRST: Remove from 'Available' (Bottom) to avoid ID conflicts %>
+<%= turbo_stream.remove "member_row_#{@user.id}" %>
+
+<%# 2. SECOND: Add to 'Assigned' (Top) %>
+<%= turbo_stream.append "assigned_members_list" do %>
+  <%= render "cards/member_row", card: @card, user: @user, assigned: true %>
+<% end %>
+
+<%# 3. Update Avatars %>
+<%= turbo_stream.update "card_face_avatars_#{@card.id}" do %>
+  <%= render "cards/avatars", card: @card %>
+<% end %>

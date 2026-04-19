@@ -8,7 +8,7 @@
     <%# Left Side: Title & Description %>
     <div class="flex-1 pr-2">
       <h4 class="text-sm font-medium text-gray-800 leading-tight">
-        <%= link_to card.title, card_path(card), class: "hover:text-blue-600 hover:underline", data: { turbo_frame: "modal" } %>
+        <%= link_to card.title, card_path(card), class: "hover:text-blue-600 hover:underline", data: { turbo_frame: "modal", turbo_action: "advance" } %>
       </h4>
       <% if card.description.present? %>
         <p class="text-xs text-gray-500 mt-1 line-clamp-2"><%= card.description %></p>
@@ -28,19 +28,28 @@
 
   </div>
 
-  <%# Bottom Area: Assignee & Meta %>
+  <%# --- NEW Bottom Area: Members & Meta (Only ONE block here) --- %>
   <div class="mt-3 flex justify-end items-center border-t border-gray-100 pt-2">
-    <% if card.assignee.present? %>
-      <div
-        class="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-[10px] font-bold border border-blue-200"
-        title="Assigned to <%= card.assignee.name %>">
-        <%= card.assignee.initials %>
-      </div>
-    <% else %>
+
+    <%# Loop through all members %>
+    <div class="flex -space-x-1 overflow-hidden mr-2">
+      <% card.members.each do |member| %>
+        <div
+          class="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-[10px] font-bold border border-white ring-1 ring-white"
+          title="<%= member.email %>">
+          <%= member.initials %>
+        </div>
+      <% end %>
+    </div>
+
+    <%# Show 'plus' if empty %>
+    <% if card.members.empty? %>
       <div class="h-6 w-6 rounded-full border border-dashed border-gray-300 flex items-center justify-center text-gray-300 text-[10px]">
         <i class="fa-solid fa-plus"></i>
       </div>
     <% end %>
+
   </div>
+  <%# ------------------------------------------------------------- %>
 
 <% end %>

@@ -1,0 +1,41 @@
+<div id="member_row_<%= user.id %>">
+  <% if assigned %>
+    <%# --- ASSIGNED MEMBER (Click to Remove) --- %>
+    <%= button_to card_member_path(card, user), method: :delete, class: "w-full text-left" do %>
+      <div class="flex items-center p-2 hover:bg-red-50 rounded-md cursor-pointer group transition-colors" title="Remove from card">
+
+        <%# Avatar %>
+        <div class="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700 mr-2 border border-blue-200 group-hover:border-red-200 group-hover:bg-red-100 group-hover:text-red-700 transition-colors">
+          <%= user.initials %>
+        </div>
+
+        <%# Name info %>
+        <div class="flex flex-col">
+          <span class="text-xs text-gray-700 font-medium group-hover:text-red-700"><%= user.email.split('@')[0].capitalize %></span>
+          <span class="text-[10px] text-gray-400 group-hover:text-red-400"><%= user.email %></span>
+        </div>
+
+      </div>
+    <% end %>
+
+  <% else %>
+
+    <%# --- AVAILABLE MEMBER (Click to Add) --- %>
+    <%= button_to card_members_path(card, user_id: user.id), method: :post, class: "w-full text-left" do %>
+      <div class="flex items-center p-2 hover:bg-gray-100 rounded-md cursor-pointer group transition-colors" title="Add to card">
+
+        <%# Avatar %>
+        <div class="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 mr-2 border border-gray-200 group-hover:bg-white group-hover:border-gray-300">
+          <%= user.initials %>
+        </div>
+
+        <%# Name info %>
+        <div class="flex flex-col">
+          <span class="text-xs text-gray-600 font-medium group-hover:text-gray-900"><%= user.email.split('@')[0].capitalize %></span>
+          <span class="text-[10px] text-gray-400"><%= user.email %></span>
+        </div>
+
+      </div>
+    <% end %>
+  <% end %>
+</div>
