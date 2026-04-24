@@ -1,14 +1,14 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["list", "button"]
+  static targets = ["item", "button"]
 
   toggle() {
-    // Toggle the hidden class on the comments list
-    this.listTarget.classList.toggle("hidden")
+    this.itemTargets.forEach(item => {
+      item.classList.toggle("hidden")
+    })
 
-    // Update the button text
-    if (this.listTarget.classList.contains("hidden")) {
+    if (this.buttonTarget.textContent.includes("Hide")) {
       this.buttonTarget.textContent = "Show details"
     } else {
       this.buttonTarget.textContent = "Hide details"

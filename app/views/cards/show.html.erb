@@ -231,11 +231,94 @@
               <%= render "cards/description", card: @card %>
             </div>
 
+            <%# 4. Attachments %>
+            <% if @card.attachments.attached? %>
+              <div class="ml-9">
+                <div class="flex items-center gap-3 mb-3">
+                  <i class="fa-solid fa-paperclip text-gray-600 text-lg"></i>
+                  <h3 class="font-bold text-lg text-gray-800">Attachments</h3>
+                </div>
+                <div class="space-y-3">
+                  <% @card.attachments.each do |attachment| %>
+                    <div class="flex items-center gap-3 group">
+                      <div class="h-20 w-28 bg-gray-200 rounded flex items-center justify-center overflow-hidden shrink-0">
+                        <% if attachment.variable? %>
+                          <%= image_tag attachment.variant(resize_to_limit: [112, 80]) %>
+                        <% else %>
+                          <i class="fa-solid fa-file text-2xl text-gray-400"></i>
+                        <% end %>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="text-sm font-bold text-gray-700"><%= attachment.filename %></span>
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                          <span>Added <%= time_ago_in_words(attachment.created_at) %> ago</span>
+                          <span>•</span>
+                          <%= link_to "Download", rails_blob_path(attachment, disposition: "attachment"), class: "underline hover:text-gray-700" %>
+                          <span>•</span>
+                          <%= button_to "Delete", attachment_path(attachment), method: :delete, class: "underline hover:text-red-600", data: { turbo_confirm: "Delete attachment?" } %>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+
+            <%# 5. Checklists %>
+            <div id="checklists_<%= @card.id %>">
+              <%= render @card.checklists %>
+            </div>
+
           </div>
         </div>
 
         <%# --- RIGHT COLUMN --- %>
         <div class="bg-gray-50 p-6 overflow-y-auto flex flex-col h-full" data-controller="activity-toggle">
+
+          <%# Add to Card section %>
+          <div class="mb-8 shrink-0">
+            <h4 class="text-xs font-bold text-gray-500 uppercase mb-3">Add to card</h4>
+            <div class="space-y-2">
+              
+              <%# Checklist button %>
+              <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
+                <button type="button" data-action="click->dropdown#toggle"
+                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+                  <i class="fa-solid fa-square-check w-4"></i> Checklist
+                </button>
+                <div data-dropdown-target="menu"
+                     class="hidden absolute top-10 right-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-3 flex flex-col gap-3">
+                  <div class="text-center text-xs font-bold text-gray-500 border-b pb-2 mb-1">Add checklist</div>
+                  <%= form_with model: [@card, Checklist.new], class: "space-y-3" do |f| %>
+                    <div>
+                      <%= f.label :title, "Title", class: "block text-xs font-bold text-gray-700 mb-1" %>
+                      <%= f.text_field :title, value: "Checklist", class: "w-full text-sm border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" %>
+                    </div>
+                    <%= f.submit "Add", class: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
+                  <% end %>
+                </div>
+              </div>
+
+              <%# Attachment button %>
+              <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
+                <button type="button" data-action="click->dropdown#toggle"
+                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+                  <i class="fa-solid fa-paperclip w-4"></i> Attachment
+                </button>
+                <div data-dropdown-target="menu"
+                     class="hidden absolute top-10 right-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-3 flex flex-col gap-3">
+                  <div class="text-center text-xs font-bold text-gray-500 border-b pb-2 mb-1">Attach from computer</div>
+                  <%= form_with model: @card, method: :patch, class: "space-y-3" do |f| %>
+                    <div>
+                      <%= f.file_field :attachments, multiple: true, class: "w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" %>
+                    </div>
+                    <%= f.submit "Attach", class: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
+                  <% end %>
+                </div>
+              </div>
+
+            </div>
+          </div>
 
           <div class="flex items-center justify-between mb-4 shrink-0">
             <div class="flex items-center gap-2">
@@ -256,11 +339,11 @@
             <%= render "comments/form", card: @card %>
           </div>
 
-          <%# Comment stream %>
-          <div class="flex-1 overflow-y-auto pr-2 space-y-4 transition-all" data-activity-toggle-target="list">
+          <%# Feed (Comments + Activities) stream %>
+          <div class="flex-1 overflow-y-auto pr-2 space-y-4 transition-all">
             <%= turbo_stream_from @card %>
-            <div id="comments_list" class="space-y-4">
-              <%= render @card.comments.order(created_at: :desc) %>
+            <div id="activities_and_comments" class="space-y-4">
+              <%= render @feed %>
             </div>
           </div>
 

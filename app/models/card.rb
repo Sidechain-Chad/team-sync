@@ -6,8 +6,11 @@ class Card < ApplicationRecord
   has_many :card_members, dependent: :destroy
   has_many :members, through: :card_members, source: :user
   has_many :comments, dependent: :destroy
+  has_many :activities, dependent: :destroy
+  has_many :checklists, -> { order(position: :asc) }, dependent: :destroy
+  has_many_attached :attachments
 
-    # NEW: labels
+  # NEW: labels
   has_many :card_labels, dependent: :destroy
   has_many :labels, through: :card_labels
 
@@ -19,6 +22,10 @@ class Card < ApplicationRecord
 
   def to_param
     "#{id}-#{title.parameterize}"
+  end
+
+  def log_activity(user, action, description = nil)
+    activities.create(user: user, action: action, description: description)
   end
 
   # Due-date status helpers — used by views to color the due-date pill.

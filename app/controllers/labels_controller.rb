@@ -43,20 +43,20 @@ class LabelsController < ApplicationController
   # add to the controller:
 
   def cancel_edit
-    @card  = Card.find(params[:card_id])
+    @card  = current_user.all_cards.find(params[:card_id])
     @label = @card.list.board.labels.find(params[:label_id])
     # Renders app/views/labels/cancel_edit.html.erb (frame-wrapped)
   end
 
   def cancel_new
-    @card = Card.find(params[:card_id])
+    @card = current_user.all_cards.find(params[:card_id])
     # Renders app/views/labels/cancel_new.html.erb (frame-wrapped)
   end
 
   private
 
   def set_board
-    @board = Board.find(params[:board_id])
+    @board = current_user.all_boards.find(params[:board_id])
   end
 
   def set_label

@@ -21,7 +21,7 @@ class CardLabelsController < ApplicationController
   private
 
   def set_card
-    @card = Card.find(params[:card_id])
+    @card = current_user.all_cards.find(params[:card_id])
   end
 
   # Replace the small card on the board so its label pills update for

@@ -9,6 +9,26 @@ class User < ApplicationRecord
   has_many :assigned_cards, through: :card_members, source: :card
   has_many :comments, dependent: :destroy
 
+  def all_boards
+    Board.where(user_id: id).or(Board.where(id: board_users.select(:board_id)))
+  end
+
+  def all_lists
+    List.where(board_id: all_boards.select(:id))
+  end
+
+  def all_cards
+    Card.where(list_id: all_lists.select(:id))
+  end
+
+  def all_checklists
+    Checklist.where(card_id: all_cards.select(:id))
+  end
+
+  def all_checklist_items
+    ChecklistItem.where(checklist_id: all_checklists.select(:id))
+  end
+
   def name
     return self[:name] if has_attribute?(:name) && self[:name].present?
     email.split('@').first.capitalize

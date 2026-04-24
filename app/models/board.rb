@@ -13,6 +13,18 @@ class Board < ApplicationRecord
   # users have something to pick from immediately.
   after_create :seed_default_labels
 
+  def invite_users(emails_string, inviter)
+    return if emails_string.blank?
+
+    emails = emails_string.split(',').map(&:strip)
+    emails.each do |email|
+      user = User.find_by(email: email)
+      if user && user != inviter
+        board_users.find_or_create_by(user: user)
+      end
+    end
+  end
+
   private
 
   def seed_default_labels

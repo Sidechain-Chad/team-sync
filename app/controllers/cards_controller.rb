@@ -2,16 +2,17 @@ class CardsController < ApplicationController
   before_action :authenticate_user!
 
   def show
-    @card = Card.find(params[:id])
+    @card = current_user.all_cards.find(params[:id])
+    @feed = (@card.comments + @card.activities).sort_by(&:created_at).reverse
   end
 
   def new
-    @list = List.find(params[:list_id])
+    @list = current_user.all_lists.find(params[:list_id])
     @card = Card.new
   end
 
   def create
-    @list = List.find(params[:list_id])
+    @list = current_user.all_lists.find(params[:list_id])
     @card = @list.cards.new(card_params)
 
     if @card.save
@@ -25,7 +26,7 @@ class CardsController < ApplicationController
   end
 
   def move
-    @card = Card.find(params[:id])
+    @card = current_user.all_cards.find(params[:id])
 
     new_list_id  = params.dig(:card, :list_id)
     new_position = params.dig(:card, :position).to_i
@@ -35,7 +36,9 @@ class CardsController < ApplicationController
       # acts_as_list will compact the old list and append to the new one;
       # insert_at then slots it into the requested position.
       if new_list_id.present? && @card.list_id.to_s != new_list_id.to_s
+        old_list = @card.list
         @card.update!(list_id: new_list_id)
+        @card.log_activity(current_user, "moved", old_list.name)
       end
 
       @card.insert_at(new_position) if new_position.positive?
@@ -58,7 +61,7 @@ class CardsController < ApplicationController
   end
 
   def destroy
-    @card = Card.find(params[:id])
+    @card = current_user.all_cards.find(params[:id])
     @card.destroy
 
     respond_to do |format|
@@ -68,39 +71,42 @@ class CardsController < ApplicationController
   end
 
   def edit
-    @card = Card.find(params[:id])
+    @card = current_user.all_cards.find(params[:id])
   end
 
   def edit_description
-    @card = Card.find(params[:id])
+    @card = current_user.all_cards.find(params[:id])
   end
 
   def update_description
-    @card = Card.find(params[:id])
+    @card = current_user.all_cards.find(params[:id])
     @card.update(card_params)
 
     # Render the description partial again to switch back to read mode
     render partial: "cards/description", locals: { card: @card }
   end
 
-def update
-    @card = Card.find(params[:id])
+  def update
+    @card = current_user.all_cards.find(params[:id])
 
     new_list_id  = params.dig(:card, :list_id)
     list_changed = new_list_id.present? && @card.list_id.to_s != new_list_id.to_s
 
-    if @card.update(card_params)
-      broadcast_card_update
+    # Handle attachments separately to append them
+    attachments = params.dig(:card, :attachments)
+    if attachments.present?
+      @card.attachments.attach(attachments)
+      @card.log_activity(current_user, "added_attachment", "#{attachments.count} file(s)")
+    end
 
+    if @card.update(card_params.except(:attachments))
+      broadcast_card_update
       respond_to do |format|
         if list_changed
           # Move-card popover → land back on the board.
           format.html { redirect_to board_path(@card.list.board) }
         else
           # All other updates (due date, etc.) — render the show page.
-          # Since the requesting form is targeted at a Turbo frame inside
-          # show.html.erb, Turbo extracts that frame's contents and the
-          # modal stays open.
           format.html { redirect_to @card, status: :see_other }
         end
       end
@@ -113,7 +119,7 @@ def update
 
   def card_params
     params.require(:card).permit(
-      :title, :description, :list_id, :position, :due_date, :completed
+      :title, :description, :list_id, :position, :due_date, :completed, attachments: []
     )
   end
 
