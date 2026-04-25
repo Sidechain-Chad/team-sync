@@ -254,7 +254,11 @@
                           <span>•</span>
                           <%= link_to "Download", rails_blob_path(attachment, disposition: "attachment"), class: "underline hover:text-gray-700" %>
                           <span>•</span>
-                          <%= button_to "Delete", attachment_path(attachment), method: :delete, class: "underline hover:text-red-600", data: { turbo_confirm: "Delete attachment?" } %>
+                          <%= button_to "Delete",
+                              card_attachment_path(@card, attachment),
+                              method: :delete,
+                              form: { class: "inline-block m-0", data: { turbo_confirm: "Delete attachment?" } },
+                              class: "underline hover:text-red-600 bg-transparent border-0 cursor-pointer p-0 m-0" %>
                         </div>
                       </div>
                     </div>
