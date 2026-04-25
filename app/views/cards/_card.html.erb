@@ -1,56 +1,91 @@
-<%= turbo_frame_tag card,
-    class: "bg-white p-3 rounded shadow-sm cursor-move hover:bg-gray-50 mb-2 group relative block border border-transparent hover:border-gray-200 transition-all",
-    data: { id: card.id } do %>
+<%= turbo_frame_tag card, data: { id: card.id } do %>
+  <%# Whole card is one big link to the modal — Trello-style.
+      Wrap in a <div> for the drag-and-drop handle styling and
+      relative positioning, then put a <a> as the only interactive
+      element inside. %>
+  <div class="bg-white rounded shadow-sm hover:bg-gray-50 mb-2 group relative border border-transparent hover:border-gray-300 transition-all cursor-pointer">
 
-  <%# Label pills + due date (above the title, like Trello) %>
-    <% if card.labels.any? || card.due_date.present? %>
-      <div class="flex flex-wrap gap-1 mb-2">
-        <%= render "cards/label_pills", card: card %>
-        <%= render "cards/due_pill",    card: card %>
-      </div>
-    <% end %>
+    <%= link_to card_path(card),
+        data: { turbo_frame: "modal" },
+        class: "block p-3 no-underline text-inherit" do %>
 
-  <div class="flex justify-between items-start">
+      <%# Label pills + due date %>
+      <% if card.labels.any? || card.due_date.present? %>
+        <div class="flex flex-wrap gap-1 mb-2">
+          <%= render "cards/label_pills", card: card %>
+          <%= render "cards/due_pill",    card: card %>
+        </div>
+      <% end %>
 
-    <div class="flex-1 pr-2">
+      <%# Title %>
       <h4 class="text-sm font-medium text-gray-800 leading-tight">
-        <%= link_to card.title, card_path(card), class: "hover:text-blue-600 hover:underline", data: { turbo_frame: "modal" } %>
+        <%= card.title %>
       </h4>
+
+      <%# Description preview %>
       <% if card.description.present? %>
-        <p class="text-xs text-gray-500 mt-1 line-clamp-2"><%= strip_tags(card.description).truncate(100) %></p>
-      <% end %>
-    </div>
-
-    <div class="hidden group-hover:flex space-x-2 bg-white/90 px-1 rounded absolute top-2 right-2 shadow-sm border">
-      <%= link_to edit_card_path(card), class: "text-blue-500 hover:text-blue-700 px-1 py-0.5", data: { turbo_frame: dom_id(card) } do %>
-         <i class="fa-solid fa-pencil text-xs"></i>
+        <p class="text-xs text-gray-500 mt-1 line-clamp-2">
+          <%= strip_tags(card.description).truncate(100) %>
+        </p>
       <% end %>
 
-      <%= link_to card_path(card), class: "text-red-500 hover:text-red-700 px-1 py-0.5", data: { turbo_method: :delete, turbo_confirm: "Are you sure?" } do %>
-         <i class="fa-solid fa-trash text-xs"></i>
-      <% end %>
-    </div>
+      <%# Bottom strip — only renders if there's something to show.
+          Status icons on the left, member avatars on the right. %>
+      <%
+        comment_count    = card.comments.size
+        attachment_count = card.attachments.attached? ? card.attachments.size : 0
+        items_total      = card.checklists.sum { |cl| cl.checklist_items.size }
+        items_done       = card.checklists.sum { |cl| cl.checklist_items.where(completed: true).count }
 
-  </div>
+        has_status  = card.description.present? || comment_count.positive? ||
+                      attachment_count.positive? || items_total.positive?
+        has_members = card.members.any?
+      %>
+      <% if has_status || has_members %>
+        <div class="mt-3 flex justify-between items-center border-t border-gray-100 pt-2">
 
-  <%# Bottom Area: Assignee avatars (members) %>
-  <div class="mt-3 flex justify-end items-center border-t border-gray-100 pt-2 gap-1">
-    <% if card.members.any? %>
-      <% card.members.first(3).each do |member| %>
-        <div class="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-[10px] font-bold border border-blue-200" title="<%= member.email %>">
-          <%= member.initials %>
+          <%# Left: status icons %>
+          <div class="flex items-center gap-3 text-xs text-gray-500">
+            <% if card.description.present? %>
+              <i class="fa-solid fa-align-left" title="Has description"></i>
+            <% end %>
+            <% if comment_count.positive? %>
+              <span class="flex items-center gap-1" title="<%= comment_count %> comment(s)">
+                <i class="fa-regular fa-comment"></i><%= comment_count %>
+              </span>
+            <% end %>
+            <% if attachment_count.positive? %>
+              <span class="flex items-center gap-1" title="<%= attachment_count %> attachment(s)">
+                <i class="fa-solid fa-paperclip"></i><%= attachment_count %>
+              </span>
+            <% end %>
+            <% if items_total.positive? %>
+              <span class="flex items-center gap-1 <%= 'text-green-700 bg-green-50 px-1.5 py-0.5 rounded' if items_done == items_total %>"
+                    title="Checklist progress">
+                <i class="fa-solid fa-square-check"></i><%= items_done %>/<%= items_total %>
+              </span>
+            <% end %>
+          </div>
+
+          <%# Right: member avatars %>
+          <% if has_members %>
+            <div class="flex items-center gap-1">
+              <% card.members.first(3).each do |member| %>
+                <div class="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-[10px] font-bold border border-blue-200" title="<%= member.display_name %>">
+                  <%= member.initials %>
+                </div>
+              <% end %>
+              <% if card.members.size > 3 %>
+                <div class="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[10px] font-bold border border-gray-200" title="<%= card.members.size %> members">
+                  +<%= card.members.size - 3 %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+
         </div>
       <% end %>
-      <% if card.members.size > 3 %>
-        <div class="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[10px] font-bold border border-gray-200" title="<%= card.members.size %> members">
-          +<%= card.members.size - 3 %>
-        </div>
-      <% end %>
-    <% else %>
-      <div class="h-6 w-6 rounded-full border border-dashed border-gray-300 flex items-center justify-center text-gray-300 text-[10px]">
-        <i class="fa-solid fa-plus"></i>
-      </div>
+
     <% end %>
   </div>
-
 <% end %>

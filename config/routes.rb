@@ -41,8 +41,10 @@ Rails.application.routes.draw do
 
     member do
       patch :move
-      get :edit_description
+      get   :edit_description
       patch :update_description
+      patch :archive
+      patch :unarchive
     end
   end
 end

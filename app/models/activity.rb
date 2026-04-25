@@ -1,5 +1,5 @@
 class Activity < ApplicationRecord
-  belongs_to :user
+  belongs_to :user, optional: true
   belongs_to :card
 
   validates :action, presence: true
@@ -20,6 +20,12 @@ class Activity < ApplicationRecord
       "completed #{description} on this card"
     when "added_attachment"
       "attached #{description} to this card"
+    when "edited_description"
+      "edited the description"
+    when "archived"
+      "archived this card"
+    when "unarchived"
+      "restored this card from the archive"
     else
       description
     end

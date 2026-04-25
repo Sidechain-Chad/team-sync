@@ -1,18 +1,26 @@
 require "test_helper"
 
 class ChecklistsControllerTest < ActionDispatch::IntegrationTest
-  test "should get create" do
-    get checklists_create_url
-    assert_response :success
+  include Devise::Test::IntegrationHelpers
+
+  setup do
+    @user = users(:one)
+    @card = cards(:one)
+    @checklist = checklists(:one)
+    sign_in @user
   end
 
-  test "should get update" do
-    get checklists_update_url
-    assert_response :success
+  test "should create checklist" do
+    assert_difference('Checklist.count') do
+      post card_checklists_url(@card), params: { checklist: { title: 'New Checklist' } }
+    end
+    assert_redirected_to card_url(@card)
   end
 
-  test "should get destroy" do
-    get checklists_destroy_url
-    assert_response :success
+  test "should destroy checklist" do
+    assert_difference('Checklist.count', -1) do
+      delete card_checklist_url(@card, @checklist)
+    end
+    assert_redirected_to card_url(@card)
   end
 end
