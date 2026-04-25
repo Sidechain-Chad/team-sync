@@ -36,4 +36,6 @@
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
-.gemini*
+
+# Gemini CLI
+.gemini
