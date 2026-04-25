@@ -8,6 +8,7 @@ class User < ApplicationRecord
   has_many :card_members, dependent: :destroy
   has_many :assigned_cards, through: :card_members, source: :card
   has_many :comments, dependent: :destroy
+  has_many :activities, dependent: :destroy
 
   def all_boards
     Board.where(user_id: id).or(Board.where(id: board_users.select(:board_id)))

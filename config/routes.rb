@@ -1,5 +1,4 @@
 Rails.application.routes.draw do
-  get 'attachments/destroy'
   # 1. Standard Devise routes for Users
   devise_for :users
 

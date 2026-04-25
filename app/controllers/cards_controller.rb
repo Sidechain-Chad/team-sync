@@ -16,6 +16,7 @@ class CardsController < ApplicationController
     @card = @list.cards.new(card_params)
 
     if @card.save
+      @card.log_activity(current_user, "created")
       respond_to do |format|
         format.turbo_stream
         format.html { redirect_to board_path(@list.board) }

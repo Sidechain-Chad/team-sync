@@ -14,8 +14,6 @@ class Activity < ApplicationRecord
       "created this card"
     when "moved"
       "moved this card from #{description}"
-    when "commented"
-      "left a comment"
     when "added_checklist"
       "added checklist #{description} to this card"
     when "completed_checklist_item"
