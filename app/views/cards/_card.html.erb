@@ -33,24 +33,62 @@
 
   </div>
 
-  <%# Bottom Area: Assignee avatars (members) %>
-  <div class="mt-3 flex justify-end items-center border-t border-gray-100 pt-2 gap-1">
-    <% if card.members.any? %>
-      <% card.members.first(3).each do |member| %>
-        <div class="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-[10px] font-bold border border-blue-200" title="<%= member.email %>">
-          <%= member.initials %>
-        </div>
-      <% end %>
-      <% if card.members.size > 3 %>
-        <div class="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[10px] font-bold border border-gray-200" title="<%= card.members.size %> members">
-          +<%= card.members.size - 3 %>
-        </div>
-      <% end %>
-    <% else %>
-      <div class="h-6 w-6 rounded-full border border-dashed border-gray-300 flex items-center justify-center text-gray-300 text-[10px]">
-        <i class="fa-solid fa-plus"></i>
+  <%# Bottom strip — only renders if there's something to show.
+      Shows status icons (Trello-style) on the left, member avatars on the right. %>
+  <%
+    has_status = card.description.present? ||
+                 card.comments.any? ||
+                 card.checklists.any? ||
+                 card.attachments.attached?
+    has_members = card.members.any?
+  %>
+  <% if has_status || has_members %>
+    <div class="mt-3 flex justify-between items-center border-t border-gray-100 pt-2">
+
+      <%# Left side: status icons %>
+      <div class="flex items-center gap-3 text-xs text-gray-500">
+        <% if card.description.present? %>
+          <i class="fa-solid fa-align-left" title="Has description"></i>
+        <% end %>
+        <% if card.comments.any? %>
+          <span class="flex items-center gap-1" title="<%= card.comments.size %> comment(s)">
+            <i class="fa-regular fa-comment"></i><%= card.comments.size %>
+          </span>
+        <% end %>
+        <% if card.attachments.attached? %>
+          <span class="flex items-center gap-1" title="<%= card.attachments.attached? ? card.attachments.size : 0 %> attachment(s)">
+            <i class="fa-solid fa-paperclip"></i><%= card.attachments.attached? ? card.attachments.size : 0 %>
+          </span>
+        <% end %>
+        <% if card.checklists.any? %>
+          <% total = card.checklists.sum { |cl| cl.checklist_items.size } %>
+          <% done  = card.checklists.sum { |cl| cl.checklist_items.where(completed: true).count } %>
+          <% if total.positive? %>
+            <span class="flex items-center gap-1 <%= 'text-green-600 bg-green-50 px-1.5 py-0.5 rounded' if done == total %>"
+                  title="Checklist progress">
+              <i class="fa-solid fa-square-check"></i><%= done %>/<%= total %>
+            </span>
+          <% end %>
+        <% end %>
       </div>
-    <% end %>
-  </div>
+
+      <%# Right side: member avatars (only if any) %>
+      <% if has_members %>
+        <div class="flex items-center gap-1">
+          <% card.members.first(3).each do |member| %>
+            <div class="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-[10px] font-bold border border-blue-200" title="<%= member.display_name %>">
+              <%= member.initials %>
+            </div>
+          <% end %>
+          <% if card.members.size > 3 %>
+            <div class="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[10px] font-bold border border-gray-200" title="<%= card.members.size %> members">
+              +<%= card.members.size - 3 %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+    </div>
+  <% end %>
 
 <% end %>
