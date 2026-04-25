@@ -1,0 +1,11 @@
+<div class="flex items-center gap-3 group">
+  <%= form_with model: [checklist_item.checklist.card, checklist_item.checklist, checklist_item], method: :patch, class: "flex items-center gap-3 w-full" do |f| %>
+    <%= f.check_box :completed, onchange: "this.form.requestSubmit()", class: "h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" %>
+    <span class="text-sm <%= checklist_item.completed? ? 'line-through text-gray-400' : 'text-gray-700' %> flex-1">
+      <%= checklist_item.content %>
+    </span>
+  <% end %>
+  <%= button_to card_checklist_checklist_item_path(checklist_item.checklist.card, checklist_item.checklist, checklist_item), method: :delete, class: "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 transition-opacity" do %>
+    <i class="fa-solid fa-xmark text-xs"></i>
+  <% end %>
+</div>

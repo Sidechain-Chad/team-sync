@@ -1,0 +1,42 @@
+<%# A row in the label picker.
+    - Click the row body: toggle the label on/off this card
+    - Click the pencil:   open the inline edit form (in this same frame) %>
+<% assigned = card.labels.include?(label) %>
+<% toggle_url    = assigned ? card_label_path(card, label_id: label.id) : card_labels_path(card, label_id: label.id) %>
+<% toggle_method = assigned ? :delete : :post %>
+
+<%= turbo_frame_tag "label_row_#{label.id}" do %>
+  <div class="flex items-center gap-2 group">
+
+    <%# --- TOGGLE: checkbox + pill (one big tap target) --- %>
+    <%= button_to toggle_url,
+        method: toggle_method,
+        class: "flex-1 m-0",
+        form:  { class: "m-0 flex-1" } do %>
+      <div class="flex items-center gap-2 p-1 rounded hover:bg-gray-100 w-full">
+        <%# Checkbox %>
+        <% if assigned %>
+          <div class="h-5 w-5 rounded border-2 border-blue-600 bg-blue-600 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-check text-white text-[10px]"></i>
+          </div>
+        <% else %>
+          <div class="h-5 w-5 rounded border-2 border-gray-300 bg-white shrink-0"></div>
+        <% end %>
+
+        <%# Pill %>
+        <div class="flex-1 h-8 rounded flex items-center px-3 text-sm font-semibold <%= label_solid_class(label.color) %>">
+          <%= label.name.presence || label.color.capitalize %>
+        </div>
+      </div>
+    <% end %>
+
+    <%# --- EDIT (pencil) — swaps THIS frame to the inline form --- %>
+    <%= link_to edit_board_label_path(card.list.board, label, card_id: card.id),
+        data: { turbo_frame: "label_row_#{label.id}" },
+        class: "shrink-0 h-8 w-8 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500 hover:text-gray-700",
+        title: "Edit label" do %>
+      <i class="fa-solid fa-pencil text-xs"></i>
+    <% end %>
+
+  </div>
+<% end %>

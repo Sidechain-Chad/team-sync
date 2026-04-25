@@ -11,8 +11,9 @@ class BoardsController < ApplicationController
   end
 
   def show
-    # Fetch all lists belonging to this board so the view can render them
-    @lists = @board.lists.order(:created_at)
+    # Fetch lists in their drag-and-drop order, not creation order,
+    # otherwise reordered lists snap back on every page refresh.
+    @lists = @board.lists.order(:position)
   end
 
   def new
@@ -23,9 +24,7 @@ class BoardsController < ApplicationController
     @board = current_user.boards.new(board_params)
 
     if @board.save
-      # NEW: Process the invites if any emails were entered
-      invite_users_from_params if params[:emails].present?
-
+      @board.invite_users(params[:emails], current_user)
       redirect_to @board, notice: "Board created successfully!"
     else
       render :new, status: :unprocessable_entity
@@ -51,24 +50,9 @@ class BoardsController < ApplicationController
 
   private
 
-  def invite_users_from_params
-    # 1. Split the string by commas (e.g. "bob@test.com, alice@test.com")
-    emails = params[:emails].split(',').map(&:strip)
-
-    emails.each do |email|
-      # 2. Find the user (if they exist)
-      user = User.find_by(email: email)
-
-      # 3. Add them to the board if found
-      if user && user != current_user
-        @board.board_users.create(user: user)
-      end
-    end
-  end
-
   def set_board
-    # Finds the board regardless of who created it
-    @board = Board.find(params[:id])
+    # Scoped to boards the user actually has access to
+    @board = current_user.all_boards.find(params[:id])
   end
 
   def board_params

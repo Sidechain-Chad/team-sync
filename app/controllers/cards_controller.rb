@@ -2,17 +2,17 @@ class CardsController < ApplicationController
   before_action :authenticate_user!
 
   def show
-    @card = Card.find(params[:id])
-    # Renders app/views/cards/show.html.erb (which renders _card.html.erb)
+    @card = current_user.all_cards.find(params[:id])
+    @feed = (@card.comments + @card.activities).sort_by(&:created_at).reverse
   end
 
   def new
-    @list = List.find(params[:list_id])
+    @list = current_user.all_lists.find(params[:list_id])
     @card = Card.new
   end
 
   def create
-    @list = List.find(params[:list_id])
+    @list = current_user.all_lists.find(params[:list_id])
     @card = @list.cards.new(card_params)
 
     if @card.save
@@ -26,17 +26,32 @@ class CardsController < ApplicationController
   end
 
   def move
-    @card = Card.find(params[:id])
-    @card.update(card_params)
+    @card = current_user.all_cards.find(params[:id])
+
+    new_list_id  = params.dig(:card, :list_id)
+    new_position = params.dig(:card, :position).to_i
+
+    Card.transaction do
+      # If the card moved to a different list, update the scope first.
+      # acts_as_list will compact the old list and append to the new one;
+      # insert_at then slots it into the requested position.
+      if new_list_id.present? && @card.list_id.to_s != new_list_id.to_s
+        old_list = @card.list
+        @card.update!(list_id: new_list_id)
+        @card.log_activity(current_user, "moved", old_list.name)
+      end
+
+      @card.insert_at(new_position) if new_position.positive?
+    end
 
     board = @card.list.board
 
-    # Re-render all lists on the board to ensure order/counts update correctly
-    # (In a larger app, you would optimize this to only update the old and new lists)
+    # Re-render all lists on the board so positions and counts stay in sync
+    # for everyone subscribed to the board's Turbo stream.
     board.lists.each do |list|
       Turbo::StreamsChannel.broadcast_replace_to(
         board,
-        target: dom_id(list),
+        target: helpers.dom_id(list),
         partial: "lists/list",
         locals: { list: list }
       )
@@ -46,7 +61,7 @@ class CardsController < ApplicationController
   end
 
   def destroy
-    @card = Card.find(params[:id])
+    @card = current_user.all_cards.find(params[:id])
     @card.destroy
 
     respond_to do |format|
@@ -56,45 +71,58 @@ class CardsController < ApplicationController
   end
 
   def edit
-    @card = Card.find(params[:id])
+    @card = current_user.all_cards.find(params[:id])
   end
 
   def edit_description
-    @card = Card.find(params[:id])
-    # This renders app/views/cards/edit_description.html.erb
+    @card = current_user.all_cards.find(params[:id])
   end
 
   def update_description
-    @card = Card.find(params[:id])
+    @card = current_user.all_cards.find(params[:id])
     @card.update(card_params)
 
-    # After update, we render the 'description' partial again to switch back to read mode
+    # Render the description partial again to switch back to read mode
     render partial: "cards/description", locals: { card: @card }
   end
 
   def update
-      @card = Card.find(params[:id])
-      if @card.update(card_params)
-        # Broadcast change to everyone else viewing the board
-        broadcast_card_update
+    @card = current_user.all_cards.find(params[:id])
 
-        # FIX: Redirect to @card (the modal view) instead of the board
-        # This ensures the Description frame updates in-place correctly.
-        respond_to do |format|
-          format.html { redirect_to @card }
+    new_list_id  = params.dig(:card, :list_id)
+    list_changed = new_list_id.present? && @card.list_id.to_s != new_list_id.to_s
+
+    # Handle attachments separately to append them
+    attachments = params.dig(:card, :attachments)
+    if attachments.present?
+      @card.attachments.attach(attachments)
+      @card.log_activity(current_user, "added_attachment", "#{attachments.count} file(s)")
+    end
+
+    if @card.update(card_params.except(:attachments))
+      broadcast_card_update
+      respond_to do |format|
+        if list_changed
+          # Move-card popover → land back on the board.
+          format.html { redirect_to board_path(@card.list.board) }
+        else
+          # All other updates (due date, etc.) — render the show page.
+          format.html { redirect_to @card, status: :see_other }
         end
-      else
-        render :edit, status: :unprocessable_entity
       end
+    else
+      render :edit, status: :unprocessable_entity
+    end
   end
 
   private
 
   def card_params
-    params.require(:card).permit(:title, :description, :list_id, :due_date, member_ids: [])
+    params.require(:card).permit(
+      :title, :description, :list_id, :position, :due_date, :completed, attachments: []
+    )
   end
 
-  # FIX: Moved this INSIDE the class
   def broadcast_card_update
     Turbo::StreamsChannel.broadcast_replace_to(
       @card.list.board,

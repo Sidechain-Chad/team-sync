@@ -25,11 +25,11 @@ class ListsController < ApplicationController
   end
 
   def edit
-    @list = List.find(params[:id])
+    @list = current_user.all_lists.find(params[:id])
   end
 
   def update
-    @list = List.find(params[:id])
+    @list = current_user.all_lists.find(params[:id])
     if @list.update(list_params)
       respond_to do |format|
         format.html { redirect_to board_path(@list.board) }
@@ -44,7 +44,7 @@ class ListsController < ApplicationController
   end
 
   def destroy
-    @list = List.find(params[:id])
+    @list = current_user.all_lists.find(params[:id])
     @list.destroy
 
     respond_to do |format|
@@ -54,8 +54,21 @@ class ListsController < ApplicationController
   end
 
   def move
-    @list = List.find(params[:id])
+    @list = current_user.all_lists.find(params[:id])
     @list.insert_at(list_params[:position].to_i)
+
+    # Broadcast new ordering to everyone viewing the board so other
+    # users see the reorder without a refresh.
+    board = @list.board
+    board.lists.each do |list|
+      Turbo::StreamsChannel.broadcast_replace_to(
+        board,
+        target: helpers.dom_id(list),
+        partial: "lists/list",
+        locals: { list: list }
+      )
+    end
+
     head :ok
   end
 

@@ -1,0 +1,16 @@
+<%# 1. Reset the "new label" trigger so the user can create another. %>
+<% card = Card.find(params[:card_id]) %>
+<%= turbo_stream.replace "new_label_row" do %>
+  <%= link_to new_board_label_path(@board, card_id: card.id),
+      data: { turbo_frame: "new_label_row" },
+      class: "block w-full text-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 rounded" do %>
+    <i class="fa-solid fa-plus text-xs mr-1"></i> Create a new label
+  <% end %>
+<% end %>
+
+<%# 2. Append the freshly-created label row into the picker list.
+       The list container is the "space-y-1 max-h-64 overflow-y-auto" div —
+       we need a stable id on it. (Add the id in show.html.erb — see note.) %>
+<%= turbo_stream.append "labels_list_#{@board.id}" do %>
+  <%= render "cards/label_row", card: card, label: @label %>
+<% end %>

@@ -1,24 +1,56 @@
-# README
+# TeamSync
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+A Trello-like project management application built with Rails 7, Hotwire, and Tailwind CSS.
 
-Things you may want to cover:
+## Features
 
-* Ruby version
+- **Boards & Lists:** Organize tasks into boards and customizable lists.
+- **Drag-and-Drop:** Seamlessly move cards between lists and reorder lists (powered by Stimulus and SortableJS).
+- **Rich Cards:** Add descriptions, checklists, attachments, and labels to cards.
+- **Collaboration:** Invite other users to your boards.
+- **Real-time Updates:** Turbo Streams provide live updates for comments and activities.
 
-* System dependencies
+## Getting Started
 
-* Configuration
+### Prerequisites
 
-* Database creation
+- Ruby 3.3.5
+- PostgreSQL
+- Node.js & Yarn (for assets)
 
-* Database initialization
+### Setup
 
-* How to run the test suite
+1.  **Clone the repository:**
+    ```bash
+    git clone <repo-url>
+    cd team-sync
+    ```
 
-* Services (job queues, cache servers, search engines, etc.)
+2.  **Install dependencies:**
+    ```bash
+    bundle install
+    ```
 
-* Deployment instructions
+3.  **Database setup:**
+    ```bash
+    bin/rails db:prepare
+    ```
 
-* ...
+4.  **Start the development server:**
+    ```bash
+    bin/dev
+    ```
+
+## Testing
+
+Run the test suite with:
+```bash
+bin/rails test
+```
+
+## Linting
+
+This project uses RuboCop for code style enforcement:
+```bash
+bundle exec rubocop
+```

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_24_152155) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -42,6 +42,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "activities", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "card_id", null: false
+    t.string "action"
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["card_id"], name: "index_activities_on_card_id"
+    t.index ["user_id"], name: "index_activities_on_user_id"
+  end
+
   create_table "board_users", force: :cascade do |t|
     t.bigint "board_id", null: false
     t.bigint "user_id", null: false
@@ -57,6 +68,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_boards_on_user_id"
+  end
+
+  create_table "card_labels", force: :cascade do |t|
+    t.bigint "card_id", null: false
+    t.bigint "label_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["card_id", "label_id"], name: "index_card_labels_on_card_id_and_label_id", unique: true
+    t.index ["card_id"], name: "index_card_labels_on_card_id"
+    t.index ["label_id"], name: "index_card_labels_on_label_id"
   end
 
   create_table "card_members", force: :cascade do |t|
@@ -76,8 +97,29 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "assignee_id"
+    t.datetime "due_date"
+    t.boolean "completed", default: false, null: false
     t.index ["assignee_id"], name: "index_cards_on_assignee_id"
     t.index ["list_id"], name: "index_cards_on_list_id"
+  end
+
+  create_table "checklist_items", force: :cascade do |t|
+    t.bigint "checklist_id", null: false
+    t.string "content"
+    t.boolean "completed"
+    t.integer "position"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["checklist_id"], name: "index_checklist_items_on_checklist_id"
+  end
+
+  create_table "checklists", force: :cascade do |t|
+    t.bigint "card_id", null: false
+    t.string "title"
+    t.integer "position"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["card_id"], name: "index_checklists_on_card_id"
   end
 
   create_table "comments", force: :cascade do |t|
@@ -88,6 +130,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
     t.datetime "updated_at", null: false
     t.index ["card_id"], name: "index_comments_on_card_id"
     t.index ["user_id"], name: "index_comments_on_user_id"
+  end
+
+  create_table "labels", force: :cascade do |t|
+    t.bigint "board_id", null: false
+    t.string "name"
+    t.string "color", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["board_id"], name: "index_labels_on_board_id"
   end
 
   create_table "lists", force: :cascade do |t|
@@ -107,20 +158,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_23_170836) do
     t.datetime "remember_created_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "name"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "activities", "cards"
+  add_foreign_key "activities", "users"
   add_foreign_key "board_users", "boards"
   add_foreign_key "board_users", "users"
   add_foreign_key "boards", "users"
+  add_foreign_key "card_labels", "cards"
+  add_foreign_key "card_labels", "labels"
   add_foreign_key "card_members", "cards"
   add_foreign_key "card_members", "users"
   add_foreign_key "cards", "lists"
   add_foreign_key "cards", "users", column: "assignee_id"
+  add_foreign_key "checklist_items", "checklists"
+  add_foreign_key "checklists", "cards"
   add_foreign_key "comments", "cards"
   add_foreign_key "comments", "users"
+  add_foreign_key "labels", "boards"
   add_foreign_key "lists", "boards"
 end

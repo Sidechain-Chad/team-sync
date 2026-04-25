@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  get 'attachments/destroy'
   # 1. Standard Devise routes for Users
   devise_for :users
 
@@ -10,33 +11,39 @@ Rails.application.routes.draw do
 
   # --- APP RESOURCES ---
 
-  # Change this:
-  # resources :boards, only: [:show, :index]
-
-  # To this (Allow all actions so we can create/edit/destroy):
   resources :boards do
     resources :lists, only: [:create, :update, :destroy]
     resources :board_users, only: [:create, :destroy]
+    resources :labels, only: [:new, :create, :edit, :update, :destroy]
   end
+
+  # Cancel routes for the inline label edit/create forms.
+  get "cards/:card_id/labels/:label_id/cancel_edit", to: "labels#cancel_edit", as: :label_row_cancel
+  get "cards/:card_id/labels/cancel_new",            to: "labels#cancel_new",  as: :new_label_cancel
 
   # Lists
   resources :lists do
     member do
-      patch :move # For dragging lists around
+      patch :move
     end
-    # Nested Cards: POST /lists/:list_id/cards (Creating a card in a specific list)
     resources :cards, only: [:new, :create]
   end
 
   # Cards (Top level access)
-  # :show is crucial for Turbo to "cancel" edits
   resources :cards, only: [:edit, :update, :destroy, :show] do
     resources :members, only: [:create, :destroy], controller: 'card_members', param: :user_id
     resources :comments, only: [:create, :destroy]
+    resources :labels, only: [:create, :destroy], controller: 'card_labels', param: :label_id
+    
+    resources :checklists, only: [:create, :update, :destroy] do
+      resources :checklist_items, only: [:create, :update, :destroy]
+    end
+    resources :attachments, only: [:destroy]
+
     member do
-      patch :move # For dragging cards around
-      get :edit_description # NEW
-      patch :update_description # Submits the for
+      patch :move
+      get :edit_description
+      patch :update_description
     end
   end
 end

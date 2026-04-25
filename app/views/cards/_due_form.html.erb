@@ -1,0 +1,32 @@
+<%= form_with model: card, url: card_path(card), method: :patch,
+    data: { turbo_frame: "card_due_pill_#{card.id}" },
+    class: "p-3 space-y-3" do |f| %>
+
+  <div class="text-[10px] font-bold text-gray-500 uppercase">Due date</div>
+
+  <%= f.datetime_local_field :due_date,
+      value: due_date_for_input(card),
+      class: "w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+
+  <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+    <%= f.check_box :completed, class: "rounded border-gray-300 text-blue-600 focus:ring-blue-500" %>
+    Mark as complete
+  </label>
+
+  <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-200">
+    <%= f.submit "Save",
+        class: "bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded cursor-pointer" %>
+
+    <%# "Remove" is a regular submit button that clears the date input via JS,
+        then triggers the same form submission. No nested forms, no button_to. %>
+    <button type="button"
+            class="text-xs text-red-600 hover:bg-red-50 px-2 py-1.5 rounded"
+            onclick="
+              this.form.querySelector('input[type=datetime-local]').value = '';
+              this.form.querySelector('input[type=checkbox]').checked = false;
+              this.form.requestSubmit();
+            ">
+      <i class="fa-solid fa-trash text-xs"></i> Remove
+    </button>
+  </div>
+<% end %>

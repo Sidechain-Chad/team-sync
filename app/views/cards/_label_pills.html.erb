@@ -1,0 +1,9 @@
+<% card.labels.each do |label| %>
+  <span class="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded <%= label_solid_class(label.color) %>"
+        title="<%= label.name.presence || label.color.capitalize %>">
+    <%= label.name.presence %>
+    <% if label.name.blank? %>
+      <span class="block w-6">&nbsp;</span>
+    <% end %>
+  </span>
+<% end %>

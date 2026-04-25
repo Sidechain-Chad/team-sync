@@ -6,6 +6,6 @@ class Comment < ApplicationRecord
 
   # This makes the comment appear instantly on everyone's screen when created
   after_create_commit do
-    broadcast_prepend_to card, target: "comments_list", partial: "comments/comment"
+    broadcast_prepend_to card, target: "activities_and_comments", partial: "comments/comment"
   end
 end
