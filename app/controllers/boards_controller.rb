@@ -11,9 +11,19 @@ class BoardsController < ApplicationController
   end
 
   def show
-    # Fetch lists in their drag-and-drop order, not creation order,
-    # otherwise reordered lists snap back on every page refresh.
-    @lists = @board.lists.order(:position)
+    # Eager-load everything the board view needs so each card on the page
+    # doesn't fire its own queries for labels, members, comments-count, etc.
+    @lists = @board.lists
+                   .includes(
+                     active_cards: [
+                       :labels,
+                       :members,
+                       :checklists,
+                       :comments,
+                       { attachments_attachments: :blob }
+                     ]
+                   )
+                   .order(:position)
   end
 
   def new

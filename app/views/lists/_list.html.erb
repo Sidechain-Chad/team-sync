@@ -9,7 +9,7 @@
        data-controller="drag"
        data-drag-url-value="/cards/:id/move"
        data-list-id="<%= list.id %>">
-      <% list.cards.order(:position).each do |card| %>
+      <% list.active_cards.each do |card| %>
         <%= render card %>
       <% end %>
   </div>

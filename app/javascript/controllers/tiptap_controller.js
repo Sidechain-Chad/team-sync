@@ -1,15 +1,12 @@
 import { Controller } from "@hotwired/stimulus"
-import { Editor } from "@tiptap/core"
-import StarterKit from "@tiptap/starter-kit"
-import Link from "@tiptap/extension-link"
-import Image from "@tiptap/extension-image"
-import Placeholder from "@tiptap/extension-placeholder"
+import { Editor } from '@tiptap/core'
+import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
+import Placeholder from '@tiptap/extension-placeholder'
 
 export default class extends Controller {
-  static targets = [
-    "element", "input", "toolbar",
-    "headingMenu", "linkMenu", "imageMenu", "moreMenu", "insertMenu"
-  ]
+  static targets = [ "element", "input", "boldButton", "italicButton", "linkButton", "imageButton" ]
 
   connect() {
     this.editor = new Editor({
@@ -30,126 +27,90 @@ export default class extends Controller {
       },
     })
     this.updateToolbarState()
+
+    // Close the editor when clicking outside it. Trello-style.
+    // Use mousedown so we react before any click handler tries to do
+    // something with the editor's frame.
+    this.boundOutsideClick = this.outsideClick.bind(this)
+    setTimeout(() => {
+      document.addEventListener("mousedown", this.boundOutsideClick)
+    }, 0)
   }
 
   disconnect() {
+    document.removeEventListener("mousedown", this.boundOutsideClick)
     this.editor.destroy()
   }
 
-  // --- 1. Basic Formatting ---
-  toggleBold() { this.editor.chain().focus().toggleBold().run() }
-  toggleItalic() { this.editor.chain().focus().toggleItalic().run() }
+  outsideClick(event) {
+    // The editor element is the form wrapper that contains both toolbar
+    // and content area. Anything inside it is "still in the editor".
+    if (this.element.contains(event.target)) return
 
-  // --- 2. Headings ---
-  toggleHeadingMenu() {
-    this.closeAllMenusExcept("headingMenu")
-    this.headingMenuTarget.classList.toggle("hidden")
+    // Also ignore clicks inside any popover that was opened from inside
+    // the modal — they're floating UI that's still part of the editing flow.
+    // (Not strictly needed but avoids accidental dismiss when picking labels etc.)
+    const popover = event.target.closest('[data-dropdown-target="menu"]')
+    if (popover) return
+
+    this.cancelEdit()
   }
 
-  setHeading(event) {
-    const level = parseInt(event.currentTarget.dataset.level)
-    level === 0
-      ? this.editor.chain().focus().setParagraph().run()
-      : this.editor.chain().focus().toggleHeading({ level: level }).run()
-    this.headingMenuTarget.classList.add("hidden")
+  cancelEdit() {
+    // Find the Cancel link in the form and click it.
+    // The link points back to the card show page, which will swap the
+    // turbo-frame back to the read-only description partial.
+    const cancelLink = this.element.closest('form')?.querySelector('a[href*="/cards/"]')
+    if (cancelLink) cancelLink.click()
   }
 
-  // --- 3. Lists ---
-  toggleBulletList() { this.editor.chain().focus().toggleBulletList().run() }
-  toggleOrderedList() { this.editor.chain().focus().toggleOrderedList().run() }
-
-  // --- 4. Links ---
-  toggleLinkMenu() {
-    this.closeAllMenusExcept("linkMenu")
-    this.linkMenuTarget.classList.toggle("hidden")
+  toggleBold() {
+    this.editor.chain().focus().toggleBold().run()
   }
 
-  setLink(event) {
-    event.preventDefault()
-    const url = document.getElementById('link-url-input').value
-    if (url) {
-      this.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  toggleItalic() {
+    this.editor.chain().focus().toggleItalic().run()
+  }
+
+  toggleLink() {
+    const previousUrl = this.editor.getAttributes('link').href
+    const url = window.prompt('URL', previousUrl)
+
+    if (url === null) {
+      return
     }
-    this.linkMenuTarget.classList.add("hidden")
-    this.clearInputs(['link-url-input', 'link-text-input'])
+
+    if (url === '') {
+      this.editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      return
+    }
+
+    this.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }
 
-  // --- 5. Images (New) ---
-  toggleImageMenu() {
-    this.closeAllMenusExcept("imageMenu")
-    this.imageMenuTarget.classList.toggle("hidden")
-  }
+  addImage() {
+    const url = window.prompt('URL')
 
-  setImage(event) {
-    event.preventDefault()
-    const url = document.getElementById('image-url-input').value
     if (url) {
       this.editor.chain().focus().setImage({ src: url }).run()
     }
-    this.imageMenuTarget.classList.add("hidden")
-    this.clearInputs(['image-url-input'])
-  }
-
-  // --- 6. More Options (...) (New) ---
-  toggleMoreMenu() {
-    this.closeAllMenusExcept("moreMenu")
-    this.moreMenuTarget.classList.toggle("hidden")
-  }
-
-  toggleStrike() {
-    this.editor.chain().focus().toggleStrike().run()
-    this.moreMenuTarget.classList.add("hidden")
-  }
-
-  toggleCode() {
-    this.editor.chain().focus().toggleCode().run()
-    this.moreMenuTarget.classList.add("hidden")
-  }
-
-  clearFormatting() {
-    this.editor.chain().focus().unsetAllMarks().run()
-    this.moreMenuTarget.classList.add("hidden")
-  }
-
-  // --- 7. Insert Elements (+) (New) ---
-  toggleInsertMenu() {
-    this.closeAllMenusExcept("insertMenu")
-    this.insertMenuTarget.classList.toggle("hidden")
-  }
-
-  addDivider() {
-    this.editor.chain().focus().setHorizontalRule().run()
-    this.insertMenuTarget.classList.add("hidden")
-  }
-
-  toggleBlockquote() {
-    this.editor.chain().focus().toggleBlockquote().run()
-    this.insertMenuTarget.classList.add("hidden")
-  }
-
-  toggleCodeBlock() {
-    this.editor.chain().focus().toggleCodeBlock().run()
-    this.insertMenuTarget.classList.add("hidden")
-  }
-
-  // --- Helpers ---
-  closeAllMenusExcept(targetName) {
-    const menus = ["headingMenu", "linkMenu", "imageMenu", "moreMenu", "insertMenu"]
-    menus.forEach(name => {
-      if (name !== targetName) {
-        this[name + "Target"].classList.add("hidden")
-      }
-    })
-  }
-
-  clearInputs(ids) {
-    ids.forEach(id => {
-      const el = document.getElementById(id)
-      if (el) el.value = ""
-    })
   }
 
   updateToolbarState() {
-    // Optional: Add visual active states here later
+    if (!this.editor) return
+
+    this.updateButtonState(this.boldButtonTarget, 'bold')
+    this.updateButtonState(this.italicButtonTarget, 'italic')
+    this.updateButtonState(this.linkButtonTarget, 'link')
+  }
+
+  updateButtonState(button, attribute) {
+    if (this.editor.isActive(attribute)) {
+      button.classList.add('bg-gray-200', 'text-blue-600')
+      button.classList.remove('text-gray-600')
+    } else {
+      button.classList.remove('bg-gray-200', 'text-blue-600')
+      button.classList.add('text-gray-600')
+    }
   }
 }
