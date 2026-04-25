@@ -129,8 +129,7 @@
                       <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">Board members</div>
                       <div id="available_members_list" class="space-y-1 max-h-48 overflow-y-auto">
                         <% board = @card.list.board %>
-                        <% board_users = ([board.user] + board.members).uniq %>
-                        <% (board_users - @card.members).each do |user| %>
+                        <% (board.active_members - @card.members).each do |user| %>
                           <%= render "cards/member_row", card: @card, user: user, assigned: false %>
                         <% end %>
                       </div>

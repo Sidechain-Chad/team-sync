@@ -9,6 +9,10 @@ class Board < ApplicationRecord
 
   validates :name, presence: true
 
+  def active_members
+    ([user] + members).uniq.reject(&:deactivated?)
+  end
+
   # Seed the default Trello-style label palette on every new board so
   # users have something to pick from immediately.
   after_create :seed_default_labels
