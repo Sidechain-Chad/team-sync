@@ -11,7 +11,7 @@
 
         <%# Name info %>
         <div class="flex flex-col">
-          <span class="text-xs text-gray-700 font-medium group-hover:text-red-700"><%= user.email.split('@')[0].capitalize %></span>
+          <span class="text-xs text-gray-700 font-medium group-hover:text-red-700"><%= user.display_name %></span>
           <span class="text-[10px] text-gray-400 group-hover:text-red-400"><%= user.email %></span>
         </div>
 
@@ -31,7 +31,7 @@
 
         <%# Name info %>
         <div class="flex flex-col">
-          <span class="text-xs text-gray-600 font-medium group-hover:text-gray-900"><%= user.email.split('@')[0].capitalize %></span>
+          <span class="text-xs text-gray-600 font-medium group-hover:text-gray-900"><%= user.display_name %></span>
           <span class="text-[10px] text-gray-400"><%= user.email %></span>
         </div>
 

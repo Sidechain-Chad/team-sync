@@ -1,10 +1,10 @@
 <div class="flex gap-3 text-sm mb-4 automated-activity" data-activity-toggle-target="item">
   <div class="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center shrink-0 font-bold text-gray-600">
-    <%= activity.user.email.first(2).upcase %>
+    <%= activity.user&.initials || "?" %>
   </div>
   <div class="flex flex-col">
     <div class="flex items-baseline gap-2">
-      <span class="font-bold text-gray-800"><%= activity.user.email.split('@').first %></span>
+      <span class="font-bold text-gray-800"><%= activity.user&.display_name || "Deleted User" %></span>
       <span class="text-[11px] text-gray-500"><%= time_ago_in_words(activity.created_at) %> ago</span>
     </div>
     <div class="text-gray-600 mt-1">
