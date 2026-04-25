@@ -43,15 +43,16 @@ export default class extends Controller {
   }
 
   outsideClick(event) {
-    // The editor element is the form wrapper that contains both toolbar
-    // and content area. Anything inside it is "still in the editor".
-    if (this.element.contains(event.target)) return
+    // Walk up to the enclosing form — that's the real edit boundary.
+    // The Save / Cancel buttons live outside the tiptap container but
+    // inside the form, so they should NOT trigger an outside-click cancel.
+    const formEl = this.element.closest('form')
+    const boundary = formEl || this.element
 
-    // Also ignore clicks inside any popover that was opened from inside
-    // the modal — they're floating UI that's still part of the editing flow.
-    // (Not strictly needed but avoids accidental dismiss when picking labels etc.)
-    const popover = event.target.closest('[data-dropdown-target="menu"]')
-    if (popover) return
+    if (boundary.contains(event.target)) return
+
+    // Ignore clicks inside any popover (labels, members, etc.)
+    if (event.target.closest('[data-dropdown-target="menu"]')) return
 
     this.cancelEdit()
   }
