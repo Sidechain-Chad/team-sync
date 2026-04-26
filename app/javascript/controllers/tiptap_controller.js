@@ -6,7 +6,10 @@ import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 
 export default class extends Controller {
-  static targets = [ "element", "input", "boldButton", "italicButton", "linkButton", "imageButton" ]
+  static targets = [
+    "element", "input",
+    "toolbar", "headingMenu", "moreMenu", "linkMenu", "imageMenu", "insertMenu"
+  ]
 
   connect() {
     this.editor = new Editor({
@@ -20,98 +23,112 @@ export default class extends Controller {
       content: this.inputTarget.value,
       onUpdate: ({ editor }) => {
         this.inputTarget.value = editor.getHTML()
-        this.updateToolbarState()
-      },
-      onSelectionUpdate: () => {
-        this.updateToolbarState()
       },
     })
-    this.updateToolbarState()
 
-    // Close the editor when clicking outside it. Trello-style.
-    // Use mousedown so we react before any click handler tries to do
-    // something with the editor's frame.
-    this.boundOutsideClick = this.outsideClick.bind(this)
-    setTimeout(() => {
-      document.addEventListener("mousedown", this.boundOutsideClick)
-    }, 0)
+    // Belt-and-braces: when the form submits, copy the editor's current
+    // HTML into the hidden input. onUpdate normally handles this on every
+    // keystroke, but this guarantees we never submit a stale value.
+    this.formEl = this.element.closest('form')
+    if (this.formEl) {
+      this.boundFormSubmit = this.syncOnSubmit.bind(this)
+      this.formEl.addEventListener('submit', this.boundFormSubmit)
+    }
+
+    // Close any open toolbar submenu when clicking elsewhere on the page.
+    this.boundCloseMenus = this.closeAllMenus.bind(this)
+    document.addEventListener('mousedown', this.boundCloseMenus)
   }
 
   disconnect() {
-    document.removeEventListener("mousedown", this.boundOutsideClick)
-    this.editor.destroy()
-  }
-
-  outsideClick(event) {
-    // Walk up to the enclosing form — that's the real edit boundary.
-    // The Save / Cancel buttons live outside the tiptap container but
-    // inside the form, so they should NOT trigger an outside-click cancel.
-    const formEl = this.element.closest('form')
-    const boundary = formEl || this.element
-
-    if (boundary.contains(event.target)) return
-
-    // Ignore clicks inside any popover (labels, members, etc.)
-    if (event.target.closest('[data-dropdown-target="menu"]')) return
-
-    this.cancelEdit()
-  }
-
-  cancelEdit() {
-    // Find the Cancel link in the form and click it.
-    // The link points back to the card show page, which will swap the
-    // turbo-frame back to the read-only description partial.
-    const cancelLink = this.element.closest('form')?.querySelector('a[href*="/cards/"]')
-    if (cancelLink) cancelLink.click()
-  }
-
-  toggleBold() {
-    this.editor.chain().focus().toggleBold().run()
-  }
-
-  toggleItalic() {
-    this.editor.chain().focus().toggleItalic().run()
-  }
-
-  toggleLink() {
-    const previousUrl = this.editor.getAttributes('link').href
-    const url = window.prompt('URL', previousUrl)
-
-    if (url === null) {
-      return
+    if (this.formEl && this.boundFormSubmit) {
+      this.formEl.removeEventListener('submit', this.boundFormSubmit)
     }
-
-    if (url === '') {
-      this.editor.chain().focus().extendMarkRange('link').unsetLink().run()
-      return
-    }
-
-    this.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    document.removeEventListener('mousedown', this.boundCloseMenus)
+    if (this.editor) this.editor.destroy()
   }
 
-  addImage() {
-    const url = window.prompt('URL')
-
-    if (url) {
-      this.editor.chain().focus().setImage({ src: url }).run()
+  syncOnSubmit() {
+    if (this.editor) {
+      this.inputTarget.value = this.editor.getHTML()
     }
   }
 
-  updateToolbarState() {
-    if (!this.editor) return
-
-    this.updateButtonState(this.boldButtonTarget, 'bold')
-    this.updateButtonState(this.italicButtonTarget, 'italic')
-    this.updateButtonState(this.linkButtonTarget, 'link')
-  }
-
-  updateButtonState(button, attribute) {
-    if (this.editor.isActive(attribute)) {
-      button.classList.add('bg-gray-200', 'text-blue-600')
-      button.classList.remove('text-gray-600')
+  // -- Heading menu --
+  toggleHeadingMenu(e) { e.stopPropagation(); this.toggleMenu(this.headingMenuTarget) }
+  setHeading(e) {
+    e.preventDefault()
+    const level = parseInt(e.currentTarget.dataset.level, 10)
+    if (level === 0) {
+      this.editor.chain().focus().setParagraph().run()
     } else {
-      button.classList.remove('bg-gray-200', 'text-blue-600')
-      button.classList.add('text-gray-600')
+      this.editor.chain().focus().toggleHeading({ level }).run()
     }
+    this.closeAllMenus()
+  }
+
+  // -- Basic formatting --
+  toggleBold()       { this.editor.chain().focus().toggleBold().run() }
+  toggleItalic()     { this.editor.chain().focus().toggleItalic().run() }
+  toggleStrike()     { this.editor.chain().focus().toggleStrike().run() }
+  toggleCode()       { this.editor.chain().focus().toggleCode().run() }
+  clearFormatting()  { this.editor.chain().focus().clearNodes().unsetAllMarks().run() }
+
+  // -- Lists --
+  toggleBulletList()  { this.editor.chain().focus().toggleBulletList().run() }
+  toggleOrderedList() { this.editor.chain().focus().toggleOrderedList().run() }
+
+  // -- More menu --
+  toggleMoreMenu(e) { e.stopPropagation(); this.toggleMenu(this.moreMenuTarget) }
+
+  // -- Link menu --
+  toggleLinkMenu(e) { e.stopPropagation(); this.toggleMenu(this.linkMenuTarget) }
+  setLink() {
+    const url  = document.getElementById('link-url-input')?.value
+    const text = document.getElementById('link-text-input')?.value
+    if (!url) return
+    if (text) {
+      this.editor.chain().focus().insertContent(`<a href="${url}">${text}</a>`).run()
+    } else {
+      this.editor.chain().focus().setLink({ href: url }).run()
+    }
+    this.closeAllMenus()
+  }
+
+  // -- Image menu --
+  toggleImageMenu(e) { e.stopPropagation(); this.toggleMenu(this.imageMenuTarget) }
+  setImage() {
+    const url = document.getElementById('image-url-input')?.value
+    if (!url) return
+    this.editor.chain().focus().setImage({ src: url }).run()
+    this.closeAllMenus()
+  }
+
+  // -- Insert menu --
+  toggleInsertMenu(e)  { e.stopPropagation(); this.toggleMenu(this.insertMenuTarget) }
+  addDivider()         { this.editor.chain().focus().setHorizontalRule().run(); this.closeAllMenus() }
+  toggleBlockquote()   { this.editor.chain().focus().toggleBlockquote().run(); this.closeAllMenus() }
+  toggleCodeBlock()    { this.editor.chain().focus().toggleCodeBlock().run(); this.closeAllMenus() }
+
+  // -- Helpers --
+  toggleMenu(menuEl) {
+    const wasHidden = menuEl.classList.contains('hidden')
+    this.closeAllMenus()
+    if (wasHidden) menuEl.classList.remove('hidden')
+  }
+
+  closeAllMenus(event) {
+    // If event came from inside a menu, leave it alone (button inside menu).
+    if (event && event.target.closest('[data-tiptap-target$="Menu"]')) return
+
+    const menus = [
+      this.hasHeadingMenuTarget && this.headingMenuTarget,
+      this.hasMoreMenuTarget    && this.moreMenuTarget,
+      this.hasLinkMenuTarget    && this.linkMenuTarget,
+      this.hasImageMenuTarget   && this.imageMenuTarget,
+      this.hasInsertMenuTarget  && this.insertMenuTarget,
+    ].filter(Boolean)
+
+    menus.forEach(m => m.classList.add('hidden'))
   }
 }
