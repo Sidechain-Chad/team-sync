@@ -14,6 +14,10 @@ Rails.application.routes.draw do
     resources :lists, only: [:create, :update, :destroy]
     resources :board_users, only: [:create, :destroy]
     resources :labels, only: [:new, :create, :edit, :update, :destroy]
+
+    member do
+      get :archive
+    end
   end
 
   # Cancel routes for the inline label edit/create forms.

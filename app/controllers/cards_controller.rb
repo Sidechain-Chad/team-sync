@@ -21,6 +21,11 @@ class CardsController < ApplicationController
   def edit
   end
 
+  def new
+    @list = current_user.all_lists.find(params[:list_id])
+    @card = @list.cards.build
+  end
+
   def create
     @list = current_user.all_lists.find(params[:list_id])
     @card = @list.cards.build(card_params)
@@ -37,8 +42,14 @@ class CardsController < ApplicationController
   end
 
   def update
+    old_list = @card.list
+
     if @card.update(card_params)
-      @card.log_activity(current_user, "updated")
+      if @card.list_id != old_list.id
+        @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
+      else
+        @card.log_activity(current_user, "updated")
+      end
       redirect_to @card.list.board
     else
       render :edit, status: :unprocessable_entity
@@ -86,12 +97,26 @@ class CardsController < ApplicationController
 
   def unarchive
     @card.unarchive!
-    @card.insert_at(@card.list.active_cards.count) if @card.position.nil?
+    # Place at the bottom of the (now active) cards in its original list.
+    @card.insert_at(@card.list.active_cards.count)
 
     @card.log_activity(current_user, "unarchived")
-    broadcast_card_update
 
-    redirect_to @card.list.board
+    # Tell the board's stream to reinsert the card at the bottom of its list.
+    Turbo::StreamsChannel.broadcast_append_to(
+      @card.list.board,
+      target: "list_#{@card.list_id}_cards",
+      partial: "cards/card",
+      locals: { card: @card }
+    )
+
+    # If the request came from the archive page, return there so the
+    # user can keep restoring cards. Otherwise back to the board.
+    if request.referer&.include?("/archive")
+      redirect_to archive_board_path(@card.list.board)
+    else
+      redirect_to @card.list.board
+    end
   end
 
   private
@@ -101,7 +126,7 @@ class CardsController < ApplicationController
   end
 
   def card_params
-    params.require(:card).permit(:title, :description, :due_date, :completed)
+    params.require(:card).permit(:title, :description, :due_date, :completed, :list_id)
   end
 
   def broadcast_card_remove
