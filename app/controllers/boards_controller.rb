@@ -1,6 +1,6 @@
 class BoardsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_board, only: [:show, :edit, :update, :destroy]
+  before_action :set_board, only: [:show, :edit, :update, :destroy, :archive]
 
   def index
     # Boards I created
@@ -24,6 +24,14 @@ class BoardsController < ApplicationController
                      ]
                    )
                    .order(:position)
+  end
+
+  def archive
+    # All archived cards on this board, newest first.
+    @archived_cards = Card.archived
+                          .where(list_id: @board.lists.select(:id))
+                          .includes(:list, :labels, :members)
+                          .order(updated_at: :desc)
   end
 
   def new
