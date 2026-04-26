@@ -15,12 +15,12 @@ class ChecklistItemsControllerTest < ActionDispatch::IntegrationTest
     assert_difference('ChecklistItem.count') do
       post card_checklist_checklist_items_url(@card, @checklist), params: { checklist_item: { content: 'New Item' } }
     end
-    assert_redirected_to card_url(@card)
+    assert_redirected_to board_url(@card.list.board)
   end
 
   test "should update checklist_item" do
     patch card_checklist_checklist_item_url(@card, @checklist, @checklist_item), params: { checklist_item: { completed: true } }
-    assert_redirected_to card_url(@card)
+    assert_redirected_to board_url(@card.list.board)
     assert @checklist_item.reload.completed
   end
 
@@ -28,6 +28,6 @@ class ChecklistItemsControllerTest < ActionDispatch::IntegrationTest
     assert_difference('ChecklistItem.count', -1) do
       delete card_checklist_checklist_item_url(@card, @checklist, @checklist_item)
     end
-    assert_redirected_to card_url(@card)
+    assert_redirected_to board_url(@card.list.board)
   end
 end

@@ -1,32 +1,45 @@
 <%# app/views/checklists/_checklist.html.erb %>
-<div class="ml-9 mb-8">
-  <div class="flex items-center justify-between mb-2">
-    <div class="flex items-center gap-3">
-      <i class="fa-solid fa-square-check text-gray-600 text-lg"></i>
-      <h3 class="font-bold text-lg text-gray-800"><%= checklist.title %></h3>
-    </div>
-    <%= button_to "Delete", card_checklist_path(checklist.card, checklist), method: :delete, class: "text-xs text-gray-500 hover:text-red-600" %>
-  </div>
-
-  <%# Progress bar %>
-  <div class="flex items-center gap-2 mb-4">
-    <span class="text-xs text-gray-500 w-8"><%= checklist.percent_complete %>%</span>
-    <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-      <div class="h-full bg-blue-500 transition-all duration-300" style="width: <%= checklist.percent_complete %>%"></div>
-    </div>
-  </div>
-
-  <div class="space-y-2">
-    <%= render checklist.checklist_items %>
-  </div>
-
-  <%# Add item form %>
-  <div class="mt-4">
-    <%= form_with model: [checklist.card, checklist, ChecklistItem.new], class: "ml-6" do |f| %>
-      <%= f.text_field :content, placeholder: "Add an item", class: "w-full text-sm border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" %>
-      <div class="mt-2 flex gap-2">
-        <%= f.submit "Add", class: "bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded cursor-pointer" %>
+<%= turbo_frame_tag dom_id(checklist) do %>
+  <div class="ml-9 mb-8">
+    <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-square-check text-gray-600 text-lg"></i>
+        <h3 class="font-bold text-lg text-gray-800"><%= checklist.title %></h3>
       </div>
+      <%= button_to "Delete",
+          card_checklist_path(checklist.card, checklist),
+          method: :delete,
+          form: { class: "m-0", data: { turbo_confirm: "Delete this checklist?" } },
+          class: "text-xs text-gray-500 hover:text-red-600 bg-transparent border-0 cursor-pointer" %>
+    </div>
+
+    <%# Progress bar %>
+    <div class="flex items-center gap-2 mb-4">
+      <span class="text-xs text-gray-500 w-8"><%= checklist.percent_complete %>%</span>
+      <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div class="h-full bg-blue-500 transition-all duration-300" style="width: <%= checklist.percent_complete %>%"></div>
+      </div>
+    </div>
+
+    <%# Items list — turbo-frame so we can append/remove %>
+    <%= turbo_frame_tag dom_id(checklist, :items), class: "space-y-2 block" do %>
+      <%= render checklist.checklist_items %>
     <% end %>
+
+    <%# Add item form %>
+    <div class="mt-4">
+      <%= form_with model: [checklist.card, checklist, ChecklistItem.new],
+          class: "ml-6",
+          data: { turbo_frame: dom_id(checklist, :items), turbo_action: "append" } do |f| %>
+        <%= f.text_field :content,
+            placeholder: "Add an item",
+            required: true,
+            class: "w-full text-sm border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" %>
+        <div class="mt-2 flex gap-2">
+          <%= f.submit "Add",
+              class: "bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded cursor-pointer" %>
+        </div>
+      <% end %>
+    </div>
   </div>
-</div>
+<% end %>

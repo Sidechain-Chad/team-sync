@@ -5,27 +5,76 @@ class ChecklistItemsController < ApplicationController
   def create
     @item = @checklist.checklist_items.new(item_params)
     if @item.save
-      redirect_to @checklist.card
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: [
+            turbo_stream.append(
+              helpers.dom_id(@checklist, :items),
+              partial: "checklist_items/checklist_item",
+              locals: { checklist_item: @item }
+            ),
+            turbo_stream.replace(
+              helpers.dom_id(@checklist),
+              partial: "checklists/checklist",
+              locals: { checklist: @checklist.reload }
+            )
+          ]
+        end
+        format.html { redirect_to @checklist.card.list.board }
+      end
     else
-      redirect_to @checklist.card, alert: "Could not add item"
+      redirect_to @checklist.card.list.board, alert: "Could not add item"
     end
   end
 
   def update
     @item = @checklist.checklist_items.find(params[:id])
     was_completed = @item.completed
+    
     if @item.update(item_params)
       if !was_completed && @item.completed
         @checklist.card.log_activity(current_user, "completed_checklist_item", @item.content)
       end
     end
-    redirect_to @checklist.card
+
+    respond_to do |format|
+      format.turbo_stream do
+        # Replace both the item (for the strikethrough style) and the
+        # parent checklist (for the progress bar update).
+        render turbo_stream: [
+          turbo_stream.replace(
+            helpers.dom_id(@item),
+            partial: "checklist_items/checklist_item",
+            locals: { checklist_item: @item }
+          ),
+          turbo_stream.replace(
+            helpers.dom_id(@checklist),
+            partial: "checklists/checklist",
+            locals: { checklist: @checklist.reload }
+          )
+        ]
+      end
+      format.html { redirect_to @checklist.card.list.board }
+    end
   end
 
   def destroy
     @item = @checklist.checklist_items.find(params[:id])
     @item.destroy
-    redirect_to @checklist.card
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: [
+          turbo_stream.remove(helpers.dom_id(@item)),
+          turbo_stream.replace(
+            helpers.dom_id(@checklist),
+            partial: "checklists/checklist",
+            locals: { checklist: @checklist.reload }
+          )
+        ]
+      end
+      format.html { redirect_to @checklist.card.list.board }
+    end
   end
 
   private

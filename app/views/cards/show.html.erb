@@ -268,8 +268,10 @@
             <% end %>
 
             <%# 5. Checklists %>
-            <div id="checklists_<%= @card.id %>">
-              <%= render @card.checklists %>
+            <div id="checklists_for_<%= @card.id %>">
+              <% @card.checklists.each do |checklist| %>
+                <%= render checklist %>
+              <% end %>
             </div>
 
           </div>
