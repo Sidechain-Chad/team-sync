@@ -7,7 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 
 export default class extends Controller {
   static targets = [
-    "element", "input",
+    "element", "input", "fileInput",
     "toolbar", "headingMenu", "moreMenu", "linkMenu", "imageMenu", "insertMenu"
   ]
 
@@ -38,6 +38,10 @@ export default class extends Controller {
     // Close any open toolbar submenu when clicking elsewhere on the page.
     this.boundCloseMenus = this.closeAllMenus.bind(this)
     document.addEventListener('mousedown', this.boundCloseMenus)
+
+    // Cmd+K / Ctrl+K opens the link menu (with selected text pre-filled).
+    this.boundLinkShortcut = this.handleLinkShortcut.bind(this)
+    this.element.addEventListener('keydown', this.boundLinkShortcut)
   }
 
   disconnect() {
@@ -45,6 +49,7 @@ export default class extends Controller {
       this.formEl.removeEventListener('submit', this.boundFormSubmit)
     }
     document.removeEventListener('mousedown', this.boundCloseMenus)
+    this.element.removeEventListener('keydown', this.boundLinkShortcut)
     if (this.editor) this.editor.destroy()
   }
 
@@ -52,6 +57,32 @@ export default class extends Controller {
     if (this.editor) {
       this.inputTarget.value = this.editor.getHTML()
     }
+  }
+
+  handleLinkShortcut(event) {
+    const isLinkShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k'
+    if (!isLinkShortcut) return
+
+    event.preventDefault()
+    this.openLinkMenu()
+  }
+
+  openLinkMenu() {
+    // Pre-fill "Text to display" with whatever's currently selected
+    const { from, to } = this.editor.state.selection
+    const selectedText = this.editor.state.doc.textBetween(from, to, ' ')
+
+    const textInput = document.getElementById('link-text-input')
+    const urlInput  = document.getElementById('link-url-input')
+    if (textInput) textInput.value = selectedText
+    if (urlInput)  urlInput.value  = ''
+
+    // Show the menu (close any others first)
+    this.closeAllMenus()
+    this.linkMenuTarget.classList.remove('hidden')
+
+    // Focus the URL field — natural next step is for the user to paste/type a URL
+    setTimeout(() => urlInput?.focus(), 0)
   }
 
   // -- Heading menu --
@@ -82,7 +113,15 @@ export default class extends Controller {
   toggleMoreMenu(e) { e.stopPropagation(); this.toggleMenu(this.moreMenuTarget) }
 
   // -- Link menu --
-  toggleLinkMenu(e) { e.stopPropagation(); this.toggleMenu(this.linkMenuTarget) }
+  toggleLinkMenu(e) {
+    e.stopPropagation()
+    if (this.linkMenuTarget.classList.contains('hidden')) {
+      this.openLinkMenu()
+    } else {
+      this.linkMenuTarget.classList.add('hidden')
+    }
+  }
+
   setLink() {
     const url  = document.getElementById('link-url-input')?.value
     const text = document.getElementById('link-text-input')?.value
@@ -102,6 +141,44 @@ export default class extends Controller {
     if (!url) return
     this.editor.chain().focus().setImage({ src: url }).run()
     this.closeAllMenus()
+  }
+
+  triggerFilePicker(event) {
+    event.preventDefault()
+    this.fileInputTarget.click()
+  }
+
+  async uploadImage(event) {
+    const file = event.target.files[0]
+    if (!file) return
+
+    const cardId = event.target.dataset.cardId
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await fetch(`/cards/${cardId}/attachments`, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken, 'Accept': 'application/json' },
+        body: formData,
+      })
+
+      if (!response.ok) throw new Error(`Upload failed: ${response.status}`)
+
+      const data = await response.json()
+
+      // Insert the uploaded image into the editor at the current cursor.
+      this.editor.chain().focus().setImage({ src: data.url, alt: data.filename }).run()
+
+      // Reset the file input so picking the same file twice still triggers change.
+      event.target.value = ''
+      this.closeAllMenus()
+    } catch (err) {
+      console.error('Image upload failed:', err)
+      alert('Could not upload image. Please try again.')
+    }
   }
 
   // -- Insert menu --

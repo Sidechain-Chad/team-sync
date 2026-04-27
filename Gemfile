@@ -50,6 +50,7 @@ group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ]
   gem "rubocop-rails", require: false
+  gem "dotenv-rails", require: "dotenv/load"
 end
 
 group :development do
@@ -72,3 +73,8 @@ end
 gem "devise", "~> 4.9"
 
 gem "tailwindcss-rails", "~> 4.4"
+
+gem "cloudinary", "~> 2.4"
+
+
+gem "ruby-vips", "~> 2.3"

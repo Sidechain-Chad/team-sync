@@ -56,7 +56,7 @@
                       :id,
                       :name,
                       { selected: @card.list_id },
-                      { class: "w-full p-2 bg-white border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" } %>
+                      { class: "w-full p-2 bg-gray-50 focus:bg-white border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" } %>
                 </div>
 
                 <%= f.submit "Move",
@@ -239,7 +239,7 @@
                 </div>
                 <div class="space-y-3">
                   <% @card.attachments.each do |attachment| %>
-                    <div class="flex items-center gap-3 group">
+                    <div id="<%= dom_id(attachment) %>" class="flex items-center gap-3 group">
                       <div class="h-20 w-28 bg-gray-200 rounded flex items-center justify-center overflow-hidden shrink-0">
                         <% if attachment.variable? %>
                           <%= image_tag attachment.variant(resize_to_limit: [112, 80]) %>
@@ -254,11 +254,12 @@
                           <span>•</span>
                           <%= link_to "Download", rails_blob_path(attachment, disposition: "attachment"), class: "underline hover:text-gray-700" %>
                           <span>•</span>
-                          <%= button_to "Delete",
-                              card_attachment_path(@card, attachment),
+                          <%= button_to card_attachment_path(@card, attachment),
                               method: :delete,
-                              form: { class: "inline-block m-0", data: { turbo_confirm: "Delete attachment?" } },
-                              class: "underline hover:text-red-600 bg-transparent border-0 cursor-pointer p-0 m-0" %>
+                              form: { class: "inline-block m-0", data: { turbo_confirm: "Delete this attachment?" } },
+                              class: "text-xs text-red-600 hover:text-red-700 bg-transparent border-0 cursor-pointer underline p-0 m-0" do %>
+                            Delete
+                          <% end %>
                         </div>
                       </div>
                     </div>
