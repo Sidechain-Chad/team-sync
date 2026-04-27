@@ -41,7 +41,7 @@ Rails.application.routes.draw do
     resources :checklists, only: [:create, :update, :destroy] do
       resources :checklist_items, only: [:create, :update, :destroy]
     end
-    resources :attachments, only: [:destroy]
+    resources :attachments, only: [:create, :destroy]
 
     member do
       patch :move

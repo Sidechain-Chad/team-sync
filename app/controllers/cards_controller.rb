@@ -59,7 +59,14 @@ class CardsController < ApplicationController
   def destroy
     @board = @card.list.board
     @card.destroy
-    redirect_to @board, status: :see_other
+
+    # If the request came from the archive page, return there.
+    # Otherwise back to the board.
+    if request.referer&.include?("/archive")
+      redirect_to archive_board_path(@board), status: :see_other
+    else
+      redirect_to @board, status: :see_other
+    end
   end
 
   def move
