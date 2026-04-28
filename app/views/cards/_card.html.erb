@@ -1,14 +1,13 @@
 <%= turbo_frame_tag card, data: { id: card.id } do %>
-  <%# Wrapper: relative + group for hover interactions.
-      hover:translate-x-2 nudges the card 8px right on hover. %>
-  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all duration-150 ease-out hover:translate-x-2 cursor-pointer overflow-hidden">
+  <%# Wrapper: relative + group for hover interactions. %>
+  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all duration-150 ease-out cursor-pointer overflow-hidden">
 
     <%# ============ TOP-RIGHT: contextual quick actions ============
         Dark translucent badges read cleanly over both cover images and white
         card bodies — the same pattern Trello uses. Archive only appears once
         the card is marked complete and gets a more pronounced shadow as the
         "next-step" affordance. %>
-    <div class="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+    <div class="absolute top-2 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
 
       <% if card.completed? %>
         <%= button_to archive_card_path(card),
