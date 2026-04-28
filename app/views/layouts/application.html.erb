@@ -15,10 +15,14 @@
 
   <body>
 
-    <main class="container mx-auto mt-28 px-5 flex">
+    <main id="main-content" class="transition-[padding] duration-200 ease-out">
       <%= yield %>
     </main>
+
+    <% if controller_name == "boards" && action_name == "show" %>
+      <%= render "shared/bottom_nav" %>
+    <% end %>
+
     <%= turbo_frame_tag "modal", target: "_top", data: { controller: "modal", action: "turbo:before-render@document->modal#close" } %>
-    <%= render "shared/bottom_nav" %>
   </body>
 </html>
