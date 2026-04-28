@@ -36,17 +36,23 @@ Rails.application.configure do
   # config.action_dispatch.x_sendfile_header = "X-Sendfile" # for Apache
   # config.action_dispatch.x_sendfile_header = "X-Accel-Redirect" # for NGINX
 
-  # Store uploaded files on the local file system (see config/storage.yml for options).
-  config.active_storage.service = :local
+  # Store uploaded files on Cloudinary in production. The :cloudinary service
+  # is configured in config/storage.yml and reads the CLOUDINARY_URL env var.
+  # Local disk would not survive Render deploys (ephemeral filesystem).
+  config.active_storage.service = :cloudinary
 
-  # Mount Action Cable outside main process or domain.
-  # config.action_cable.mount_path = nil
-  # config.action_cable.url = "wss://example.com/cable"
-  # config.action_cable.allowed_request_origins = [ "http://example.com", /http:\/\/example.*/ ]
+  # Action Cable: allow connections from the Render hostname (and an optional
+  # custom domain via APP_HOST). Without this, force_ssl + same-origin checks
+  # will reject WebSocket upgrades and live updates will silently fail.
+  config.action_cable.allowed_request_origins = [
+    /https:\/\/.*\.onrender\.com/,
+    ENV["APP_HOST"].present? ? "https://#{ENV["APP_HOST"]}" : nil
+  ].compact
 
-  # Assume all access to the app is happening through a SSL-terminating reverse proxy.
-  # Can be used together with config.force_ssl for Strict-Transport-Security and secure cookies.
-  # config.assume_ssl = true
+  # Render terminates SSL at its load balancer and forwards plain HTTP to the
+  # app. assume_ssl tells Rails to treat those requests as HTTPS so cookies
+  # are flagged secure and force_ssl below works correctly.
+  config.assume_ssl = true
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
@@ -87,11 +93,12 @@ Rails.application.configure do
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
-  # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
-  # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  # Allow requests from the Render-assigned hostname and an optional custom
+  # domain. Without this, every request is rejected with a "Blocked host" error.
+  config.hosts << ENV["RENDER_EXTERNAL_HOSTNAME"] if ENV["RENDER_EXTERNAL_HOSTNAME"].present?
+  config.hosts << ENV["APP_HOST"]                 if ENV["APP_HOST"].present?
+
+  # Skip host authorization for the health check so Render's load balancer
+  # (which hits /up without setting Host) doesn't trip the guard.
+  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end

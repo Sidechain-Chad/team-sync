@@ -4,7 +4,9 @@ development:
 test:
   adapter: test
 
+# Use the postgresql adapter so Action Cable can broadcast without a separate
+# Redis instance. This uses Postgres LISTEN/NOTIFY and works on a single web
+# dyno — fine for a small team. If you ever need to scale to multiple web
+# instances, swap this back to redis and provision Render Key Value.
 production:
-  adapter: redis
-  url: <%= ENV.fetch("REDIS_URL") { "redis://localhost:6379/1" } %>
-  channel_prefix: team_sync_production
+  adapter: postgresql

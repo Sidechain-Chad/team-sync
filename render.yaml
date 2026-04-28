@@ -1,0 +1,40 @@
+# Render Blueprint: defines the web service + Postgres database in one file.
+# When you create a new Blueprint on Render and point it at this repo, Render
+# reads this file and provisions everything in one go.
+#
+# Heads-up on the free Postgres plan: it expires 30 days after creation. Fine
+# for first deploys and sharing with one or two people, but switch to a paid
+# plan ($6/mo Basic-256mb) before that window closes if you're keeping data.
+
+databases:
+  - name: team-sync-db
+    plan: free
+    databaseName: team_sync_production
+    user: team_sync
+
+services:
+  - type: web
+    name: team-sync
+    runtime: ruby
+    plan: free
+    region: oregon          # change if you want a closer region
+    buildCommand: ./bin/render-build.sh
+    startCommand: bundle exec puma -C config/puma.rb
+    healthCheckPath: /up
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: team-sync-db
+          property: connectionString
+      - key: RAILS_MASTER_KEY
+        sync: false        # set manually in the Render dashboard
+      - key: CLOUDINARY_URL
+        sync: false        # set manually in the Render dashboard
+      - key: RAILS_ENV
+        value: production
+      - key: RAILS_SERVE_STATIC_FILES
+        value: "true"
+      - key: RAILS_LOG_TO_STDOUT
+        value: "true"
+      - key: WEB_CONCURRENCY
+        value: "2"
