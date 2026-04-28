@@ -5,8 +5,5 @@
         title="<%= card.due_date.strftime('%b %-d, %Y at %-l:%M %p') %>">
     <i class="fa-regular fa-clock text-[10px]"></i>
     <%= due_pill_label(card) %>
-    <% if status == :complete %>
-      <i class="fa-solid fa-check text-[10px]"></i>
-    <% end %>
   </span>
 <% end %>

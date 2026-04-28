@@ -1,17 +1,16 @@
 <%= turbo_frame_tag card, data: { id: card.id } do %>
-  <%# Wrapper: relative + group for hover icon positioning. The horizontal
-      slide on hover is the small motion Trello uses — translate-x-1 nudges
-      the card 4px to the right; transitions back to 0 on mouse-out. %>
-  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all duration-150 ease-out hover:translate-x-1 cursor-pointer">
+  <%# Wrapper: relative + group for hover icon positioning.
+      hover:translate-x-2 nudges the card 8px right on hover; transitions
+      back to its original spot on mouse-out. duration-150 keeps it snappy. %>
+  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all duration-150 ease-out hover:translate-x-2 cursor-pointer overflow-hidden">
 
-    <%# ============ TOP-LEFT: complete toggle ============
-        Two states. Both are buttons so they POST/DELETE on click. The CSS
-        decides which one is visible based on whether card.completed?.
+    <%# Soft dark-to-transparent gradient strip at the top, hover-only.
+        Gives the action icons a unified backdrop so they read cleanly
+        whether the card has a cover image or not. pointer-events-none so
+        it doesn't intercept clicks meant for the icons or the card body. %>
+    <div class="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-black/20 via-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[5]"></div>
 
-        Not complete → empty circle, only visible on card hover. Click marks
-                        the card complete (no archive, no confirmation).
-        Complete     → filled green check, ALWAYS visible. Click un-marks.
-    %>
+    <%# ============ TOP-LEFT: complete toggle ============ %>
     <% if card.completed? %>
       <%= button_to toggle_complete_card_path(card),
           method: :patch,
@@ -30,9 +29,7 @@
       <% end %>
     <% end %>
 
-    <%# ============ TOP-RIGHT: contextual quick actions ============
-        Always shows the edit pencil on hover. The archive icon only appears
-        once the card is marked complete — it's the natural next step. %>
+    <%# ============ TOP-RIGHT: contextual quick actions ============ %>
     <div class="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
 
       <% if card.completed? %>
@@ -56,15 +53,13 @@
       <% end %>
     </div>
 
-    <%# ============ CARD BODY ============
-        Wrapped in link_to so clicking anywhere outside the hover icons
-        opens the full card modal. %>
+    <%# ============ CARD BODY ============ %>
     <%= link_to card_path(card),
         data: { turbo_frame: "modal" },
         class: "block no-underline text-inherit" do %>
 
       <% if (cover_url = card_cover_url(card)) %>
-        <div class="rounded-t overflow-hidden bg-gray-100">
+        <div class="overflow-hidden bg-gray-100">
           <%= image_tag cover_url, class: "w-full h-[100px] object-cover block", loading: "lazy" %>
         </div>
       <% end %>
@@ -78,8 +73,6 @@
           </div>
         <% end %>
 
-        <%# Title — left padding when complete makes room for the permanent
-            green check sitting absolute in the top-left. %>
         <h4 class="text-sm font-medium text-gray-800 leading-tight <%= 'pl-8' if card.completed? %>">
           <%= card.title %>
         </h4>
