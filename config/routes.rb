@@ -49,6 +49,7 @@ Rails.application.routes.draw do
       patch :update_description
       patch :archive
       patch :unarchive
+      patch :toggle_complete
     end
   end
 end

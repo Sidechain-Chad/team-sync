@@ -1,6 +1,6 @@
 class CardsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :edit_description, :update_description, :archive, :unarchive]
+  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :edit_description, :update_description, :archive, :unarchive, :toggle_complete]
 
   def show
     # Eager-load everything the card modal needs
@@ -114,18 +114,27 @@ class CardsController < ApplicationController
   end
 
   def archive
-    # When triggered from the hover "Mark complete" icon, the form sends
-    # ?completed=true so we set both flags in one update — and log the
-    # nicer "completed" message instead of the bare "archived" one.
-    if params[:completed] == "true"
-      @card.update!(archived_at: Time.current, completed: true)
-      @card.log_activity(current_user, "completed_card")
-    else
-      @card.archive!
-      @card.log_activity(current_user, "archived")
-    end
-
+    @card.archive!
+    @card.log_activity(current_user, "archived")
     broadcast_card_remove
+
+    respond_to do |format|
+      format.html { redirect_to board_path(@card.list.board) }
+    end
+  end
+
+  def toggle_complete
+    @card.update!(completed: !@card.completed?)
+    @card.log_activity(current_user, @card.completed? ? "completed_card" : "uncompleted_card")
+
+    # Re-broadcast the card to all viewers of the board so the green check
+    # appears (or disappears) on every connected client.
+    Turbo::StreamsChannel.broadcast_replace_to(
+      @card.list.board,
+      target: @card,
+      partial: "cards/card",
+      locals: { card: @card }
+    )
 
     respond_to do |format|
       format.html { redirect_to board_path(@card.list.board) }

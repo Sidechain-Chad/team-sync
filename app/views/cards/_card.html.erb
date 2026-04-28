@@ -1,40 +1,53 @@
 <%= turbo_frame_tag card, data: { id: card.id } do %>
-  <%# Wrapper: relative + group so the hover icons can position absolutely
-      against the card and reveal on hover. %>
-  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all cursor-pointer">
+  <%# Wrapper: relative + group for hover icon positioning. The horizontal
+      slide on hover is the small motion Trello uses — translate-x-1 nudges
+      the card 4px to the right; transitions back to 0 on mouse-out. %>
+  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all duration-150 ease-out hover:translate-x-1 cursor-pointer">
 
-    <%# Hover-only quick actions. Sit on top of the card via absolute
-        positioning with z-10 so they capture clicks before the underlying
-        link does. opacity-0 → group-hover:opacity-100 fades them in. %>
+    <%# ============ TOP-LEFT: complete toggle ============
+        Two states. Both are buttons so they POST/DELETE on click. The CSS
+        decides which one is visible based on whether card.completed?.
 
-    <%# Mark complete + archive (top-left) %>
-    <%= button_to archive_card_path(card, completed: true),
-        method: :patch,
-        form: {
-          class: "absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 m-0",
-          data: { turbo_confirm: "Mark this card as complete and archive it?" }
-        },
-        class: "h-6 w-6 rounded-full bg-white/90 backdrop-blur-sm border-2 border-gray-300 hover:border-green-500 hover:bg-green-500 flex items-center justify-center transition-colors group/btn shadow-sm cursor-pointer",
-        title: "Mark complete" do %>
-      <i class="fa-solid fa-check text-[10px] text-transparent group-hover/btn:text-white"></i>
+        Not complete → empty circle, only visible on card hover. Click marks
+                        the card complete (no archive, no confirmation).
+        Complete     → filled green check, ALWAYS visible. Click un-marks.
+    %>
+    <% if card.completed? %>
+      <%= button_to toggle_complete_card_path(card),
+          method: :patch,
+          form: { class: "absolute top-2 left-2 z-10 m-0" },
+          class: "h-6 w-6 rounded-full bg-green-500 hover:bg-green-600 border-2 border-green-500 flex items-center justify-center transition-colors shadow-sm cursor-pointer",
+          title: "Mark incomplete" do %>
+        <i class="fa-solid fa-check text-[11px] text-white"></i>
+      <% end %>
+    <% else %>
+      <%= button_to toggle_complete_card_path(card),
+          method: :patch,
+          form: { class: "absolute top-2 left-2 z-10 m-0 opacity-0 group-hover:opacity-100 transition-opacity" },
+          class: "h-6 w-6 rounded-full bg-white/90 backdrop-blur-sm border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center transition-colors shadow-sm cursor-pointer group/btn",
+          title: "Mark complete" do %>
+        <i class="fa-solid fa-check text-[11px] text-transparent group-hover/btn:text-green-500"></i>
+      <% end %>
     <% end %>
 
-    <%# Quick actions (top-right) %>
+    <%# ============ TOP-RIGHT: contextual quick actions ============
+        Always shows the edit pencil on hover. The archive icon only appears
+        once the card is marked complete — it's the natural next step. %>
     <div class="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
 
-      <%# Archive (without completing) %>
-      <%= button_to archive_card_path(card),
-          method: :patch,
-          form: {
-            class: "m-0",
-            data: { turbo_confirm: "Archive this card? You can restore it later." }
-          },
-          class: "h-6 w-6 rounded bg-white/90 backdrop-blur-sm border border-gray-200 hover:bg-gray-100 hover:text-yellow-700 flex items-center justify-center text-gray-500 shadow-sm cursor-pointer",
-          title: "Archive card" do %>
-        <i class="fa-solid fa-box-archive text-xs"></i>
+      <% if card.completed? %>
+        <%= button_to archive_card_path(card),
+            method: :patch,
+            form: {
+              class: "m-0",
+              data: { turbo_confirm: "Archive this card? You can restore it from the archive view." }
+            },
+            class: "h-6 w-6 rounded bg-white/90 backdrop-blur-sm border border-gray-200 hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300 flex items-center justify-center text-gray-500 shadow-sm cursor-pointer",
+            title: "Archive card" do %>
+          <i class="fa-solid fa-box-archive text-xs"></i>
+        <% end %>
       <% end %>
 
-      <%# Edit (opens modal) %>
       <%= link_to card_path(card),
           data: { turbo_frame: "modal" },
           class: "h-6 w-6 rounded bg-white/90 backdrop-blur-sm border border-gray-200 hover:bg-gray-100 hover:text-gray-900 flex items-center justify-center text-gray-500 shadow-sm",
@@ -43,13 +56,13 @@
       <% end %>
     </div>
 
-    <%# Card body — wrapped in link to open the modal on click anywhere
-        on the card. %>
+    <%# ============ CARD BODY ============
+        Wrapped in link_to so clicking anywhere outside the hover icons
+        opens the full card modal. %>
     <%= link_to card_path(card),
         data: { turbo_frame: "modal" },
         class: "block no-underline text-inherit" do %>
 
-      <%# Cover image — first attached image, cropped to a uniform strip. %>
       <% if (cover_url = card_cover_url(card)) %>
         <div class="rounded-t overflow-hidden bg-gray-100">
           <%= image_tag cover_url, class: "w-full h-[100px] object-cover block", loading: "lazy" %>
@@ -58,7 +71,6 @@
 
       <div class="p-3">
 
-        <%# Label pills + due date %>
         <% if card.labels.any? || card.due_date.present? %>
           <div class="flex flex-wrap gap-1 mb-2">
             <%= render "cards/label_pills", card: card %>
@@ -66,23 +78,18 @@
           </div>
         <% end %>
 
-        <%# Title — has left padding when complete to make room for the
-            permanent green check. %>
-        <h4 class="text-sm font-medium text-gray-800 leading-tight flex items-start gap-1.5">
-          <% if card.completed? %>
-            <i class="fa-solid fa-circle-check text-green-600 text-xs mt-0.5 shrink-0" title="Complete"></i>
-          <% end %>
-          <span><%= card.title %></span>
+        <%# Title — left padding when complete makes room for the permanent
+            green check sitting absolute in the top-left. %>
+        <h4 class="text-sm font-medium text-gray-800 leading-tight <%= 'pl-8' if card.completed? %>">
+          <%= card.title %>
         </h4>
 
-        <%# Description preview %>
         <% if card.description.present? %>
           <p class="text-xs text-gray-500 mt-1 line-clamp-2">
             <%= strip_tags(card.description).truncate(100) %>
           </p>
         <% end %>
 
-        <%# Bottom strip — only renders if there's something to show. %>
         <%
           comment_count    = card.comments.size
           attachment_count = card.attachments.attached? ? card.attachments.size : 0
