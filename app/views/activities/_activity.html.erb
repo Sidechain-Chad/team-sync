@@ -1,5 +1,5 @@
 <div class="flex gap-3 text-sm mb-4 automated-activity" data-activity-toggle-target="item">
-  <div class="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center shrink-0 font-bold text-gray-600">
+  <div class="h-8 w-8 rounded-full <%= avatar_soft_classes(activity.user) %> flex items-center justify-center shrink-0 font-bold border">
     <%= activity.user&.initials || "?" %>
   </div>
   <div class="flex flex-col">

@@ -1,0 +1,10 @@
+<%# Wraps the due-date pill (or "No due date" placeholder) in a Turbo
+    Frame so the cards#update controller can replace it directly without
+    re-rendering the whole modal. %>
+<%= turbo_frame_tag "card_due_pill_#{card.id}" do %>
+  <% if card.due_date.present? %>
+    <%= render "cards/due_pill", card: card %>
+  <% else %>
+    <span class="text-sm text-gray-400 italic">No due date</span>
+  <% end %>
+<% end %>

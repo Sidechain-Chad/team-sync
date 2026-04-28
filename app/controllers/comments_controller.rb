@@ -7,7 +7,6 @@ class CommentsController < ApplicationController
     @comment.user = current_user
 
     if @comment.save
-      @card.log_activity(current_user, "commented")
       # Turbo handles the stream updates via the Model callback
       # We just need to clear the form here
       render turbo_stream: turbo_stream.replace("new_comment_form", partial: "comments/form", locals: { card: @card })

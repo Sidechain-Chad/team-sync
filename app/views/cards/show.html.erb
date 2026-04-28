@@ -189,13 +189,7 @@
               <div class="flex items-center gap-2">
 
                 <%# Existing pill (or "None" placeholder) %>
-                <%= turbo_frame_tag "card_due_pill_#{@card.id}" do %>
-                  <% if @card.due_date.present? %>
-                    <%= render "cards/due_pill", card: @card %>
-                  <% else %>
-                    <span class="text-sm text-gray-400 italic">No due date</span>
-                  <% end %>
-                <% end %>
+                <%= render "cards/due_pill_frame", card: @card %>
 
                 <%# Picker dropdown %>
                 <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">

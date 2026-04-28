@@ -58,4 +58,12 @@ class Card < ApplicationRecord
   def overdue?
     due_status == :overdue
   end
+
+  # Returns the first attached image, used as the card cover on the board.
+  # Skips non-image attachments (PDFs, docs etc.) so a non-image first attachment
+  # doesn't suppress the cover from a later image.
+  def cover_image
+    return nil unless attachments.attached?
+    attachments.find { |att| att.image? }
+  end
 end
