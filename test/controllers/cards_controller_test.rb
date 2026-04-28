@@ -37,6 +37,6 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Updated Title", @card.title
     
     activity = Activity.last
-    assert_equal "updated", activity.action
+    assert_equal "renamed", activity.action
   end
 end

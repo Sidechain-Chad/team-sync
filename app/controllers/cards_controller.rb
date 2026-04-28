@@ -1,6 +1,6 @@
 class CardsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :edit_description, :update_description, :archive, :unarchive]
+  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :edit_description, :update_description, :archive, :unarchive, :toggle_complete]
 
   def show
     # Eager-load everything the card modal needs
@@ -47,10 +47,31 @@ class CardsController < ApplicationController
     if @card.update(card_params)
       if @card.list_id != old_list.id
         @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
-      else
-        @card.log_activity(current_user, "updated")
+      elsif @card.saved_change_to_due_date?
+        if @card.due_date.present?
+          @card.log_activity(current_user, "set_due_date", @card.due_date.strftime("%b %-d"))
+        else
+          @card.log_activity(current_user, "removed_due_date")
+        end
+      elsif @card.saved_change_to_completed?
+        @card.log_activity(current_user, @card.completed? ? "completed_card" : "uncompleted_card")
+      elsif @card.saved_change_to_title?
+        @card.log_activity(current_user, "renamed", @card.title)
       end
-      redirect_to @card.list.board
+
+      # When the due-date form submits, it targets the card_due_pill_<id>
+      # turbo-frame. We respond with a turbo_stream that replaces just that
+      # frame so the modal stays open and the pill updates in place.
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.replace(
+            "card_due_pill_#{@card.id}",
+            partial: "cards/due_pill_frame",
+            locals: { card: @card }
+          )
+        end
+        format.html { redirect_to @card.list.board }
+      end
     else
       render :edit, status: :unprocessable_entity
     end
@@ -96,6 +117,24 @@ class CardsController < ApplicationController
     @card.archive!
     @card.log_activity(current_user, "archived")
     broadcast_card_remove
+
+    respond_to do |format|
+      format.html { redirect_to board_path(@card.list.board) }
+    end
+  end
+
+  def toggle_complete
+    @card.update!(completed: !@card.completed?)
+    @card.log_activity(current_user, @card.completed? ? "completed_card" : "uncompleted_card")
+
+    # Re-broadcast the card to all viewers of the board so the green check
+    # appears (or disappears) on every connected client.
+    Turbo::StreamsChannel.broadcast_replace_to(
+      @card.list.board,
+      target: @card,
+      partial: "cards/card",
+      locals: { card: @card }
+    )
 
     respond_to do |format|
       format.html { redirect_to board_path(@card.list.board) }

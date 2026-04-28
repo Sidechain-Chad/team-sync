@@ -22,12 +22,24 @@ class Activity < ApplicationRecord
       "attached #{description} to this card"
     when "edited_description"
       "edited the description"
+    when "set_due_date"
+      "set the due date to #{description}"
+    when "removed_due_date"
+      "removed the due date"
+    when "completed_card"
+      "marked this card as complete"
+    when "uncompleted_card"
+      "marked this card as incomplete"
+    when "renamed"
+      "renamed this card to \"#{description}\""
     when "archived"
       "archived this card"
     when "unarchived"
       "restored this card from the archive"
     else
-      description
+      # Defensive fallback so old rows from before the cleanup never render
+      # as a blank row in the feed.
+      description.presence || "made a change to this card"
     end
   end
 end

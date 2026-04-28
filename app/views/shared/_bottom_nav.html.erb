@@ -1,0 +1,51 @@
+<%# Bottom nav — only renders on board#show (controlled by the layout).
+    No backdrop: panel sits beside the board, both interactive at once.
+    The panel pushes board content right via JS adding pl-[340px] to <main>. %>
+<% return unless user_signed_in? %>
+
+<div data-controller="side-panel"
+     data-side-panel-open-value="false"
+     data-side-panel-current-panel-value="">
+
+  <%# ===== SLIDING PANEL on the LEFT — no backdrop ===== %>
+  <div data-side-panel-target="panel"
+       class="fixed top-0 left-0 bottom-0 w-[340px] bg-white shadow-xl z-30
+              transform -translate-x-full transition-transform duration-200 ease-out
+              flex flex-col border-r border-gray-200">
+
+    <%= turbo_frame_tag "side_panel_frame",
+        data: { side_panel_target: "frame" },
+        class: "flex-1 overflow-y-auto" do %>
+      <%# Empty initially — populated when a panel button is clicked %>
+    <% end %>
+  </div>
+
+  <%# ===== BOTTOM NAV BAR ===== %>
+  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+    <div class="flex items-center bg-gray-900 text-gray-200 rounded-full shadow-lg ring-1 ring-white/10 px-2 py-1.5 gap-1">
+
+      <%= link_to boards_path,
+          class: "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition hover:bg-white/10" do %>
+        <i class="fa-solid fa-table-columns text-xs"></i>
+        <span>Board</span>
+      <% end %>
+
+      <button type="button"
+              data-panel-name="planner"
+              data-panel-url="<%= planner_panel_path %>"
+              data-action="click->side-panel#toggle"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition hover:bg-white/10">
+        <i class="fa-regular fa-calendar text-xs"></i>
+        <span>Planner</span>
+      </button>
+
+      <%= link_to switch_boards_path,
+          data: { turbo_frame: "modal" },
+          class: "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-white/10 transition" do %>
+        <i class="fa-solid fa-grip text-xs"></i>
+        <span>Switch boards</span>
+      <% end %>
+
+    </div>
+  </div>
+</div>

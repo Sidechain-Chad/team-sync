@@ -66,6 +66,12 @@ class BoardsController < ApplicationController
     redirect_to root_path, notice: "Board deleted."
   end
 
+  def switcher
+    @owned_boards  = current_user.boards.order(:name)
+    @shared_boards = current_user.shared_boards.order(:name)
+    render layout: false
+  end
+
   private
 
   def set_board

@@ -1,5 +1,5 @@
 <div id="<%= dom_id(comment) %>" class="flex gap-3 mb-4 group"> <%# Avatar %>
-  <div class="h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+  <div class="h-8 w-8 rounded-full <%= avatar_solid_classes(comment.user) %> flex items-center justify-center text-xs font-bold shrink-0">
     <%= comment.user&.initials || "?" %>
   </div>
 

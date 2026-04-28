@@ -23,6 +23,6 @@ class AttachmentsControllerTest < ActionDispatch::IntegrationTest
     assert_difference -> { @card.attachments.count }, -1 do
       delete card_attachment_url(@card, @active_storage_attachment)
     end
-    assert_redirected_to card_url(@card)
+    assert_redirected_to board_url(@card.list.board)
   end
 end

@@ -5,7 +5,7 @@
       <div class="flex items-center p-2 hover:bg-red-50 rounded-md cursor-pointer group transition-colors" title="Remove from card">
 
         <%# Avatar %>
-        <div class="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700 mr-2 border border-blue-200 group-hover:border-red-200 group-hover:bg-red-100 group-hover:text-red-700 transition-colors">
+        <div class="h-7 w-7 rounded-full <%= avatar_soft_classes(user) %> flex items-center justify-center text-[10px] font-bold border mr-2 group-hover:border-red-200 group-hover:bg-red-100 group-hover:text-red-700 transition-colors">
           <%= user.initials %>
         </div>
 

@@ -1,0 +1,54 @@
+<%# Switch-boards popover — list of boards the user can navigate to.
+    Mounted inside the bottom-nav button via the dropdown controller. %>
+<div class="text-left">
+  <div class="px-3 py-2 border-b border-gray-200">
+    <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Switch boards</span>
+  </div>
+
+  <%
+    owned_boards  = current_user.boards.order(:name)
+    shared_boards = current_user.shared_boards.order(:name)
+  %>
+
+  <div class="max-h-80 overflow-y-auto p-2">
+    <% if owned_boards.any? %>
+      <div class="mb-2">
+        <div class="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase">Your boards</div>
+        <% owned_boards.each do |board| %>
+          <%= link_to board_path(board),
+              class: "flex items-center gap-2 px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition" do %>
+            <i class="fa-regular fa-square text-gray-400 text-xs"></i>
+            <span class="truncate"><%= board.name %></span>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if shared_boards.any? %>
+      <div>
+        <div class="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase">Shared with you</div>
+        <% shared_boards.each do |board| %>
+          <%= link_to board_path(board),
+              class: "flex items-center gap-2 px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition" do %>
+            <i class="fa-regular fa-square text-gray-400 text-xs"></i>
+            <span class="truncate"><%= board.name %></span>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if owned_boards.empty? && shared_boards.empty? %>
+      <div class="px-2 py-4 text-center text-sm text-gray-500">
+        No boards yet.
+      </div>
+    <% end %>
+  </div>
+
+  <div class="border-t border-gray-200 p-2">
+    <%= link_to boards_path,
+        class: "flex items-center gap-2 px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition" do %>
+      <i class="fa-solid fa-table-list text-gray-400 text-xs"></i>
+      <span>See all boards</span>
+    <% end %>
+  </div>
+</div>
