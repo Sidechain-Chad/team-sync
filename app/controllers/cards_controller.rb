@@ -114,8 +114,17 @@ class CardsController < ApplicationController
   end
 
   def archive
-    @card.archive!
-    @card.log_activity(current_user, "archived")
+    # When triggered from the hover "Mark complete" icon, the form sends
+    # ?completed=true so we set both flags in one update — and log the
+    # nicer "completed" message instead of the bare "archived" one.
+    if params[:completed] == "true"
+      @card.update!(archived_at: Time.current, completed: true)
+      @card.log_activity(current_user, "completed_card")
+    else
+      @card.archive!
+      @card.log_activity(current_user, "archived")
+    end
+
     broadcast_card_remove
 
     respond_to do |format|
