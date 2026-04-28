@@ -1,0 +1,37 @@
+<%# Persistent bottom nav. Only renders for signed-in users.
+    Trello-style: dark pill bar centered at the bottom of the viewport. %>
+<% return unless user_signed_in? %>
+
+<div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40">
+  <div class="flex items-center bg-gray-900 text-gray-200 rounded-full shadow-lg ring-1 ring-white/10 px-2 py-1.5 gap-1">
+
+    <%# Board — links to boards index. Highlighted when on a board page. %>
+    <%= link_to boards_path,
+        class: "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition #{request.path.start_with?('/boards') ? 'bg-white/15 text-white' : 'hover:bg-white/10'}" do %>
+      <i class="fa-solid fa-table-columns text-xs"></i>
+      <span>Board</span>
+    <% end %>
+
+    <%# Planner %>
+    <%= link_to planner_path,
+        class: "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition #{request.path == '/planner' ? 'bg-white/15 text-white' : 'hover:bg-white/10'}" do %>
+      <i class="fa-regular fa-calendar text-xs"></i>
+      <span>Planner</span>
+    <% end %>
+
+    <%# Switch boards — opens the popover above the button %>
+    <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
+      <button type="button" data-action="click->dropdown#toggle"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-white/10 transition">
+        <i class="fa-solid fa-grip text-xs"></i>
+        <span>Switch boards</span>
+      </button>
+
+      <div data-dropdown-target="menu"
+           class="hidden absolute bottom-full right-0 mb-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl text-gray-800 overflow-hidden">
+        <%= render "shared/switch_boards_popover" %>
+      </div>
+    </div>
+
+  </div>
+</div>

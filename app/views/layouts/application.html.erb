@@ -19,5 +19,6 @@
       <%= yield %>
     </main>
     <%= turbo_frame_tag "modal", target: "_top", data: { controller: "modal", action: "turbo:before-render@document->modal#close" } %>
+    <%= render "shared/bottom_nav" %>
   </body>
 </html>

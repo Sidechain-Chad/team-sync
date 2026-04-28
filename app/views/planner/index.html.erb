@@ -1,0 +1,81 @@
+<div class="max-w-7xl mx-auto p-6">
+
+  <%# ===== HEADER ===== %>
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <h1 class="text-2xl font-bold text-gray-800"><%= @first_of_month.strftime("%B %Y") %></h1>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <%= link_to planner_path,
+          class: "px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition" do %>
+        Today
+      <% end %>
+
+      <div class="flex items-center">
+        <%= link_to planner_path(year: @prev_month.year, month: @prev_month.month),
+            class: "px-2 py-1.5 text-gray-600 bg-white border border-gray-300 rounded-l hover:bg-gray-50 transition",
+            title: "Previous month" do %>
+          <i class="fa-solid fa-chevron-left text-xs"></i>
+        <% end %>
+        <%= link_to planner_path(year: @next_month.year, month: @next_month.month),
+            class: "px-2 py-1.5 text-gray-600 bg-white border border-l-0 border-gray-300 rounded-r hover:bg-gray-50 transition",
+            title: "Next month" do %>
+          <i class="fa-solid fa-chevron-right text-xs"></i>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <%# ===== CALENDAR GRID ===== %>
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+
+    <%# Day-of-week header %>
+    <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
+      <% %w[Sun Mon Tue Wed Thu Fri Sat].each do |day| %>
+        <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">
+          <%= day %>
+        </div>
+      <% end %>
+    </div>
+
+    <%# Day cells. grid-rows-6 fixes the row count so cells stay equal-height. %>
+    <div class="grid grid-cols-7 grid-rows-6">
+      <% @days.each do |day| %>
+        <%
+          in_current_month = day.month == @month
+          is_today         = day == Date.current
+          cards_today      = @cards_by_day[day] || []
+        %>
+        <div class="min-h-[110px] border-r border-b border-gray-100 p-1.5 last:border-r-0
+                    <%= 'bg-gray-50/50' unless in_current_month %>">
+
+          <%# Date number — highlighted if today %>
+          <div class="flex items-center justify-end mb-1">
+            <span class="text-xs font-medium <%= 'h-5 w-5 rounded-full bg-blue-600 text-white flex items-center justify-center' if is_today %>
+                          <%= 'text-gray-400' unless in_current_month %>
+                          <%= 'text-gray-700' if in_current_month && !is_today %>">
+              <%= day.day %>
+            </span>
+          </div>
+
+          <%# Card chips for this day %>
+          <div class="space-y-1">
+            <% cards_today.each do |card| %>
+              <%= link_to card_path(card),
+                  data: { turbo_frame: "modal" },
+                  class: "block text-[11px] leading-tight px-1.5 py-1 rounded truncate hover:opacity-80 transition-opacity cursor-pointer #{planner_chip_classes(card)}",
+                  title: card.title do %>
+                <span class="font-medium"><%= card.title %></span>
+                <span class="text-[10px] opacity-75 block"><%= card.list.board.name %></span>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <%# Modal mount point — same as boards/show, so card click opens in modal %>
+  <%= turbo_frame_tag "modal" %>
+</div>
