@@ -62,12 +62,14 @@
           <%# Card chips for this day %>
           <div class="space-y-1">
             <% cards_today.each do |card| %>
+              <%# Trello-style chip: just the title, single line, with a small colored
+                  left stripe from the card's first label. Board name moved to the
+                  title attribute so it still appears on hover for disambiguation. %>
               <%= link_to card_path(card),
                   data: { turbo_frame: "modal" },
                   class: "block text-[11px] leading-tight px-1.5 py-1 rounded truncate hover:opacity-80 transition-opacity cursor-pointer #{planner_chip_classes(card)}",
-                  title: card.title do %>
-                <span class="font-medium"><%= card.title %></span>
-                <span class="text-[10px] opacity-75 block"><%= card.list.board.name %></span>
+                  title: "#{card.title} — #{card.list.board.name}" do %>
+                <%= card.title %>
               <% end %>
             <% end %>
           </div>
@@ -76,6 +78,4 @@
     </div>
   </div>
 
-  <%# Modal mount point — same as boards/show, so card click opens in modal %>
-  <%= turbo_frame_tag "modal" %>
 </div>
