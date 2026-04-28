@@ -1,36 +1,14 @@
 <%= turbo_frame_tag card, data: { id: card.id } do %>
-  <%# Wrapper: relative + group for hover icon positioning.
-      hover:translate-x-2 nudges the card 8px right on hover; transitions
-      back to its original spot on mouse-out. duration-150 keeps it snappy. %>
+  <%# Wrapper: relative + group for hover interactions.
+      hover:translate-x-2 nudges the card 8px right on hover. %>
   <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all duration-150 ease-out hover:translate-x-2 cursor-pointer overflow-hidden">
 
-    <%# Soft dark-to-transparent gradient strip at the top, hover-only.
-        Gives the action icons a unified backdrop so they read cleanly
-        whether the card has a cover image or not. pointer-events-none so
-        it doesn't intercept clicks meant for the icons or the card body. %>
-    <div class="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-black/20 via-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[5]"></div>
-
-    <%# ============ TOP-LEFT: complete toggle ============ %>
-    <% if card.completed? %>
-      <%= button_to toggle_complete_card_path(card),
-          method: :patch,
-          form: { class: "absolute top-2 left-2 z-10 m-0" },
-          class: "h-6 w-6 rounded-full bg-green-500 hover:bg-green-600 border-2 border-green-500 flex items-center justify-center transition-colors shadow-sm cursor-pointer",
-          title: "Mark incomplete" do %>
-        <i class="fa-solid fa-check text-[11px] text-white"></i>
-      <% end %>
-    <% else %>
-      <%= button_to toggle_complete_card_path(card),
-          method: :patch,
-          form: { class: "absolute top-2 left-2 z-10 m-0 opacity-0 group-hover:opacity-100 transition-opacity" },
-          class: "h-6 w-6 rounded-full bg-white/90 backdrop-blur-sm border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center transition-colors shadow-sm cursor-pointer group/btn",
-          title: "Mark complete" do %>
-        <i class="fa-solid fa-check text-[11px] text-transparent group-hover/btn:text-green-500"></i>
-      <% end %>
-    <% end %>
-
-    <%# ============ TOP-RIGHT: contextual quick actions ============ %>
-    <div class="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+    <%# ============ TOP-RIGHT: contextual quick actions ============
+        Dark translucent badges read cleanly over both cover images and white
+        card bodies — the same pattern Trello uses. Archive only appears once
+        the card is marked complete and gets a more pronounced shadow as the
+        "next-step" affordance. %>
+    <div class="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
 
       <% if card.completed? %>
         <%= button_to archive_card_path(card),
@@ -39,43 +17,86 @@
               class: "m-0",
               data: { turbo_confirm: "Archive this card? You can restore it from the archive view." }
             },
-            class: "h-6 w-6 rounded bg-white/90 backdrop-blur-sm border border-gray-200 hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300 flex items-center justify-center text-gray-500 shadow-sm cursor-pointer",
+            class: "h-7 w-7 rounded-md bg-black/55 hover:bg-black/75 backdrop-blur-sm text-white flex items-center justify-center shadow-md ring-1 ring-white/10 cursor-pointer transition-colors",
             title: "Archive card" do %>
-          <i class="fa-solid fa-box-archive text-xs"></i>
+          <i class="fa-solid fa-box-archive text-[11px]"></i>
         <% end %>
       <% end %>
 
       <%= link_to card_path(card),
           data: { turbo_frame: "modal" },
-          class: "h-6 w-6 rounded bg-white/90 backdrop-blur-sm border border-gray-200 hover:bg-gray-100 hover:text-gray-900 flex items-center justify-center text-gray-500 shadow-sm",
+          class: "h-7 w-7 rounded-md bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors",
           title: "Edit card" do %>
-        <i class="fa-solid fa-pencil text-xs"></i>
+        <i class="fa-solid fa-pencil text-[11px]"></i>
       <% end %>
     </div>
 
-    <%# ============ CARD BODY ============ %>
-    <%= link_to card_path(card),
-        data: { turbo_frame: "modal" },
-        class: "block no-underline text-inherit" do %>
-
-      <% if (cover_url = card_cover_url(card)) %>
-        <div class="overflow-hidden bg-gray-100">
-          <%= image_tag cover_url, class: "w-full h-[100px] object-cover block", loading: "lazy" %>
-        </div>
+    <%# ============ COVER IMAGE (separate link) ============ %>
+    <% if (cover_url = card_cover_url(card)) %>
+      <%= link_to card_path(card),
+          data: { turbo_frame: "modal" },
+          class: "block bg-gray-100" do %>
+        <%= image_tag cover_url, class: "w-full h-[100px] object-cover block", loading: "lazy" %>
       <% end %>
+    <% end %>
 
-      <div class="p-3">
+    <%# ============ CARD BODY ============ %>
+    <div class="p-3">
 
-        <% if card.labels.any? || card.due_date.present? %>
-          <div class="flex flex-wrap gap-1 mb-2">
+      <%# Labels + due (separate link) %>
+      <% if card.labels.any? || card.due_date.present? %>
+        <%= link_to card_path(card),
+            data: { turbo_frame: "modal" },
+            class: "block no-underline text-inherit mb-2" do %>
+          <div class="flex flex-wrap gap-1">
             <%= render "cards/label_pills", card: card %>
             <%= render "cards/due_pill",    card: card %>
           </div>
         <% end %>
+      <% end %>
 
-        <h4 class="text-sm font-medium text-gray-800 leading-tight <%= 'pl-8' if card.completed? %>">
-          <%= card.title %>
-        </h4>
+      <%# ====== TITLE ROW with inline complete toggle ======
+          The toggle is a SIBLING of the title link, not nested inside it,
+          which avoids invalid nested-form HTML. The flex layout makes the
+          title flow naturally right as the toggle column expands. %>
+      <div class="flex items-start gap-0">
+
+        <% if card.completed? %>
+          <%# Always visible — green filled check, click to un-complete %>
+          <%= button_to toggle_complete_card_path(card),
+              method: :patch,
+              form: { class: "m-0 shrink-0 mr-1.5 mt-px" },
+              class: "h-5 w-5 rounded-full bg-green-500 hover:bg-green-600 border-2 border-green-500 flex items-center justify-center transition-colors cursor-pointer",
+              title: "Mark incomplete" do %>
+            <i class="fa-solid fa-check text-[10px] text-white"></i>
+          <% end %>
+        <% else %>
+          <%# Hover-only — empty circle, animates from 0 width to ~26px.
+              The wrapper handles width animation; the button inside is
+              fixed-size and visible only after the wrapper has expanded. %>
+          <div class="shrink-0 overflow-hidden transition-[width] duration-150 ease-out w-0 group-hover:w-[26px]">
+            <%= button_to toggle_complete_card_path(card),
+                method: :patch,
+                form: { class: "m-0 mt-px" },
+                class: "h-5 w-5 rounded-full bg-white border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center transition-colors cursor-pointer group/btn",
+                title: "Mark complete" do %>
+              <i class="fa-solid fa-check text-[10px] text-transparent group-hover/btn:text-green-500"></i>
+            <% end %>
+          </div>
+        <% end %>
+
+        <%# Title — flex-1 so it fills the rest of the row %>
+        <%= link_to card_path(card),
+            data: { turbo_frame: "modal" },
+            class: "flex-1 no-underline text-inherit min-w-0" do %>
+          <h4 class="text-sm font-medium text-gray-800 leading-tight"><%= card.title %></h4>
+        <% end %>
+      </div>
+
+      <%# Description + bottom strip (separate link) %>
+      <%= link_to card_path(card),
+          data: { turbo_frame: "modal" },
+          class: "block no-underline text-inherit" do %>
 
         <% if card.description.present? %>
           <p class="text-xs text-gray-500 mt-1 line-clamp-2">
@@ -136,7 +157,8 @@
           </div>
         <% end %>
 
-      </div>
-    <% end %>
+      <% end %>
+
+    </div>
   </div>
 <% end %>
