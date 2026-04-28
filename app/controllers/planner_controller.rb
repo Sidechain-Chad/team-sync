@@ -41,4 +41,24 @@ class PlannerController < ApplicationController
     @prev_month = @first_of_month - 1.month
     @next_month = @first_of_month + 1.month
   end
+
+  def panel
+    # Vertical agenda for the side panel: next 21 days of dated cards from
+    # boards the user can see. Smaller window than the full calendar since
+    # the sidebar is for "what's next," not "the whole month."
+    range_start = Date.current.beginning_of_day
+    range_end   = (Date.current + 21.days).end_of_day
+
+    cards = Card.active
+                .where(list_id: current_user.all_lists.select(:id))
+                .where(due_date: range_start..range_end)
+                .order(:due_date)
+                .includes(:labels, list: :board)
+
+    @cards_by_day = cards.group_by { |c| c.due_date.to_date }
+
+    # Render without the application layout — the panel sits inside an
+    # already-rendered page, so we don't want the full chrome.
+    render layout: false
+  end
 end

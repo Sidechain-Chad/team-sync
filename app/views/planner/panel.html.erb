@@ -1,0 +1,74 @@
+<%# Sidebar agenda panel. Wrapped in turbo_frame_tag matching the side
+    panel's frame ID, so when the user clicks Planner, this content is
+    loaded in place. %>
+<%= turbo_frame_tag "side_panel_frame" do %>
+  <div class="flex flex-col h-full">
+
+    <%# Header %>
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+      <h2 class="text-lg font-bold text-gray-800">Planner</h2>
+      <%= link_to planner_path,
+          class: "text-xs text-blue-600 hover:text-blue-800 font-medium",
+          data: { turbo: false } do %>
+        Open full calendar
+        <i class="fa-solid fa-arrow-up-right-from-square text-[10px] ml-1"></i>
+      <% end %>
+    </div>
+
+    <%# Agenda list — grouped by day. Empty state if nothing's coming up. %>
+    <div class="flex-1 overflow-y-auto px-4 py-3">
+      <% if @cards_by_day.empty? %>
+        <div class="text-center text-gray-500 text-sm py-12">
+          <i class="fa-regular fa-calendar text-3xl text-gray-300 mb-3 block"></i>
+          Nothing due in the next three weeks.
+        </div>
+      <% else %>
+        <% @cards_by_day.each do |day, cards| %>
+          <div class="mb-5">
+            <%# Day header — highlights today in blue %>
+            <%
+              is_today    = day == Date.current
+              is_tomorrow = day == Date.current + 1.day
+              label = if is_today    then "Today"
+                      elsif is_tomorrow then "Tomorrow"
+                      else day.strftime("%A, %b %-d")
+                      end
+            %>
+            <div class="flex items-baseline gap-2 mb-2">
+              <h3 class="text-xs font-bold uppercase tracking-wide <%= is_today ? 'text-blue-600' : 'text-gray-500' %>">
+                <%= label %>
+              </h3>
+              <% unless is_today || is_tomorrow %>
+                <span class="text-[10px] text-gray-400"><%= day.strftime("%b %-d") %></span>
+              <% end %>
+            </div>
+
+            <%# Cards for this day %>
+            <div class="space-y-1.5">
+              <% cards.each do |card| %>
+                <%= link_to card_path(card),
+                    data: { turbo_frame: "modal" },
+                    class: "block p-2 rounded border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition group" do %>
+                  <div class="flex items-start gap-2">
+                    <%# Color stripe from first label (or gray if none) %>
+                    <% color = card.labels.first&.color %>
+                    <div class="w-1 self-stretch rounded-full <%= color ? "bg-#{color}-500" : 'bg-gray-300' %> shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium text-gray-800 truncate"><%= card.title %></p>
+                      <p class="text-xs text-gray-500 truncate">
+                        <%= card.list.board.name %>
+                        <% if card.due_date.hour != 0 %>
+                          · <%= card.due_date.strftime("%-l:%M %p") %>
+                        <% end %>
+                      </p>
+                    </div>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+<% end %>

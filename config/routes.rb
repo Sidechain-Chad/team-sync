@@ -4,7 +4,9 @@ Rails.application.routes.draw do
 
   # 2. Root path (Home page)
   root 'boards#index'
-  get "planner" => "planner#index", as: :planner
+  get "planner"        => "planner#index",  as: :planner
+  get "planner/panel"  => "planner#panel",  as: :planner_panel
+  get "switch_boards"  => "boards#switcher", as: :switch_boards
 
   # 3. Health check (Standard Rails 7.1+)
   get "up" => "rails/health#show", as: :rails_health_check
