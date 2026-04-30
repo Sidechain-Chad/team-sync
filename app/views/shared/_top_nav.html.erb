@@ -1,0 +1,201 @@
+<%# Global top nav — Trello-style. Renders on every authenticated page
+    via the application layout. Skips the Devise sign-in/sign-up screens
+    (no current_user there) the same way the bottom nav does. %>
+<% return unless user_signed_in? %>
+
+<header class="h-14 bg-gray-900 text-gray-200 flex items-center px-4 gap-3 ring-1 ring-white/10 relative z-40">
+
+  <%# ===== LEFT: logo / wordmark — links home ===== %>
+  <%= link_to root_path,
+      class: "flex items-center gap-2 px-2 py-1 rounded hover:bg-white/10 transition-colors",
+      data: { turbo: false } do %>
+    <i class="fa-solid fa-table-columns text-blue-400 text-sm"></i>
+    <span class="font-bold text-white text-base tracking-tight">TeamSync</span>
+  <% end %>
+
+  <%# Spacer pushes search to center, actions to right %>
+  <div class="flex-1"></div>
+
+  <%# ===== CENTER: search — placeholder, but mimics Trello's "recently
+       viewed boards" dropdown so it feels real even before we wire it
+       up to a real query. ===== %>
+  <div class="relative w-72 max-w-[40vw]"
+       data-controller="dropdown"
+       data-action="click@document->dropdown#hide">
+
+    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+
+    <input type="text"
+           placeholder="Search"
+           data-action="focus->dropdown#open click->dropdown#open"
+           class="w-full h-8 pl-8 pr-3 rounded bg-white/10 hover:bg-white/15 focus:bg-white focus:text-gray-900 placeholder-gray-400 focus:placeholder-gray-500 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-blue-500 transition-colors">
+
+    <div data-dropdown-target="menu"
+         class="hidden absolute left-0 top-full mt-2 w-96 bg-white rounded-lg shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden text-gray-800">
+
+      <div class="px-4 py-3 border-b border-gray-200">
+        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Search coming soon</p>
+        <p class="text-xs text-gray-500 mt-1">For now, jump to one of your recent boards.</p>
+      </div>
+
+      <%# Recent boards — shows owned + shared, ordered by most recently
+          touched. Capped at 5 so the dropdown stays compact. %>
+      <% recent_boards = current_user.all_boards.order(updated_at: :desc).limit(5) %>
+      <% if recent_boards.any? %>
+        <div class="py-1 max-h-72 overflow-y-auto">
+          <% recent_boards.each do |board| %>
+            <%= link_to board_path(board),
+                data: { turbo: false },
+                class: "flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100 transition-colors" do %>
+              <div class="h-7 w-10 rounded bg-gradient-to-br from-blue-500 to-blue-700 flex-shrink-0"></div>
+              <span class="truncate"><%= board.name %></span>
+            <% end %>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="px-4 py-6 text-center text-sm text-gray-500">
+          You don't have any boards yet.
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <%# Spacer between center search and right action cluster %>
+  <div class="flex-1"></div>
+
+  <%# ===== RIGHT: action cluster ===== %>
+
+  <%# Create button — Trello-style dropdown. Single option for now since
+      Workspaces / Templates aren't features here yet, but the shape is
+      ready for them. %>
+  <div class="relative"
+       data-controller="dropdown"
+       data-action="click@document->dropdown#hide">
+
+    <button type="button"
+            data-action="click->dropdown#toggle"
+            class="flex items-center gap-1.5 h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded transition-colors">
+      Create
+    </button>
+
+    <div data-dropdown-target="menu"
+         class="hidden absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden text-gray-800">
+
+      <div class="px-4 py-3 border-b border-gray-200">
+        <h3 class="text-sm font-semibold">Create</h3>
+      </div>
+
+      <div class="py-1">
+        <%= link_to new_board_path,
+            class: "flex items-start gap-3 px-4 py-3 hover:bg-gray-100 transition-colors" do %>
+          <i class="fa-solid fa-table-columns text-gray-500 mt-0.5 w-4 text-center"></i>
+          <div>
+            <div class="text-sm font-semibold text-gray-800">Create board</div>
+            <div class="text-xs text-gray-500 mt-0.5">A board is made up of cards ordered on lists.</div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <%# Notifications bell — placeholder, matches the filter/bolt/plug
+      pattern on the board header (icon + dropdown with empty state). %>
+  <div class="relative"
+       data-controller="dropdown"
+       data-action="click@document->dropdown#hide">
+
+    <button type="button"
+            data-action="click->dropdown#toggle"
+            class="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-gray-300"
+            title="Notifications">
+      <i class="fa-regular fa-bell text-sm"></i>
+    </button>
+
+    <div data-dropdown-target="menu"
+         class="hidden absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden text-gray-800">
+      <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-sm font-semibold">Notifications</h3>
+      </div>
+      <div class="px-4 py-12 text-center">
+        <i class="fa-regular fa-bell-slash text-3xl text-gray-300 mb-3"></i>
+        <p class="text-sm text-gray-500">No unread notifications.</p>
+      </div>
+    </div>
+  </div>
+
+  <%# Help — placeholder. Two stub items so the menu doesn't look empty. %>
+  <div class="relative"
+       data-controller="dropdown"
+       data-action="click@document->dropdown#hide">
+
+    <button type="button"
+            data-action="click->dropdown#toggle"
+            class="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-gray-300"
+            title="Help">
+      <i class="fa-regular fa-circle-question text-sm"></i>
+    </button>
+
+    <div data-dropdown-target="menu"
+         class="hidden absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden text-gray-800">
+      <div class="px-4 py-3 border-b border-gray-200">
+        <h3 class="text-sm font-semibold">Help</h3>
+      </div>
+      <div class="py-1">
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+          <i class="fa-regular fa-circle-question text-gray-500 w-4 text-center"></i>
+          <span>Help center</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+          <i class="fa-regular fa-paper-plane text-gray-500 w-4 text-center"></i>
+          <span>Send feedback</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <%# Profile avatar — real dropdown. Account header (name/email) + log out.
+      Reuses avatar_soft_classes for the same per-user color shown elsewhere. %>
+  <div class="relative ml-1"
+       data-controller="dropdown"
+       data-action="click@document->dropdown#hide">
+
+    <button type="button"
+            data-action="click->dropdown#toggle"
+            class="h-8 w-8 rounded-full <%= avatar_soft_classes(current_user) %> flex items-center justify-center text-[11px] font-bold ring-2 ring-white/20 hover:ring-white/40 transition"
+            title="<%= current_user.display_name %>">
+      <%= current_user.initials %>
+    </button>
+
+    <div data-dropdown-target="menu"
+         class="hidden absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden text-gray-800">
+
+      <%# Account header — Trello uses uppercase "Account" eyebrow above
+          the name/email block. %>
+      <div class="px-4 py-3 border-b border-gray-200">
+        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Account</p>
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-full <%= avatar_soft_classes(current_user) %> flex items-center justify-center text-xs font-bold flex-shrink-0">
+            <%= current_user.initials %>
+          </div>
+          <div class="min-w-0">
+            <div class="text-sm font-semibold truncate"><%= current_user.display_name %></div>
+            <div class="text-xs text-gray-500 truncate"><%= current_user.email %></div>
+          </div>
+        </div>
+      </div>
+
+      <%# Log out — Devise session destroy. button_to so we get a real
+          form with CSRF + DELETE method, no Turbo data-method shim. %>
+      <div class="py-1 border-t border-gray-200">
+        <%= button_to destroy_user_session_path,
+            method: :delete,
+            form: { data: { turbo: false } },
+            class: "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left" do %>
+          <i class="fa-solid fa-arrow-right-from-bracket text-gray-500 w-4 text-center"></i>
+          <span>Log out</span>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+</header>
