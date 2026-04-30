@@ -34,4 +34,13 @@ class Board < ApplicationRecord
   def seed_default_labels
     Label::COLORS.each { |color| labels.create!(color: color) }
   end
+
+  # Every new board starts with three Trello-style lists so the user has
+  # somewhere to drop cards immediately. Position is set explicitly so they
+  # render in the intended order regardless of acts_as_list defaults.
+  def seed_default_lists
+    ["To Do", "Doing", "Done"].each_with_index do |name, index|
+      lists.create!(name: name, position: index + 1)
+    end
+  end
 end

@@ -24,11 +24,16 @@
   <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
     <div class="flex items-center bg-gray-900 text-gray-200 rounded-full shadow-lg ring-1 ring-white/10 px-2 py-1.5 gap-1">
 
-      <%= link_to boards_path,
-          class: "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition hover:bg-white/10" do %>
+      <%# Board — always highlighted because the bottom nav only renders on
+          boards#show, so you're always viewing a board when this is visible.
+          Trello uses the same "you are here" pattern. Clicking still closes
+          any open side panel. %>
+      <button type="button"
+              data-action="click->side-panel#close"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition bg-white/15 text-white hover:bg-white/20">
         <i class="fa-solid fa-table-columns text-xs"></i>
         <span>Board</span>
-      <% end %>
+      </button>
 
       <button type="button"
               data-panel-name="planner"
