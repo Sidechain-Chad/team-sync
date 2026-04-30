@@ -10,16 +10,16 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should toggle favorite via patch" do
-    assert_nil @board.favorited_at
-
-    patch toggle_favorite_board_url(@board), as: :turbo_stream
+    assert_difference "BoardFavorite.count", 1 do
+      patch toggle_favorite_board_url(@board), as: :turbo_stream
+    end
     assert_response :success
-    @board.reload
-    assert_not_nil @board.favorited_at
+    assert @board.favorited_by?(@user)
 
-    patch toggle_favorite_board_url(@board), as: :turbo_stream
+    assert_difference "BoardFavorite.count", -1 do
+      patch toggle_favorite_board_url(@board), as: :turbo_stream
+    end
     assert_response :success
-    @board.reload
-    assert_nil @board.favorited_at
+    assert_not @board.favorited_by?(@user)
   end
 end

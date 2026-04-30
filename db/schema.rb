@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_30_172539) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_30_175810) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -53,6 +53,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_30_172539) do
     t.index ["user_id"], name: "index_activities_on_user_id"
   end
 
+  create_table "board_favorites", force: :cascade do |t|
+    t.bigint "board_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["board_id"], name: "index_board_favorites_on_board_id"
+    t.index ["user_id", "board_id"], name: "index_board_favorites_on_user_id_and_board_id", unique: true
+    t.index ["user_id"], name: "index_board_favorites_on_user_id"
+  end
+
   create_table "board_users", force: :cascade do |t|
     t.bigint "board_id", null: false
     t.bigint "user_id", null: false
@@ -67,7 +77,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_30_172539) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.datetime "favorited_at"
     t.index ["user_id"], name: "index_boards_on_user_id"
   end
 
@@ -170,6 +179,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_30_172539) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activities", "cards"
   add_foreign_key "activities", "users"
+  add_foreign_key "board_favorites", "boards"
+  add_foreign_key "board_favorites", "users"
   add_foreign_key "board_users", "boards"
   add_foreign_key "board_users", "users"
   add_foreign_key "boards", "users"

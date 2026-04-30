@@ -17,13 +17,16 @@ class BoardTest < ActiveSupport::TestCase
     assert_equal Label::COLORS.count, board.labels.count
   end
 
-  test "favorited? returns true if favorited_at is present" do
-    board = Board.new(favorited_at: Time.current)
-    assert board.favorited?
+  test "favorited_by? returns true if favorite exists" do
+    user = User.create!(email: "fav@example.com", password: "password")
+    board = Board.create!(name: "Fav Board", user: user)
+    BoardFavorite.create!(board: board, user: user)
+    assert board.favorited_by?(user)
   end
 
-  test "favorited? returns false if favorited_at is nil" do
-    board = Board.new(favorited_at: nil)
-    assert_not board.favorited?
+  test "favorited_by? returns false if favorite does not exist" do
+    user = User.create!(email: "nofav@example.com", password: "password")
+    board = Board.create!(name: "No Fav Board", user: user)
+    assert_not board.favorited_by?(user)
   end
 end

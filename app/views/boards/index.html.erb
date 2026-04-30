@@ -16,7 +16,7 @@
       <span class="text-gray-500 font-medium group-hover:text-blue-700">Create new board</span>
     <% end %>
 
-    <% @created_boards.each do |board| %>
+    <% @owned_boards.each do |board| %>
       <%= render "board_card", board: board %>
     <% end %>
   </div>

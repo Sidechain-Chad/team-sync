@@ -3,11 +3,20 @@ class BoardsController < ApplicationController
   before_action :set_board, only: [:show, :edit, :update, :destroy, :archive]
 
   def index
-    # Boards I created
-    @created_boards = current_user.boards
+    # Per-user favorites first (most-recently-starred at top), then the rest
+    # alphabetically. LEFT JOIN brings in the current user's favorite row if
+    # one exists; un-favorited boards have NULL and sort last via NULLS LAST.
+    # The composite index on board_favorites(user_id, created_at) keeps this
+    # fast even with many favorites per user.
+    favorites_join = "LEFT JOIN board_favorites ON board_favorites.board_id = boards.id AND board_favorites.user_id = #{current_user.id.to_i}"
 
-    # Boards shared with me
+    @owned_boards = current_user.boards
+                                .joins(favorites_join)
+                                .order(Arel.sql("board_favorites.created_at DESC NULLS LAST, boards.name ASC"))
+
     @shared_boards = current_user.shared_boards
+                                 .joins(favorites_join)
+                                 .order(Arel.sql("board_favorites.created_at DESC NULLS LAST, boards.name ASC"))
   end
 
   def show
@@ -82,7 +91,13 @@ class BoardsController < ApplicationController
   # turbo_stream so the star icon flips in place without a full reload.
   def toggle_favorite
     @board = current_user.all_boards.find(params[:id])
-    @board.update!(favorited_at: @board.favorited? ? nil : Time.current)
+    favorite = current_user.board_favorites.find_by(board: @board)
+
+    if favorite
+      favorite.destroy
+    else
+      current_user.board_favorites.create!(board: @board)
+    end
 
     respond_to do |format|
       format.turbo_stream
