@@ -1,0 +1,10 @@
+<%# Star toggle. Uses fa-solid (filled, yellow) when favorited, fa-regular
+    (outlined) when not. Wraps in button_to so the patch verb works without
+    custom JS. Tooltip flips with state. %>
+<%= button_to toggle_favorite_board_path(board),
+    method: :patch,
+    form: { id: "board_star", class: "inline-block" },
+    class: "h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white",
+    title: board.favorited? ? "Remove from favorites" : "Add to favorites" do %>
+  <i class="<%= board.favorited? ? 'fa-solid text-yellow-300' : 'fa-regular' %> fa-star text-sm"></i>
+<% end %>

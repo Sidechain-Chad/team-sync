@@ -77,6 +77,19 @@ class BoardsController < ApplicationController
     render layout: false
   end
 
+  # Toggle the board's favorite state. Stores the timestamp when starred
+  # so we can later sort favorites by most-recently-starred. Responds with
+  # turbo_stream so the star icon flips in place without a full reload.
+  def toggle_favorite
+    @board = current_user.all_boards.find(params[:id])
+    @board.update!(favorited_at: @board.favorited? ? nil : Time.current)
+
+    respond_to do |format|
+      format.turbo_stream
+      format.html { redirect_to board_path(@board) }
+    end
+  end
+
   private
 
   def set_board

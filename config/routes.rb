@@ -20,6 +20,7 @@ Rails.application.routes.draw do
 
     member do
       get :archive
+      patch :toggle_favorite
     end
   end
 

@@ -16,4 +16,14 @@ class BoardTest < ActiveSupport::TestCase
     assert_not_empty board.labels
     assert_equal Label::COLORS.count, board.labels.count
   end
+
+  test "favorited? returns true if favorited_at is present" do
+    board = Board.new(favorited_at: Time.current)
+    assert board.favorited?
+  end
+
+  test "favorited? returns false if favorited_at is nil" do
+    board = Board.new(favorited_at: nil)
+    assert_not board.favorited?
+  end
 end

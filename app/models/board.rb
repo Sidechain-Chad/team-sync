@@ -9,6 +9,10 @@ class Board < ApplicationRecord
 
   validates :name, presence: true
 
+  def favorited?
+    favorited_at.present?
+  end
+
   def active_members
     ([user] + members).uniq.reject(&:deactivated?)
   end
