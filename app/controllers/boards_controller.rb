@@ -24,6 +24,11 @@ class BoardsController < ApplicationController
                      ]
                    )
                    .order(:position)
+
+    # Stash the most recently viewed board id in session. The planner
+    # uses this to offer a "back to <board>" link, since /planner has no
+    # inherent board context of its own.
+    session[:last_board_id] = @board.id
   end
 
   def archive

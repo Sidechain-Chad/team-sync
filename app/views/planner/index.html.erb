@@ -3,6 +3,25 @@
   <%# ===== HEADER ===== %>
   <div class="flex items-center justify-between mb-6">
     <div class="flex items-center gap-3">
+      <%# Back link — prefers the user's most recently viewed board (set in
+          BoardsController#show via session). Falls back to the boards index
+          if there's no remembered board (first visit, or the remembered
+          board was deleted/unshared). %>
+      <% if @last_board %>
+        <%= link_to board_path(@last_board),
+            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition",
+            title: "Back to #{@last_board.name}" do %>
+          <i class="fa-solid fa-chevron-left text-xs"></i>
+          <span class="truncate max-w-[200px]"><%= @last_board.name %></span>
+        <% end %>
+      <% else %>
+        <%= link_to boards_path,
+            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition",
+            title: "Back to boards" do %>
+          <i class="fa-solid fa-chevron-left text-xs"></i>
+          <span>Boards</span>
+        <% end %>
+      <% end %>
       <h1 class="text-2xl font-bold text-gray-800"><%= @first_of_month.strftime("%B %Y") %></h1>
     </div>
 

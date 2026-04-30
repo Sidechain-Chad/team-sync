@@ -2,6 +2,14 @@ class PlannerController < ApplicationController
   before_action :authenticate_user!
 
   def index
+    # Resolve the board the user most recently viewed, if any. Guarded
+    # through current_user.all_boards so a stale session id from a board
+    # they've lost access to (revoked share, deleted board) silently
+    # resolves to nil instead of leaking or 404'ing.
+    @last_board = if session[:last_board_id]
+      current_user.all_boards.find_by(id: session[:last_board_id])
+    end
+
     # Month is controlled via ?year=2026&month=4 query params; defaults to today.
     today = Date.current
     @year  = (params[:year]  || today.year).to_i
