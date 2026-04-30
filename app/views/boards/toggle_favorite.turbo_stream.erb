@@ -1,0 +1,5 @@
+<%# Re-render just the star button so the filled/outlined state flips
+    without a full page reload. The button has dom_id "board_star". %>
+<%= turbo_stream.replace "board_star" do %>
+  <%= render "boards/star_button", board: @board %>
+<% end %>

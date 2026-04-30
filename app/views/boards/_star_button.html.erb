@@ -1,0 +1,10 @@
+<%# Per-user star toggle. Each user sees their own favorite state for
+    the board. Tooltip and icon flip based on the current user's view. %>
+<% favorited = board.favorited_by?(current_user) %>
+<%= button_to toggle_favorite_board_path(board),
+    method: :patch,
+    form: { id: "board_star", class: "inline-block" },
+    class: "h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white",
+    title: favorited ? "Remove from favorites" : "Add to favorites" do %>
+  <i class="<%= favorited ? 'fa-solid text-yellow-300' : 'fa-regular' %> fa-star text-sm"></i>
+<% end %>

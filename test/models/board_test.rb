@@ -16,4 +16,17 @@ class BoardTest < ActiveSupport::TestCase
     assert_not_empty board.labels
     assert_equal Label::COLORS.count, board.labels.count
   end
+
+  test "favorited_by? returns true if favorite exists" do
+    user = User.create!(email: "fav@example.com", password: "password")
+    board = Board.create!(name: "Fav Board", user: user)
+    BoardFavorite.create!(board: board, user: user)
+    assert board.favorited_by?(user)
+  end
+
+  test "favorited_by? returns false if favorite does not exist" do
+    user = User.create!(email: "nofav@example.com", password: "password")
+    board = Board.create!(name: "No Fav Board", user: user)
+    assert_not board.favorited_by?(user)
+  end
 end

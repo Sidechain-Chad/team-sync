@@ -2,10 +2,11 @@
 
 <div class="h-screen bg-blue-600 overflow-x-auto flex flex-col">
 
-  <%# ===== BOARD HEADER ===== Trello-style title + dropdown trigger.
-      Uses the existing dropdown Stimulus controller (toggle / outside-click).
-      The chevron rotates when open via group-hover-style state on the button. %>
-  <div class="flex-shrink-0 px-4 pt-4 pb-3">
+  <%# ===== BOARD HEADER ===== Trello-style title + action cluster.
+      Title on the left (with dropdown), actions and members on the right. %>
+  <div class="flex-shrink-0 px-4 pt-4 pb-3 flex items-center justify-between gap-4">
+
+    <%# ===== LEFT: title + dropdown ===== %>
     <div class="relative inline-block"
          data-controller="dropdown"
          data-action="click@document->dropdown#hide">
@@ -59,6 +60,60 @@
         </div>
 
       </div>
+    </div>
+
+    <%# ===== RIGHT: header action cluster ===== %>
+    <div class="flex items-center gap-1">
+
+      <%# Filter — placeholder %>
+      <button type="button"
+              class="h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white"
+              title="Filter cards (coming soon)">
+        <i class="fa-solid fa-filter text-sm"></i>
+      </button>
+
+      <%# Automation / lightning — placeholder %>
+      <button type="button"
+              class="h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white"
+              title="Automation (coming soon)">
+        <i class="fa-solid fa-bolt text-sm"></i>
+      </button>
+
+      <%# Power-Ups / plug — placeholder %>
+      <button type="button"
+              class="h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white"
+              title="Power-Ups (coming soon)">
+        <i class="fa-solid fa-plug text-sm"></i>
+      </button>
+
+      <%# Star — real, toggles favorite state %>
+      <%= render "boards/star_button", board: @board %>
+
+      <%# Members — real avatars from board.members. Owner first, then
+          shared members. Capped at 3 visible plus a +N indicator. %>
+      <div class="flex items-center -space-x-1.5 ml-2">
+        <% members = ([@board.user] + @board.members.to_a).uniq %>
+        <% members.first(3).each do |user| %>
+          <div class="h-7 w-7 rounded-full <%= avatar_soft_classes(user) %> flex items-center justify-center text-[10px] font-bold ring-2 ring-white/30"
+               title="<%= user.display_name %>">
+            <%= user.initials %>
+          </div>
+        <% end %>
+        <% if members.size > 3 %>
+          <div class="h-7 w-7 rounded-full bg-white/20 text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-white/30"
+               title="<%= members.size - 3 %> more members">
+            +<%= members.size - 3 %>
+          </div>
+        <% end %>
+      </div>
+
+      <%# Share — routes to the existing members section on edit page %>
+      <%= link_to edit_board_path(@board, anchor: "members"),
+          class: "ml-2 flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded text-white text-sm font-semibold transition-colors" do %>
+        <i class="fa-solid fa-user-plus text-xs"></i>
+        <span>Share</span>
+      <% end %>
+
     </div>
   </div>
 

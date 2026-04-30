@@ -10,9 +10,11 @@ class User < ApplicationRecord
   has_many :card_members,  dependent: :destroy   # same — current state
   has_many :comments,      dependent: :nullify   # historical — preserve the comment text
   has_many :activities,    dependent: :nullify   # historical — preserve the audit trail
+  has_many :board_favorites, dependent: :destroy
 
-  has_many :shared_boards,  through: :board_users, source: :board
-  has_many :assigned_cards, through: :card_members, source: :card
+  has_many :shared_boards,    through: :board_users, source: :board
+  has_many :favorited_boards, through: :board_favorites, source: :board
+  has_many :assigned_cards,   through: :card_members, source: :card
 
   # ---- Soft delete ----
 

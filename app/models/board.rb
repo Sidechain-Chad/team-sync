@@ -4,10 +4,17 @@ class Board < ApplicationRecord
   has_many :board_users, dependent: :destroy
   has_many :members, through: :board_users, source: :user
   has_many :labels, dependent: :destroy
+  has_many :board_favorites, dependent: :destroy
+  has_many :favorited_by_users, through: :board_favorites, source: :user
 
   has_one_attached :avatar
 
   validates :name, presence: true
+
+  def favorited_by?(user)
+    return false unless user
+    board_favorites.exists?(user_id: user.id)
+  end
 
   def active_members
     ([user] + members).uniq.reject(&:deactivated?)
