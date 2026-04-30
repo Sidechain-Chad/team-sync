@@ -3,10 +3,12 @@
     div is the dimmed backdrop; clicking it closes via the modal Stimulus
     controller already attached to the frame in application.html.erb. %>
 <%= turbo_frame_tag "modal" do %>
+  <%# Backdrop click closes the modal. The inner panel uses an inline JS
+      stopPropagation so clicks inside don't bubble up and trigger the close. %>
   <div class="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-20"
-       data-action="click->modal#backgroundClose">
+       data-action="click->modal#close">
     <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col"
-         data-action="click->modal#stopPropagation">
+         onclick="event.stopPropagation()">
 
       <%# Header %>
       <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">

@@ -16,6 +16,7 @@ class Board < ApplicationRecord
   # Seed the default Trello-style label palette on every new board so
   # users have something to pick from immediately.
   after_create :seed_default_labels
+  after_create :seed_default_lists
 
   def invite_users(emails_string, inviter)
     return if emails_string.blank?
