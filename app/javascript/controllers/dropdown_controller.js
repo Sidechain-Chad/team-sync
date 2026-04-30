@@ -17,6 +17,17 @@ export default class extends Controller {
     this.menuTarget.classList.toggle("hidden")
   }
 
+  // Used by inputs (e.g. the top-nav search) where calling toggle() would
+  // preventDefault on the focus event and stop the input from focusing.
+  // No preventDefault here, and no toggle behaviour — only opens. Closing
+  // still happens via the document-level hide() listener.
+  open() {
+    if (!this.menuTarget.classList.contains("hidden")) return
+    this.closeOtherDropdowns()
+    this.closeOpenDescriptionEditor()
+    this.menuTarget.classList.remove("hidden")
+  }
+
   hide(event) {
     if (this.element.contains(event.target)) return
     this.menuTarget.classList.add("hidden")
