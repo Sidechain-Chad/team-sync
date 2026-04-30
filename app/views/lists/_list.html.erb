@@ -1,4 +1,7 @@
-<div class="w-72 flex-shrink-0 bg-gray-100 rounded-xl p-2 mr-3 flex flex-col max-h-[calc(100vh-160px)] shadow-sm" id="<%= dom_id(list) %>" data-id="<%= list.id %>">
+<%# Trello-style list: shrinks to content, caps at ~75vh and scrolls
+    inside when there are too many cards. Uses self-start so each list
+    sits at its natural height instead of stretching to match siblings. %>
+<div class="w-72 flex-shrink-0 self-start bg-gray-100 rounded-xl p-2 mr-3 flex flex-col max-h-[calc(100vh-180px)] shadow-sm" id="<%= dom_id(list) %>" data-id="<%= list.id %>">
 
   <%# --- HEADER --- %>
   <%= render "lists/header", list: list %>
