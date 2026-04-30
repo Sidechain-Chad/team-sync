@@ -1,8 +1,11 @@
+<%# Archived items entry — styled identically to "Add another list" so the
+    two trigger buttons feel like matched siblings sitting at the right
+    end of the lists row, just like Trello's column-shaped triggers. %>
 <div class="flex-shrink-0 w-72">
   <%= link_to archive_board_path(board),
-      class: "block w-full bg-blue-500 bg-opacity-50 hover:bg-blue-400 hover:bg-opacity-70 rounded-md transition duration-150 ease-in-out p-3 text-white font-bold flex items-center gap-2",
+      class: "flex items-center gap-2 w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl shadow-sm px-3 py-2.5 text-white font-semibold text-sm transition-colors duration-150 ease-out",
       title: "View archived cards" do %>
-    <i class="fa-solid fa-box-archive text-sm"></i>
-    Archived items
+    <i class="fa-solid fa-box-archive text-xs"></i>
+    <span>Archived items</span>
   <% end %>
 </div>
