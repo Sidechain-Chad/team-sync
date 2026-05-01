@@ -1,0 +1,7 @@
+<%= turbo_frame_tag "search_results" do %>
+  <% if @query.blank? %>
+    <%= render "recent", recent_boards: @recent_boards %>
+  <% else %>
+    <%= render "results", query: @query, boards: @boards, cards: @cards %>
+  <% end %>
+<% end %>

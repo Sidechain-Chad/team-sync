@@ -1,4 +1,6 @@
 class Card < ApplicationRecord
+  include PgSearch::Model
+
   belongs_to :list
   belongs_to :assignee, class_name: 'User', optional: true
 
@@ -19,6 +21,36 @@ class Card < ApplicationRecord
   acts_as_list scope: :list
 
   validates :title, presence: true
+
+  # Multi-field search across title, description, AND associated comments.
+  # Two strategies combined:
+  #
+  #   :tsearch  — Postgres full-text search. Stems words ("running" finds
+  #               "ran"), ignores stop words, weights matches by field.
+  #               Title is weighted A (highest), description B, comments C.
+  #
+  #   :trigram  — Fuzzy/typo tolerance. Catches misspellings tsearch misses.
+  #
+  # PgSearch combines both rankings, so an exact-but-stemmed title match
+  # outranks a fuzzy comment match — which is what you want.
+  pg_search_scope :search_for,
+                  against: {
+                    title:       'A',
+                    description: 'B'
+                  },
+                  associated_against: {
+                    comments: { content: 'C' }
+                  },
+                  using: {
+                    tsearch: {
+                      prefix:     true,        # "wet" matches "wetland"
+                      dictionary: "english"
+                    },
+                    trigram: {
+                      threshold: 0.2,
+                      only:      [:title, :description]  # skip fuzzy on comments — too noisy
+                    }
+                  }
 
   # Trello-style soft delete. Archived cards stay in the DB but
   # are hidden from the board view by default.

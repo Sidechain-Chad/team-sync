@@ -10,9 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_30_180451) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_01_113240) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_trgm"
   enable_extension "plpgsql"
+  enable_extension "unaccent"
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
@@ -78,6 +80,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_30_180451) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_boards_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["user_id"], name: "index_boards_on_user_id"
   end
 
@@ -112,7 +115,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_30_180451) do
     t.boolean "completed", default: false, null: false
     t.datetime "archived_at"
     t.index ["assignee_id"], name: "index_cards_on_assignee_id"
+    t.index ["description"], name: "index_cards_on_description_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["list_id"], name: "index_cards_on_list_id"
+    t.index ["title"], name: "index_cards_on_title_trgm", opclass: :gin_trgm_ops, using: :gin
   end
 
   create_table "checklist_items", force: :cascade do |t|
@@ -141,6 +146,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_30_180451) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["card_id"], name: "index_comments_on_card_id"
+    t.index ["content"], name: "index_comments_on_content_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["user_id"], name: "index_comments_on_user_id"
   end
 

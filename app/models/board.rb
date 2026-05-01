@@ -1,4 +1,6 @@
 class Board < ApplicationRecord
+  include PgSearch::Model
+
   belongs_to :user
   has_many :lists, -> { order(position: :asc) }, dependent: :destroy
   has_many :board_users, dependent: :destroy
@@ -10,6 +12,19 @@ class Board < ApplicationRecord
   has_one_attached :avatar
 
   validates :name, presence: true
+
+  # Single-field trigram search on board name. against: :name +
+  # ranked_by similarity gives us typo-tolerant matching ranked by
+  # how close the match is. Threshold 0.2 is forgiving enough for
+  # real typos but filters out spurious 1-char overlaps.
+  pg_search_scope :search_for,
+                  against: :name,
+                  using: {
+                    trigram: {
+                      threshold: 0.2,
+                      word_similarity: true
+                    }
+                  }
 
   def favorited_by?(user)
     return false unless user

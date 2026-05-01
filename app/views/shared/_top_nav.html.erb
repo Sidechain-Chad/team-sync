@@ -16,46 +16,32 @@
   <%# Spacer pushes search to center, actions to right %>
   <div class="flex-1"></div>
 
-  <%# ===== CENTER: search — placeholder, but mimics Trello's "recently
-       viewed boards" dropdown so it feels real even before we wire it
-       up to a real query. ===== %>
+  <%# ===== CENTER: search ===== Two stacked Stimulus controllers on the
+       wrapper: `dropdown` for open/close visibility, `search` for the
+       debounced fetch. They run in parallel — no conflict. %>
   <div class="relative w-72 max-w-[40vw]"
-       data-controller="dropdown"
+       data-controller="dropdown search"
+       data-search-url-value="<%= search_path %>"
        data-action="click@document->dropdown#hide">
 
     <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
 
     <input type="text"
            placeholder="Search"
-           data-action="focus->dropdown#open click->dropdown#open"
+           data-search-target="input"
+           data-action="focus->dropdown#open click->dropdown#open input->search#query"
            class="w-full h-8 pl-8 pr-3 rounded bg-white/10 hover:bg-white/15 focus:bg-white focus:text-gray-900 placeholder-gray-400 focus:placeholder-gray-500 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-blue-500 transition-colors">
 
     <div data-dropdown-target="menu"
          class="hidden absolute left-0 top-full mt-2 w-96 bg-white rounded-lg shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden text-gray-800">
 
-      <div class="px-4 py-3 border-b border-gray-200">
-        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Search coming soon</p>
-        <p class="text-xs text-gray-500 mt-1">For now, jump to one of your recent boards.</p>
-      </div>
-
-      <%# Recent boards — shows owned + shared, ordered by most recently
-          touched. Capped at 5 so the dropdown stays compact. %>
-      <% recent_boards = current_user.all_boards.order(updated_at: :desc).limit(5) %>
-      <% if recent_boards.any? %>
-        <div class="py-1 max-h-72 overflow-y-auto">
-          <% recent_boards.each do |board| %>
-            <%= link_to board_path(board),
-                data: { turbo: false },
-                class: "flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100 transition-colors" do %>
-              <div class="h-7 w-10 rounded bg-gradient-to-br from-blue-500 to-blue-700 flex-shrink-0"></div>
-              <span class="truncate"><%= board.name %></span>
-            <% end %>
-          <% end %>
-        </div>
-      <% else %>
-        <div class="px-4 py-6 text-center text-sm text-gray-500">
-          You don't have any boards yet.
-        </div>
+      <%# Initial render: recent boards inline (no fetch on page load).
+          Once the user types, the search controller swaps in
+          /search?q=... which returns the <turbo-frame id="search_results">
+          fragment. %>
+      <%= turbo_frame_tag "search_results", data: { search_target: "frame" } do %>
+        <%= render "search/recent",
+            recent_boards: current_user.all_boards.order(updated_at: :desc).limit(5) %>
       <% end %>
     </div>
   </div>
