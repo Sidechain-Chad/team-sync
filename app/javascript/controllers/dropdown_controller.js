@@ -28,6 +28,13 @@ export default class extends Controller {
     this.menuTarget.classList.remove("hidden")
   }
 
+  // Unconditional close. Used when something inside the dropdown is
+  // clicked but doesn't trigger a full page navigation (e.g. a search
+  // result that opens a card in the modal turbo-frame).
+  close() {
+    this.menuTarget.classList.add("hidden")
+  }
+
   hide(event) {
     if (this.element.contains(event.target)) return
     this.menuTarget.classList.add("hidden")

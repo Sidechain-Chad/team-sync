@@ -1,0 +1,62 @@
+<%# Search results — Boards section first, then Cards. Each section
+    only renders if it has hits, and a global empty state shows when
+    neither has anything. Substring matches highlighted with <mark>
+    (note: highlight is literal substring, so fuzzy/typo matches won't
+    visibly highlight — that's cosmetic, the match itself still works). %>
+
+<% highlighter = '<mark class="bg-yellow-200 text-gray-900 rounded px-0.5">\1</mark>' %>
+
+<% if boards.empty? && cards.empty? %>
+
+  <div class="px-4 py-10 text-center">
+    <i class="fa-regular fa-face-frown text-3xl text-gray-300 mb-3"></i>
+    <p class="text-sm text-gray-500">No matches for "<%= query %>"</p>
+  </div>
+
+<% else %>
+
+  <div class="max-h-96 overflow-y-auto">
+
+    <% if boards.any? %>
+      <div class="px-4 py-2 border-b border-gray-200 bg-gray-50">
+        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Boards</p>
+      </div>
+      <div class="py-1">
+        <% boards.each do |board| %>
+          <%= link_to board_path(board),
+              data: { turbo: false },
+              class: "flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100 transition-colors" do %>
+            <div class="h-7 w-10 rounded bg-gradient-to-br from-blue-500 to-blue-700 flex-shrink-0"></div>
+            <span class="truncate text-gray-800"><%= highlight(board.name, query, highlighter: highlighter) %></span>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if cards.any? %>
+      <div class="px-4 py-2 border-y border-gray-200 bg-gray-50">
+        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Cards</p>
+      </div>
+      <div class="py-1">
+        <% cards.each do |card| %>
+          <%# Cards open into the existing modal turbo-frame.
+              dropdown#close fires alongside the navigation so the
+              search panel collapses. %>
+          <%= link_to card_path(card),
+              data: { turbo_frame: "modal", action: "click->dropdown#close" },
+              class: "flex items-start gap-3 px-4 py-2 text-sm hover:bg-gray-100 transition-colors" do %>
+            <i class="fa-regular fa-credit-card text-gray-400 mt-1 text-xs flex-shrink-0"></i>
+            <div class="min-w-0 flex-1">
+              <div class="text-gray-800 truncate"><%= highlight(card.title, query, highlighter: highlighter) %></div>
+              <div class="text-xs text-gray-500 truncate">
+                in <%= card.list.name %> on <%= card.list.board.name %>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+
+  </div>
+
+<% end %>

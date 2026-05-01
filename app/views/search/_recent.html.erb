@@ -1,0 +1,23 @@
+<%# Default state: shown when the search input is empty. Same shape as
+    the results partial so the dropdown doesn't visually jump when the
+    user starts typing. %>
+<div class="px-4 py-2 border-b border-gray-200 bg-gray-50">
+  <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Recent boards</p>
+</div>
+
+<% if recent_boards.any? %>
+  <div class="py-1 max-h-72 overflow-y-auto">
+    <% recent_boards.each do |board| %>
+      <%= link_to board_path(board),
+          data: { turbo: false },
+          class: "flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100 transition-colors" do %>
+        <div class="h-7 w-10 rounded bg-gradient-to-br from-blue-500 to-blue-700 flex-shrink-0"></div>
+        <span class="truncate text-gray-800"><%= board.name %></span>
+      <% end %>
+    <% end %>
+  </div>
+<% else %>
+  <div class="px-4 py-6 text-center text-sm text-gray-500">
+    You don't have any boards yet.
+  </div>
+<% end %>

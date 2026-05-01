@@ -7,6 +7,7 @@ Rails.application.routes.draw do
   get "planner"        => "planner#index",  as: :planner
   get "planner/panel"  => "planner#panel",  as: :planner_panel
   get "switch_boards"  => "boards#switcher", as: :switch_boards
+  get "search"         => "search#index",   as: :search
 
   # 3. Health check (Standard Rails 7.1+)
   get "up" => "rails/health#show", as: :rails_health_check
