@@ -3,13 +3,15 @@ class AttachmentsController < ApplicationController
 
   def create
     @card = current_user.all_cards.find(params[:card_id])
-    @card.attachments.attach(params[:file])
+    result = CardAttachmentService.new(card: @card, user: current_user, files: [params[:file]]).call
 
-    @card.log_activity(current_user, "added_attachment", params[:file].original_filename)
-
-    # Return the URL of the freshly-attached file so the editor can insert it.
-    attachment = @card.attachments.last
-    render json: { url: url_for(attachment), filename: attachment.filename.to_s }
+    if result.success?
+      # Return the URL of the freshly-attached file so the editor can insert it.
+      attachment = result.attachments.first
+      render json: { url: url_for(attachment), filename: attachment.filename.to_s }
+    else
+      render json: { error: result.error }, status: :unprocessable_entity
+    end
   end
 
   def destroy

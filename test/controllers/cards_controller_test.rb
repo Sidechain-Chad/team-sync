@@ -39,4 +39,34 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     activity = Activity.last
     assert_equal "renamed", activity.action
   end
+
+  test "should update card and log activity when attachments are added" do
+    file = fixture_file_upload("test.png", "image/png")
+
+    assert_difference -> { Activity.count }, 1 do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_match /turbo-stream action="replace" target="modal"/, response.body
+    
+    @card.reload
+    assert_equal 1, @card.attachments.count
+
+    activity = Activity.last
+    assert_equal "added_attachment", activity.action
+    assert_equal "test.png", activity.description
+  end
+
+  test "should not update card with invalid attachment type" do
+    file = fixture_file_upload("test.png", "application/x-ghostscript")
+
+    assert_no_difference -> { Activity.count } do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_match /turbo-stream action="replace" target="flash"/, response.body
+    assert_match "isn't an allowed file type", flash[:alert]
+  end
 end

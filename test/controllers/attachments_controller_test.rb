@@ -25,4 +25,27 @@ class AttachmentsControllerTest < ActionDispatch::IntegrationTest
     end
     assert_redirected_to board_url(@card.list.board)
   end
+
+  test "should create attachment when logged in" do
+    sign_in @user
+    file = fixture_file_upload("test.png", "image/png")
+    assert_difference -> { Activity.count }, 1 do
+      post card_attachments_url(@card), params: { file: file }
+    end
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert_includes json["url"], "test.png"
+    assert_equal "test.png", json["filename"]
+  end
+
+  test "should not create attachment with invalid type" do
+    sign_in @user
+    file = fixture_file_upload("test.png", "text/plain")
+    assert_no_difference -> { Activity.count } do
+      post card_attachments_url(@card), params: { file: file }
+    end
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_match "is not an allowed file type", json["error"]
+  end
 end

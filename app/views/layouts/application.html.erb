@@ -19,6 +19,7 @@
         The partial itself early-returns on Devise pages where there's no
         current_user, so it's safe to mount unconditionally here. %>
     <%= render "shared/top_nav" %>
+    <%= render "shared/flash" %>
 
     <main id="main-content" class="transition-[padding] duration-200 ease-out">
       <%= yield %>
