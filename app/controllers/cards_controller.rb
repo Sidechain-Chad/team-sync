@@ -76,18 +76,7 @@ class CardsController < ApplicationController
               # attachments + activity entries. Replace the modal frame's
               # contents directly — no redirect, no top-level navigation,
               # no "Content missing" frame mismatch.
-              @card = current_user.all_cards
-                                  .includes(
-                                    :labels,
-                                    :members,
-                                    { list: { board: [:labels, :members, :user] } },
-                                    { checklists: :checklist_items },
-                                    { comments: :user },
-                                    { activities: :user }
-                                  )
-                                  .find(@card.id)
-              @feed = (@card.comments + @card.activities).sort_by(&:created_at).reverse
-
+              reload_card_for_modal!
               render turbo_stream: turbo_stream.replace("modal", template: "cards/show")
             else
               render turbo_stream: turbo_stream.replace(
@@ -101,14 +90,15 @@ class CardsController < ApplicationController
         end
       else
         # Service rejected the upload (file too big, type not allowed).
-        # Surface the message via flash so the next render shows it.
+        # Set flash.now and re-render the modal — the inline alert slot
+        # in cards/show.html.erb picks the message up and renders it
+        # next to the Attachment button. Re-rendering the modal also
+        # keeps the dialog open so the user can immediately try again.
         respond_to do |format|
           format.turbo_stream do
             flash.now[:alert] = result.error
-            render turbo_stream: turbo_stream.replace(
-              "flash",
-              partial: "shared/flash"
-            )
+            reload_card_for_modal!
+            render turbo_stream: turbo_stream.replace("modal", template: "cards/show")
           end
           format.html { redirect_to @card.list.board, alert: result.error }
         end
@@ -210,6 +200,22 @@ class CardsController < ApplicationController
 
   def set_card
     @card = current_user.all_cards.find(params[:id])
+  end
+
+  # Re-eager-loads the card and rebuilds @feed so cards/show.html.erb has
+  # everything it needs when re-rendered from update (success or failure).
+  def reload_card_for_modal!
+    @card = current_user.all_cards
+                        .includes(
+                          :labels,
+                          :members,
+                          { list: { board: [:labels, :members, :user] } },
+                          { checklists: :checklist_items },
+                          { comments: :user },
+                          { activities: :user }
+                        )
+                        .find(@card.id)
+    @feed = (@card.comments + @card.activities).sort_by(&:created_at).reverse
   end
 
   def card_params

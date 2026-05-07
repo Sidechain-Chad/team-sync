@@ -59,14 +59,16 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should not update card with invalid attachment type" do
+    # Use an extension that is NOT in ALLOWED_EXTENSIONS
     file = fixture_file_upload("test.png", "application/x-ghostscript")
+    file.instance_variable_set(:@original_filename, "test.exe")
 
     assert_no_difference -> { Activity.count } do
       patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
     end
 
     assert_response :success
-    assert_match /turbo-stream action="replace" target="flash"/, response.body
+    assert_match /turbo-stream action="replace" target="modal"/, response.body
     assert_match "isn't an allowed file type", flash[:alert]
   end
 end
