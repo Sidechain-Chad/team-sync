@@ -18,12 +18,26 @@ class CardAttachmentService
     application/pdf
     video/mp4 video/quicktime video/webm video/x-matroska
     audio/mpeg audio/mp4 audio/wav audio/x-wav audio/webm audio/ogg audio/aac audio/flac
-    application/zip
+    application/zip application/x-zip-compressed application/x-zip
     application/msword
     application/vnd.openxmlformats-officedocument.wordprocessingml.document
     application/vnd.ms-excel
     application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     text/plain text/csv
+  ].freeze
+
+  # Fallback for when the browser sends a useless content_type
+  # (application/octet-stream, missing, or a vendor-specific alias we
+  # haven't seen). We trust the extension as a secondary signal — the
+  # size cap still applies and we still won't accept .exe, .bat, etc.
+  ALLOWED_EXTENSIONS = %w[
+    .png .jpg .jpeg .gif .webp .svg
+    .pdf
+    .mp4 .mov .webm .mkv
+    .mp3 .m4a .wav .ogg .aac .flac
+    .zip
+    .doc .docx .xls .xlsx
+    .txt .csv
   ].freeze
 
   Result = Struct.new(:success?, :attachments, :error, keyword_init: true)
@@ -57,7 +71,9 @@ class CardAttachmentService
   private
 
   def valid?(file)
-    file.size <= MAX_SIZE && ALLOWED_TYPES.include?(file.content_type)
+    return false if file.size > MAX_SIZE
+    return true if ALLOWED_TYPES.include?(file.content_type)
+    ALLOWED_EXTENSIONS.include?(File.extname(file.original_filename.to_s).downcase)
   end
 
   def error_for(file)

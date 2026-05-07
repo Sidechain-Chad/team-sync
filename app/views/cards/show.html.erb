@@ -318,6 +318,20 @@
               </div>
 
             </div>
+
+            <%# Inline alert slot — surfaces card-scoped errors (e.g. an
+                attachment rejected by validation) right next to the
+                action that triggered them. The global flash partial
+                ends up behind the modal because of z-index stacking,
+                so keep card alerts in here. %>
+            <% if flash.now[:alert].present? %>
+              <div class="mt-3 bg-red-50 border border-red-200 text-red-800 text-sm px-3 py-2 rounded flex items-start gap-2"
+                   data-controller="flash"
+                   data-flash-timeout-value="6000">
+                <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0"></i>
+                <span><%= flash.now[:alert] %></span>
+              </div>
+            <% end %>
           </div>
 
           <div class="flex items-center justify-between mb-4 shrink-0">
