@@ -44,7 +44,12 @@ class CardsController < ApplicationController
   def update
     old_list = @card.list
 
-    if @card.update(card_params)
+    # Detect new attachments BEFORE the update fires. We pass these to the
+    # service for validation/attaching, and use the count to decide which
+    # turbo_stream response to send back (full modal vs. just the due pill).
+    new_attachments = Array(params.dig(:card, :attachments)).reject(&:blank?)
+
+    if @card.update(card_params.except(:attachments))
       if @card.list_id != old_list.id
         @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
       elsif @card.saved_change_to_due_date?
@@ -59,18 +64,54 @@ class CardsController < ApplicationController
         @card.log_activity(current_user, "renamed", @card.title)
       end
 
-      # When the due-date form submits, it targets the card_due_pill_<id>
-      # turbo-frame. We respond with a turbo_stream that replaces just that
-      # frame so the modal stays open and the pill updates in place.
-      respond_to do |format|
-        format.turbo_stream do
-          render turbo_stream: turbo_stream.replace(
-            "card_due_pill_#{@card.id}",
-            partial: "cards/due_pill_frame",
-            locals: { card: @card }
-          )
+      # Use the service for attachments — handles validation (size + type)
+      # and logs one activity entry per file.
+      result = CardAttachmentService.new(card: @card, user: current_user, files: new_attachments).call
+
+      if result.success?
+        respond_to do |format|
+          format.turbo_stream do
+            if new_attachments.any?
+              # Re-eager-load so the cards/show template renders with fresh
+              # attachments + activity entries. Replace the modal frame's
+              # contents directly — no redirect, no top-level navigation,
+              # no "Content missing" frame mismatch.
+              @card = current_user.all_cards
+                                  .includes(
+                                    :labels,
+                                    :members,
+                                    { list: { board: [:labels, :members, :user] } },
+                                    { checklists: :checklist_items },
+                                    { comments: :user },
+                                    { activities: :user }
+                                  )
+                                  .find(@card.id)
+              @feed = (@card.comments + @card.activities).sort_by(&:created_at).reverse
+
+              render turbo_stream: turbo_stream.replace("modal", template: "cards/show")
+            else
+              render turbo_stream: turbo_stream.replace(
+                "card_due_pill_#{@card.id}",
+                partial: "cards/due_pill_frame",
+                locals: { card: @card }
+              )
+            end
+          end
+          format.html { redirect_to @card.list.board }
         end
-        format.html { redirect_to @card.list.board }
+      else
+        # Service rejected the upload (file too big, type not allowed).
+        # Surface the message via flash so the next render shows it.
+        respond_to do |format|
+          format.turbo_stream do
+            flash.now[:alert] = result.error
+            render turbo_stream: turbo_stream.replace(
+              "flash",
+              partial: "shared/flash"
+            )
+          end
+          format.html { redirect_to @card.list.board, alert: result.error }
+        end
       end
     else
       render :edit, status: :unprocessable_entity
@@ -172,15 +213,10 @@ class CardsController < ApplicationController
   end
 
   def card_params
-    params.require(:card).permit(:title, :description, :due_date, :completed, :list_id)
+    params.require(:card).permit(:title, :description, :due_date, :completed, :list_id, attachments: [])
   end
 
   def broadcast_card_remove
     Turbo::StreamsChannel.broadcast_remove_to(@card.list.board, target: @card)
-  end
-
-  def broadcast_card_update
-    # This might need a custom broadcast if you want it to reappear in the list instantly
-    # For now, simple redirect/refresh handles it.
   end
 end

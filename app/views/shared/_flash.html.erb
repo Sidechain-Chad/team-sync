@@ -1,0 +1,11 @@
+<%# Flash slot — replaced via turbo_stream when actions need to surface
+    a transient message (e.g. an attachment upload failing validation). %>
+<div id="flash" class="fixed top-20 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4 pointer-events-none">
+  <% flash.each do |key, message| %>
+    <div class="<%= key.to_s == 'alert' ? 'bg-red-600' : 'bg-gray-900' %> text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg ring-1 ring-white/10 mb-2 pointer-events-auto"
+         data-controller="flash"
+         data-flash-timeout-value="5000">
+      <%= message %>
+    </div>
+  <% end %>
+</div>

@@ -19,7 +19,7 @@
   <%# ===== CENTER: search ===== Two stacked Stimulus controllers on the
        wrapper: `dropdown` for open/close visibility, `search` for the
        debounced fetch. They run in parallel — no conflict. %>
-  <div class="relative w-72 max-w-[40vw]"
+  <div class="relative w-[640px] max-w-[50vw]"
        data-controller="dropdown search"
        data-search-url-value="<%= search_path %>"
        data-action="click@document->dropdown#hide">
