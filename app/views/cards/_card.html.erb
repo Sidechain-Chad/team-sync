@@ -110,7 +110,8 @@
           items_done       = card.checklists.sum { |cl| cl.checklist_items.where(completed: true).count }
 
           has_status  = card.description.present? || comment_count.positive? ||
-                        attachment_count.positive? || items_total.positive?
+                        attachment_count.positive? || items_total.positive? ||
+                        card.location?
           has_members = card.members.any?
         %>
         <% if has_status || has_members %>
@@ -129,6 +130,10 @@
                 <span class="flex items-center gap-1" title="<%= attachment_count %> attachment(s)">
                   <i class="fa-solid fa-paperclip"></i><%= attachment_count %>
                 </span>
+              <% end %>
+              <% if card.location? %>
+                <i class="fa-solid fa-location-dot"
+                   title="<%= card.location_name %>"></i>
               <% end %>
               <% if items_total.positive? %>
                 <span class="flex items-center gap-1 <%= 'text-green-700 bg-green-50 px-1.5 py-0.5 rounded' if items_done == items_total %>"

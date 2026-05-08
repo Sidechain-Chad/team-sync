@@ -1,6 +1,6 @@
 class BoardsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_board, only: [:show, :edit, :update, :destroy, :archive]
+  before_action :set_board, only: [:show, :edit, :update, :destroy, :archive, :map]
 
   def index
     # Per-user favorites first (most-recently-starred at top), then the rest
@@ -46,6 +46,18 @@ class BoardsController < ApplicationController
                           .where(list_id: @board.lists.select(:id))
                           .includes(:list, :labels, :members)
                           .order(updated_at: :desc)
+  end
+
+  def map
+    # All non-archived cards across this board's lists that have coords.
+    # Eager-load the list so the popup can show "in: List Name" without
+    # an N+1 per marker.
+    @located_cards = Card
+                       .joins(:list)
+                       .where(lists: { board_id: @board.id })
+                       .where(archived_at: nil)
+                       .with_location
+                       .includes(:list)
   end
 
   def new

@@ -69,4 +69,41 @@ class PlannerController < ApplicationController
     # already-rendered page, so we don't want the full chrome.
     render layout: false
   end
+
+  def map
+    # Same year/month resolution as #index so the Calendar/Map toggle
+    # keeps the user on the same window when they flip between views.
+    today = Date.current
+    @year  = (params[:year]  || today.year).to_i
+    @month = (params[:month] || today.month).to_i
+
+    begin
+      @first_of_month = Date.new(@year, @month, 1)
+    rescue ArgumentError
+      @first_of_month = today.beginning_of_month
+      @year  = @first_of_month.year
+      @month = @first_of_month.month
+    end
+
+    # Only need prev/next for the header arrows, not the full grid.
+    @prev_month = @first_of_month - 1.month
+    @next_month = @first_of_month + 1.month
+
+    range_start = @first_of_month.beginning_of_day
+    range_end   = @first_of_month.end_of_month.end_of_day
+
+    # Cross-board: every dated card in the visible month *with location*,
+    # across every board the user can see. The map view's whole point is
+    # surfacing locations regardless of which board they live on.
+    @located_cards = Card.active
+                         .where(list_id: current_user.all_lists.select(:id))
+                         .where(due_date: range_start..range_end)
+                         .with_location
+                         .includes(:labels, list: :board)
+
+    # @last_board lets the back link match #index's behaviour.
+    @last_board = if session[:last_board_id]
+      current_user.all_boards.find_by(id: session[:last_board_id])
+    end
+  end
 end

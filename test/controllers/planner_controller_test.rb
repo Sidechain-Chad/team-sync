@@ -23,4 +23,15 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
     get planner_url(year: 2026, month: 13)
     assert_response :success
   end
+
+  test "should get map" do
+    get planner_map_url
+    assert_response :success
+  end
+
+  test "should get map with year and month" do
+    get planner_map_url(year: 2026, month: 4)
+    assert_response :success
+    assert_select "h1", "April 2026"
+  end
 end

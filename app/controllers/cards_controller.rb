@@ -42,6 +42,17 @@ class CardsController < ApplicationController
   end
 
   def update
+    # Guard against no-op location PATCHes — if all four location fields
+    # arrive blank AND the card already has no location, there's nothing
+    # to do. Prevents stray clicks from triggering pointless writes.
+    if location_only_blank_patch?
+      respond_to do |format|
+        format.turbo_stream { head :no_content }
+        format.html         { redirect_to @card.list.board }
+      end
+      return
+    end
+
     old_list = @card.list
 
     # Detect new attachments BEFORE the update fires. We pass these to the
@@ -68,10 +79,28 @@ class CardsController < ApplicationController
       # and logs one activity entry per file.
       result = CardAttachmentService.new(card: @card, user: current_user, files: new_attachments).call
 
+      # Broadcast the freshly-rendered card to anyone viewing this board so
+      # the preview reflects changes (location pin, attachment count, due
+      # pill, title) in real time. Same pattern as toggle_complete.
+      Turbo::StreamsChannel.broadcast_replace_to(
+        @card.list.board,
+        target: @card,
+        partial: "cards/card",
+        locals: { card: @card }
+      )
+
       if result.success?
+        # Decide what to send back. Modal-wide refresh is needed when
+        # something *visible inside the modal body* changed — attachments
+        # or location. Otherwise the cheap due-pill stream is enough.
+        modal_refresh_needed = new_attachments.any? ||
+          @card.saved_change_to_latitude? ||
+          @card.saved_change_to_longitude? ||
+          @card.saved_change_to_location_name?
+
         respond_to do |format|
           format.turbo_stream do
-            if new_attachments.any?
+            if modal_refresh_needed
               # Re-eager-load so the cards/show template renders with fresh
               # attachments + activity entries. Replace the modal frame's
               # contents directly — no redirect, no top-level navigation,
@@ -219,7 +248,23 @@ class CardsController < ApplicationController
   end
 
   def card_params
-    params.require(:card).permit(:title, :description, :due_date, :completed, :list_id, attachments: [])
+    params.require(:card).permit(
+      :title, :description, :due_date, :completed, :list_id,
+      :latitude, :longitude, :location_name, :location_address,
+      attachments: []
+    )
+  end
+
+  # True when the incoming PATCH is location-only AND every location
+  # field is blank AND the card has no existing location. Catches the
+  # case from the 12:59:20 logs where an empty location form somehow
+  # submitted on a card that never had a location to begin with.
+  def location_only_blank_patch?
+    p = params[:card] || {}
+    location_keys = %w[latitude longitude location_name location_address]
+    only_location_keys = (p.keys - location_keys).empty?
+    all_blank          = location_keys.all? { |k| p[k].blank? }
+    only_location_keys && all_blank && ! @card.location?
   end
 
   def broadcast_card_remove

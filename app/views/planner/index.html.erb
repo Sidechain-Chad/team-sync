@@ -26,6 +26,20 @@
     </div>
 
     <div class="flex items-center gap-2">
+      <%# Calendar / Map toggle. Both views share month state via the
+          year/month query params, so flipping between them keeps you
+          on the same window. %>
+      <div class="flex items-center bg-gray-100 rounded p-0.5 mr-2">
+        <%= link_to planner_path(year: @year, month: @month),
+            class: "px-3 py-1 text-xs font-medium rounded transition #{action_name == 'index' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}" do %>
+          <i class="fa-regular fa-calendar text-[10px] mr-1"></i>Calendar
+        <% end %>
+        <%= link_to planner_map_path(year: @year, month: @month),
+            class: "px-3 py-1 text-xs font-medium rounded transition #{action_name == 'map' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}" do %>
+          <i class="fa-solid fa-map-location-dot text-[10px] mr-1"></i>Map
+        <% end %>
+      </div>
+
       <%= link_to planner_path,
           class: "px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition" do %>
         Today
@@ -87,8 +101,10 @@
               <%= link_to card_path(card),
                   data: { turbo_frame: "modal" },
                   class: "block text-[11px] leading-tight px-1.5 py-1 rounded truncate hover:opacity-80 transition-opacity cursor-pointer #{planner_chip_classes(card)}",
-                  title: "#{card.title} — #{card.list.board.name}" do %>
-                <%= card.title %>
+                  title: "#{card.title} — #{card.list.board.name}#{card.location? ? " · #{card.location_name}" : ''}" do %>
+                <% if card.location? %>
+                  <i class="fa-solid fa-location-dot text-[8px] mr-0.5 opacity-70"></i>
+                <% end %><%= card.title %>
               <% end %>
             <% end %>
           </div>
