@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   root 'boards#index'
   get "planner"        => "planner#index",  as: :planner
   get "planner/panel"  => "planner#panel",  as: :planner_panel
+  get "planner/map"    => "planner#map",    as: :planner_map
   get "switch_boards"  => "boards#switcher", as: :switch_boards
   get "search"         => "search#index",   as: :search
 
@@ -21,6 +22,7 @@ Rails.application.routes.draw do
 
     member do
       get :archive
+      get :map
       patch :toggle_favorite
     end
   end

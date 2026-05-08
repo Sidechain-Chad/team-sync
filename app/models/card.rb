@@ -57,6 +57,14 @@ class Card < ApplicationRecord
   scope :active,   -> { where(archived_at: nil) }
   scope :archived, -> { where.not(archived_at: nil) }
 
+  scope :with_location, -> {
+    where.not(latitude: nil, longitude: nil)
+  }
+
+  def location?
+    latitude.present? && longitude.present?
+  end
+
   def archived?
     archived_at.present?
   end

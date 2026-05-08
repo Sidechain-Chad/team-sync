@@ -1,11 +1,15 @@
 <%# Flash slot — replaced via turbo_stream when actions need to surface
-    a transient message (e.g. an attachment upload failing validation). %>
+    a transient message. We intentionally only render :alert (errors).
+    Success "you did the thing" notices are skipped because the UI
+    already reflects the change — flashing "Board created!" on top of
+    the new board is just noise. %>
 <div id="flash" class="fixed top-20 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4 pointer-events-none">
-  <% flash.each do |key, message| %>
-    <div class="<%= key.to_s == 'alert' ? 'bg-red-600' : 'bg-gray-900' %> text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg ring-1 ring-white/10 mb-2 pointer-events-auto"
+  <% if flash[:alert].present? %>
+    <div class="bg-red-600 text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg ring-1 ring-white/10 mb-2 pointer-events-auto flex items-start gap-2"
          data-controller="flash"
          data-flash-timeout-value="5000">
-      <%= message %>
+      <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0"></i>
+      <span><%= flash[:alert] %></span>
     </div>
   <% end %>
 </div>

@@ -61,6 +61,12 @@
                           · <%= card.due_date.strftime("%-l:%M %p") %>
                         <% end %>
                       </p>
+                      <% if card.location? %>
+                        <p class="text-xs text-gray-400 truncate flex items-center gap-1 mt-0.5">
+                          <i class="fa-solid fa-location-dot text-[9px]"></i>
+                          <%= card.location_name %>
+                        </p>
+                      <% end %>
                     </div>
                   </div>
                 <% end %>

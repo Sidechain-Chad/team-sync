@@ -71,4 +71,16 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_match /turbo-stream action="replace" target="modal"/, response.body
     assert_match "isn't an allowed file type", flash[:alert]
   end
+
+  test "should return no_content for empty location-only patch" do
+    assert_no_difference -> { Activity.count } do
+      patch card_url(@card), params: { card: { 
+        latitude: "", longitude: "", location_name: "", location_address: "" 
+      } }, as: :turbo_stream
+    end
+
+    assert_response :no_content
+    @card.reload
+    assert_nil @card.latitude
+  end
 end

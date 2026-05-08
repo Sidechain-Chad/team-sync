@@ -224,6 +224,37 @@
               <%= render "cards/description", card: @card %>
             </div>
 
+            <%# ============== %>
+            <%# LOCATION       %>
+            <%# ============== %>
+            <% if @card.location? %>
+              <div class="ml-9">
+                <div class="flex items-center gap-3 mb-3">
+                  <i class="fa-solid fa-location-dot text-gray-600 text-lg"></i>
+                  <h3 class="font-bold text-lg text-gray-800">Location</h3>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <%# Static map preview — Mapbox Static Images API. One HTTP
+                      request, no JS, pin centered on the card's coords. %>
+                  <% static_url = "https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/" \
+                                  "pin-l-marker+2563eb(#{@card.longitude},#{@card.latitude})/" \
+                                  "#{@card.longitude},#{@card.latitude},14,0/" \
+                                  "560x220@2x?access_token=#{mapbox_public_token}" %>
+                  <img src="<%= static_url %>"
+                       alt="Map showing <%= @card.location_name %>"
+                       class="w-full h-44 object-cover">
+
+                  <div class="p-3">
+                    <div class="text-sm font-semibold text-gray-800"><%= @card.location_name %></div>
+                    <% if @card.location_address.present? && @card.location_address != @card.location_name %>
+                      <div class="text-xs text-gray-500 mt-0.5"><%= @card.location_address %></div>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+
             <%# 4. Attachments %>
             <% if @card.attachments.attached? %>
               <div class="ml-9">
@@ -281,13 +312,13 @@
             <div class="space-y-2">
               
               <%# Checklist button %>
-              <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
+              <div class="relative" data-controller="dropdown" data-action="click @window->dropdown#hide">
                 <button type="button" data-action="click->dropdown#toggle"
                         class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
                   <i class="fa-solid fa-square-check w-4"></i> Checklist
                 </button>
                 <div data-dropdown-target="menu"
-                     class="hidden absolute top-10 right-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-3 flex flex-col gap-3">
+                     class="hidden absolute top-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-3">
                   <div class="text-center text-xs font-bold text-gray-500 border-b pb-2 mb-1">Add checklist</div>
                   <%= form_with model: [@card, Checklist.new], class: "space-y-3" do |f| %>
                     <div>
@@ -299,6 +330,46 @@
                 </div>
               </div>
 
+              <%# Location button — Trello-style geocoded search. Selecting a
+                  result PATCHes lat/lng/name/address to the card via the
+                  Stimulus controller below. The static map preview appears
+                  in the card body section once a location is set. %>
+              <div class="relative"
+                   data-controller="dropdown location-search"
+                   data-action="click @window->dropdown#hide"
+                   data-location-search-card-id-value="<%= @card.id %>"
+                   data-location-search-card-url-value="<%= card_path(@card) %>">
+                <button type="button" data-action="click->dropdown#toggle"
+                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+                  <i class="fa-solid fa-location-dot w-4"></i> Location
+                </button>
+                <div data-dropdown-target="menu"
+                     class="hidden absolute top-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-2">
+                  <div class="text-center text-xs font-bold text-gray-500 border-b pb-2 mb-1">Search for a place</div>
+
+                  <input type="text"
+                         data-location-search-target="input"
+                         data-action="input->location-search#search keydown->location-search#keydown"
+                         placeholder="Type an address or place"
+                         class="w-full px-3 py-2 bg-gray-50 focus:bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         autocomplete="off">
+
+                  <ul data-location-search-target="results"
+                      class="max-h-64 overflow-y-auto divide-y divide-gray-100 text-sm hidden"></ul>
+
+                  <p data-location-search-target="empty"
+                     class="text-xs text-gray-400 text-center py-2 hidden">No places match.</p>
+
+                  <% if @card.location? %>
+                    <button type="button"
+                            data-action="click->location-search#remove"
+                            class="text-xs text-red-600 hover:text-red-800 underline mt-1">
+                      Remove current location
+                    </button>
+                  <% end %>
+                </div>
+              </div>
+
               <%# Attachment button %>
               <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                 <button type="button" data-action="click->dropdown#toggle"
@@ -306,7 +377,7 @@
                   <i class="fa-solid fa-paperclip w-4"></i> Attachment
                 </button>
                 <div data-dropdown-target="menu"
-                     class="hidden absolute top-10 right-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-3 flex flex-col gap-3">
+                     class="hidden absolute top-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-3">
                   <div class="text-center text-xs font-bold text-gray-500 border-b pb-2 mb-1">Attach from computer</div>
                   <%= form_with model: @card, method: :patch, class: "space-y-3" do |f| %>
                     <div>
