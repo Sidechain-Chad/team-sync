@@ -1,39 +1,38 @@
 <%# Per-board map view — full-bleed Mapbox map with a marker per card.
-    Lives at /boards/:id/map. Empty state is rendered server-side so the
+    Lives at /boards/:id/map.
+    Empty state is rendered server-side so the
     page never appears blank, even if the JS controller fails to mount. %>
 
 <div class="flex flex-col h-[calc(100vh-3.5rem)] bg-gray-50">
 
   <%# Header — light theme to match the app shell on this page. %>
-  <div class="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white shrink-0">
+  <div class="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white shrink-0 shadow-sm z-10">
     <div class="flex items-center gap-3">
-      <i class="fa-solid fa-location-dot text-gray-600"></i>
+      <i class="fa-solid fa-location-dot text-blue-600"></i>
       <h1 class="text-gray-900 font-semibold text-lg"><%= @board.name %></h1>
-      <span class="text-gray-500 text-xs px-2 py-0.5 bg-gray-100 rounded-full">
-        <%= pluralize(@located_cards.size, "card") %> on map
+      <span class="text-gray-500 text-xs px-2.5 py-1 bg-gray-100 rounded-full border border-gray-200">
+        <%= pluralize( @located_cards.size, "card") %> on map
       </span>
     </div>
     <%= link_to board_path(@board),
-        class: "flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm" do %>
+        class: "flex items-center gap-2 px-3 py-1.5 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium text-sm transition" do %>
       <i class="fa-solid fa-arrow-left text-xs"></i> Back to board
     <% end %>
   </div>
 
-  <%# Body — empty state is HTML, not JS, so it shows even before the
-      controller mounts. The map only initializes when there's data. %>
-  <div class="flex-1 relative overflow-hidden">
+  <%# Body %>
+  <div class="flex-1 relative overflow-hidden bg-gray-200">
     <% if @located_cards.empty? %>
-      <div class="h-full flex flex-col items-center justify-center text-gray-500 gap-3 p-8">
+      <div class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 gap-3 p-8">
         <i class="fa-solid fa-map-location-dot text-5xl text-gray-300"></i>
         <p class="text-sm font-medium">No cards on this board have a location yet.</p>
         <p class="text-xs text-gray-400">Open any card and click <b>Location</b> to add one.</p>
       </div>
     <% else %>
-      <div class="h-full" data-controller="board-map">
-        <div data-board-map-target="container" class="absolute inset-0"></div>
+      <div class="absolute inset-0" data-controller="board-map">
+        <div data-board-map-target="container" class="w-full h-full"></div>
 
-        <%# JSON payload — meta is the list name; controller treats meta
-            as a free-form pre-title line in popups. %>
+        <%# JSON payload — meta is the list name %>
         <script type="application/json" data-board-map-target="data">
           <%= raw @located_cards.map { |c|
             {
