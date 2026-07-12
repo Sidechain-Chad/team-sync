@@ -1,24 +1,35 @@
-<%= link_to board_path(board), class: "block bg-white h-40 rounded-lg shadow-sm hover:shadow-md border border-gray-200 p-4 relative transition group" do %>
+<%# Trello-style tile: cover banner (avatar or a deterministic gradient)
+    + compact footer with name/updated-at. Star and gear float above the
+    cover as siblings of the link — not nested inside it — so clicking
+    either never triggers navigation into the board. %>
+<div class="group relative bg-white rounded-lg shadow-sm hover:shadow-lg border border-gray-200 overflow-hidden transition-all duration-150 hover:-translate-y-0.5">
 
-  <div class="flex items-start justify-between">
-    <% if board.avatar.attached? %>
-      <%= image_tag board.avatar, class: "h-12 w-12 rounded object-cover border" %>
-    <% else %>
-      <div class="h-12 w-12 rounded bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl">
-        <%= board.name.present? ? board.name.first.upcase : "?" %>
-      </div>
-    <% end %>
+  <%= link_to board_path(board), class: "block" do %>
+    <div class="h-24 <%= board.avatar.attached? ? "bg-gray-100" : "bg-gradient-to-br #{board_cover_gradient_classes(board)}" %>">
+      <% if board.avatar.attached? %>
+        <%= image_tag board.avatar.variant(:tile), class: "w-full h-full object-cover" %>
+      <% end %>
+    </div>
 
-    <% if board.user == current_user %>
-      <object>
-        <%= link_to edit_board_path(board), class: "text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition p-1" do %>
-            <i class="fa-solid fa-gear"></i>
-        <% end %>
-      </object>
-    <% end %>
+    <div class="px-3 py-2.5">
+      <h3 class="text-sm font-bold text-gray-800 truncate"><%= board.name %></h3>
+      <p class="text-xs text-gray-500 mt-0.5">Updated <%= time_ago_in_words(board.updated_at) %> ago</p>
+    </div>
+  <% end %>
+
+  <%# Already-starred boards keep their star visible; others fade in on
+      hover — or on keyboard focus, so the button is reachable via Tab. %>
+  <div class="absolute top-2 right-2 transition-opacity [&_i]:drop-shadow-md <%= board.favorited_by?(current_user) ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" %>">
+    <%= render "boards/star_button", board: board %>
   </div>
 
-  <h3 class="mt-4 text-lg font-bold text-gray-800 truncate"><%= board.name %></h3>
-  <p class="text-xs text-gray-500 mt-1">Updated <%= time_ago_in_words(board.updated_at) %> ago</p>
+  <% if board.user == current_user %>
+    <%= link_to edit_board_path(board),
+        class: "absolute top-2 left-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity h-8 w-8 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+        title: "Edit #{board.name}",
+        "aria-label": "Edit #{board.name}" do %>
+      <i class="fa-solid fa-gear text-xs" aria-hidden="true"></i>
+    <% end %>
+  <% end %>
 
-<% end %>
+</div>

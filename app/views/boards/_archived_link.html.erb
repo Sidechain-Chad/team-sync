@@ -3,9 +3,9 @@
     end of the lists row, just like Trello's column-shaped triggers. %>
 <div class="flex-shrink-0 w-72">
   <%= link_to archive_board_path(board),
-      class: "flex items-center gap-2 w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl shadow-sm px-3 py-2.5 text-white font-semibold text-sm transition-colors duration-150 ease-out",
+      class: "flex items-center gap-2 w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl shadow-sm px-3 py-2.5 text-white font-semibold text-sm transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
       title: "View archived cards" do %>
-    <i class="fa-solid fa-box-archive text-xs"></i>
+    <i class="fa-solid fa-box-archive text-xs" aria-hidden="true"></i>
     <span>Archived items</span>
   <% end %>
 </div>

@@ -1,13 +1,13 @@
 <%= turbo_frame_tag card, data: { id: card.id } do %>
   <%# Wrapper: relative + group for hover interactions. %>
-  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all duration-150 ease-out cursor-pointer overflow-hidden">
+  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all duration-150 ease-out cursor-grab overflow-hidden">
 
     <%# ============ TOP-RIGHT: contextual quick actions ============
         Dark translucent badges read cleanly over both cover images and white
         card bodies — the same pattern Trello uses. Archive only appears once
         the card is marked complete and gets a more pronounced shadow as the
         "next-step" affordance. %>
-    <div class="absolute top-2 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+    <div class="absolute top-2 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-10">
 
       <% if card.completed? %>
         <%= button_to archive_card_path(card),
@@ -16,17 +16,19 @@
               class: "m-0",
               data: { turbo_confirm: "Archive this card? You can restore it from the archive view." }
             },
-            class: "h-7 w-7 rounded-md bg-black/55 hover:bg-black/75 backdrop-blur-sm text-white flex items-center justify-center shadow-md ring-1 ring-white/10 cursor-pointer transition-colors",
-            title: "Archive card" do %>
-          <i class="fa-solid fa-box-archive text-[11px]"></i>
+            class: "h-7 w-7 rounded-md bg-black/55 hover:bg-black/75 backdrop-blur-sm text-white flex items-center justify-center shadow-md ring-1 ring-white/10 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+            title: "Archive card",
+            aria: { label: "Archive card" } do %>
+          <i class="fa-solid fa-box-archive text-[11px]" aria-hidden="true"></i>
         <% end %>
       <% end %>
 
       <%= link_to card_path(card),
           data: { turbo_frame: "modal" },
-          class: "h-7 w-7 rounded-md bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors",
-          title: "Edit card" do %>
-        <i class="fa-solid fa-pencil text-[11px]"></i>
+          class: "h-7 w-7 rounded-md bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+          title: "Edit card",
+          "aria-label": "Edit card" do %>
+        <i class="fa-solid fa-pencil text-[11px]" aria-hidden="true"></i>
       <% end %>
     </div>
 
@@ -65,21 +67,25 @@
           <%= button_to toggle_complete_card_path(card),
               method: :patch,
               form: { class: "m-0 shrink-0 mr-1.5 mt-px" },
-              class: "h-5 w-5 rounded-full bg-green-500 hover:bg-green-600 border-2 border-green-500 flex items-center justify-center transition-colors cursor-pointer",
-              title: "Mark incomplete" do %>
-            <i class="fa-solid fa-check text-[10px] text-white"></i>
+              class: "h-5 w-5 rounded-full bg-green-500 hover:bg-green-600 border-2 border-green-500 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+              title: "Mark incomplete",
+              aria: { label: "Mark incomplete" } do %>
+            <i class="fa-solid fa-check text-[10px] text-white" aria-hidden="true"></i>
           <% end %>
         <% else %>
           <%# Hover-only — empty circle, animates from 0 width to ~26px.
               The wrapper handles width animation; the button inside is
-              fixed-size and visible only after the wrapper has expanded. %>
-          <div class="shrink-0 overflow-hidden transition-[width] duration-150 ease-out w-0 group-hover:w-[26px]">
+              fixed-size and visible only after the wrapper has expanded.
+              Also expands on focus-within so the button is reachable (and
+              its focus ring visible) via keyboard, not just mouse hover. %>
+          <div class="shrink-0 overflow-hidden transition-[width] duration-150 ease-out w-0 group-hover:w-[26px] group-focus-within:w-[26px]">
             <%= button_to toggle_complete_card_path(card),
                 method: :patch,
                 form: { class: "m-0 mt-px" },
-                class: "h-5 w-5 rounded-full bg-white border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center transition-colors cursor-pointer group/btn",
-                title: "Mark complete" do %>
-              <i class="fa-solid fa-check text-[10px] text-transparent group-hover/btn:text-green-500"></i>
+                class: "h-5 w-5 rounded-full bg-white border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center transition-colors cursor-pointer group/btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+                title: "Mark complete",
+                aria: { label: "Mark complete" } do %>
+              <i class="fa-solid fa-check text-[10px] text-transparent group-hover/btn:text-green-500" aria-hidden="true"></i>
             <% end %>
           </div>
         <% end %>
@@ -106,8 +112,11 @@
         <%
           comment_count    = card.comments.size
           attachment_count = card.attachments.attached? ? card.attachments.size : 0
+          # Both sum blocks iterate the eager-loaded checklist_items in Ruby —
+          # do NOT swap items_done back to a `.where(...)` scope, that bypasses
+          # the loaded association and reintroduces a query per checklist.
           items_total      = card.checklists.sum { |cl| cl.checklist_items.size }
-          items_done       = card.checklists.sum { |cl| cl.checklist_items.where(completed: true).count }
+          items_done       = card.checklists.sum { |cl| cl.checklist_items.count(&:completed?) }
 
           has_status  = card.description.present? || comment_count.positive? ||
                         attachment_count.positive? || items_total.positive? ||

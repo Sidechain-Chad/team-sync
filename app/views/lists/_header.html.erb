@@ -6,10 +6,10 @@
       <%= link_to list.name, edit_list_path(list), class: "font-bold text-gray-700 block w-full", style: "text-decoration: none;" %>
     </div>
 
-    <%# 2. The Delete Button (Only visible on hover) %>
-    <div class="opacity-0 group-hover:opacity-100 transition">
-      <%= button_to list_path(list), method: :delete, class: "text-gray-400 hover:text-red-500 bg-transparent border-0 cursor-pointer p-1", form: { style: "display:inline-block;" }, data: { turbo_confirm: "Delete this list?" } do %>
-        <i class="fa-solid fa-trash text-xs"></i>
+    <%# 2. The Delete Button (Only visible on hover, or on keyboard focus) %>
+    <div class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
+      <%= button_to list_path(list), method: :delete, class: "text-gray-400 hover:text-red-500 bg-transparent border-0 cursor-pointer p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1", form: { style: "display:inline-block;" }, data: { turbo_confirm: "Delete this list?" }, title: "Delete list", aria: { label: "Delete list" } do %>
+        <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
       <% end %>
     </div>
 

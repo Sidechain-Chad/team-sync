@@ -4,20 +4,18 @@
 <%# 2. Refresh the modal's pills (the deleted label was either there or not —
        this re-render handles both cases). %>
 <% if params[:card_id].present? %>
-  <% card = Card.find(params[:card_id]) %>
+  <% card = @card %>
   <%= turbo_stream.update "card_labels_pills_#{card.id}" do %>
     <%= render "cards/label_pills", card: card %>
   <% end %>
 <% end %>
 
 <%# 3. Refresh every card on the board (acts_as_list-style — cheap broadcast) %>
-<% @board.lists.each do |list| %>
-  <% list.cards.each do |c| %>
-    <% Turbo::StreamsChannel.broadcast_replace_to(
-         @board,
-         target: c,
-         partial: "cards/card",
-         locals: { card: c }
-       ) %>
-  <% end %>
+<% @cards_to_broadcast.each do |c| %>
+  <% Turbo::StreamsChannel.broadcast_replace_to(
+       @board,
+       target: c,
+       partial: "cards/card",
+       locals: { card: c }
+     ) %>
 <% end %>

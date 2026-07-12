@@ -1,4 +1,4 @@
-<% card = Card.find(params[:card_id]) %>
+<% card = @card %>
 <% frame_id = @label.new_record? ? "new_label_row" : "label_row_#{@label.id}" %>
 <%= turbo_stream.replace frame_id do %>
   <div class="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">

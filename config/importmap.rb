@@ -15,3 +15,5 @@ pin "@tiptap/extension-image", to: "https://esm.sh/@tiptap/extension-image"
 pin "@tiptap/extension-placeholder", to: "https://esm.sh/@tiptap/extension-placeholder"
 pin "@tiptap/pm", to: "https://esm.sh/@tiptap/pm"
 pin "@tiptap/extensions", to: "https://esm.sh/@tiptap/extensions"
+
+pin "flatpickr", to: "https://esm.sh/flatpickr@4.6.13"

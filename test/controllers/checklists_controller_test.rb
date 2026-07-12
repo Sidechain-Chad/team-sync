@@ -23,4 +23,32 @@ class ChecklistsControllerTest < ActionDispatch::IntegrationTest
     end
     assert_redirected_to board_url(@card.list.board)
   end
+
+  test "should not create checklist on a card the user has no access to" do
+    other_card = cards(:two)
+
+    assert_no_difference('Checklist.count') do
+      post card_checklists_url(other_card), params: { checklist: { title: 'Injected' } }
+    end
+    assert_response :not_found
+  end
+
+  test "should not destroy a checklist belonging to a card the user has no access to" do
+    other_card = cards(:two)
+    other_checklist = checklists(:two)
+
+    assert_no_difference('Checklist.count') do
+      delete card_checklist_url(other_card, other_checklist)
+    end
+    assert_response :not_found
+  end
+
+  test "should not destroy a checklist id that belongs to a different card than the one in the path" do
+    foreign_checklist = checklists(:two) # belongs to cards(:two)
+
+    assert_no_difference('Checklist.count') do
+      delete card_checklist_url(@card, foreign_checklist)
+    end
+    assert_response :not_found
+  end
 end

@@ -1,3 +1,3 @@
 <%# Render the inline form into the row. card_id comes from the link query string. %>
-<% card = Card.find(params[:card_id]) %>
+<% card = @card %>
 <%= render "cards/label_form", board: @board, label: @label, card: card %>

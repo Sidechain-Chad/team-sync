@@ -3,7 +3,7 @@ class CardMembersController < ApplicationController
   before_action :set_card
 
   def create
-    @user = User.find(params[:user_id])
+    @user = board_member(params[:user_id])
 
     # Create the relationship
     @card.members << @user unless @card.members.include?(@user)
@@ -15,7 +15,7 @@ class CardMembersController < ApplicationController
   end
 
   def destroy
-    @user = User.find(params[:user_id])
+    @user = board_member(params[:user_id])
 
     # Destroy the join row, not the user. find_by + safe-nav
     # avoids raising if it was already removed in another tab.
@@ -30,5 +30,13 @@ class CardMembersController < ApplicationController
 
   def set_card
     @card = current_user.all_cards.find(params[:card_id])
+  end
+
+  # A card member must belong to the card's board (owner or shared member) —
+  # otherwise any authenticated user_id could be attached as a card member,
+  # leaking board content into that user's assigned-card queries.
+  def board_member(user_id)
+    board = @card.list.board
+    User.where(id: board.user_id).or(User.where(id: board.members.select(:id))).find(user_id)
   end
 end

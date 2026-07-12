@@ -82,3 +82,36 @@
   border-radius: 0.25rem;
   margin: 0.5rem 0;
 }
+
+/* Card drag-and-drop feel (drag_controller.js) */
+.card-ghost {            /* the slot: quiet, recessed */
+  opacity: 1;
+  background: rgb(226 232 240);          /* slate-200 */
+  border-radius: 0.375rem;
+}
+.card-ghost > * { visibility: hidden; }  /* hollow slot, keeps height */
+
+.card-dragging {          /* the lifted card following the cursor */
+  transform: rotate(3deg) scale(1.03);
+  box-shadow: 0 12px 24px -6px rgb(0 0 0 / 0.25);
+  cursor: grabbing !important;
+  opacity: 1 !important;
+}
+.card-chosen { cursor: grabbing; }
+
+/* List drag-and-drop feel (list_sort_controller.js) — same easing, a
+   lighter tilt/shadow since lists are a coarser, less frequent drag. */
+.list-ghost {
+  opacity: 1;
+  background: rgb(226 232 240);
+  border-radius: 0.75rem;
+}
+.list-ghost > * { visibility: hidden; }
+
+.list-dragging {
+  transform: rotate(1.5deg) scale(1.02);
+  box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.18);
+  cursor: grabbing !important;
+  opacity: 1 !important;
+}
+.list-chosen { cursor: grabbing; }

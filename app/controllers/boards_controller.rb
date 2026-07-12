@@ -1,6 +1,7 @@
 class BoardsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_board, only: [:show, :edit, :update, :destroy, :archive, :map]
+  before_action :set_board, only: [:show, :edit, :update, :archive, :map]
+  before_action :set_owned_board, only: [:destroy]
 
   def index
     # Per-user favorites first (most-recently-starred at top), then the rest
@@ -17,21 +18,19 @@ class BoardsController < ApplicationController
     @shared_boards = current_user.shared_boards
                                  .joins(favorites_join)
                                  .order(Arel.sql("board_favorites.created_at DESC NULLS LAST, boards.name ASC"))
+
+    # Starred boards (owned or shared) shown in their own section up top.
+    # They still appear in their home section below too — same as Trello.
+    @starred_boards = current_user.favorited_boards.order("board_favorites.created_at DESC")
   end
 
   def show
     # Eager-load everything the board view needs so each card on the page
-    # doesn't fire its own queries for labels, members, comments-count, etc.
+    # doesn't fire its own queries for labels, members, checklist items, etc.
+    # Comments aren't loaded here — the card partial only needs the count,
+    # which reads from Card#comments_count (a counter cache), not the rows.
     @lists = @board.lists
-                   .includes(
-                     active_cards: [
-                       :labels,
-                       :members,
-                       :checklists,
-                       :comments,
-                       { attachments_attachments: :blob }
-                     ]
-                   )
+                   .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
                    .order(:position)
 
     # Stash the most recently viewed board id in session. The planner
@@ -122,6 +121,13 @@ class BoardsController < ApplicationController
   def set_board
     # Scoped to boards the user actually has access to
     @board = current_user.all_boards.find(params[:id])
+  end
+
+  # Deleting a board is owner-only (same policy as board_users management) —
+  # a shared member can view/use a board but not destroy it out from under
+  # its owner.
+  def set_owned_board
+    @board = current_user.boards.find(params[:id])
   end
 
   def board_params

@@ -1,10 +1,14 @@
 <%# Per-user star toggle. Each user sees their own favorite state for
-    the board. Tooltip and icon flip based on the current user's view. %>
+    the board. Tooltip and icon flip based on the current user's view.
+    Uses a per-board class (not a static id) as the turbo_stream target
+    because the same board's star can appear twice on the boards index
+    (Starred section + its home section) — replace_all keeps both in sync. %>
 <% favorited = board.favorited_by?(current_user) %>
 <%= button_to toggle_favorite_board_path(board),
     method: :patch,
-    form: { id: "board_star", class: "inline-block" },
-    class: "h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white",
-    title: favorited ? "Remove from favorites" : "Add to favorites" do %>
-  <i class="<%= favorited ? 'fa-solid text-yellow-300' : 'fa-regular' %> fa-star text-sm"></i>
+    form: { class: "inline-block board-star-#{board.id}" },
+    class: "h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+    title: favorited ? "Remove from favorites" : "Add to favorites",
+    aria: { label: favorited ? "Remove from favorites" : "Add to favorites" } do %>
+  <i class="<%= favorited ? 'fa-solid text-yellow-300' : 'fa-regular' %> fa-star text-sm" aria-hidden="true"></i>
 <% end %>

@@ -49,4 +49,22 @@ class AttachmentsControllerTest < ActionDispatch::IntegrationTest
     json = JSON.parse(response.body)
     assert_match "isn't an allowed file type", json["error"]
   end
+
+  test "should not create attachment on a card the user has no access to" do
+    sign_in users(:two)
+    file = fixture_file_upload("test.png", "image/png")
+
+    post card_attachments_url(@card), params: { file: file }
+
+    assert_response :not_found
+  end
+
+  test "should not destroy an attachment on a card the user has no access to" do
+    sign_in users(:two)
+
+    assert_no_difference -> { @card.attachments.count } do
+      delete card_attachment_url(@card, @active_storage_attachment)
+    end
+    assert_response :not_found
+  end
 end

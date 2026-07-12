@@ -2,7 +2,7 @@ class ListsController < ApplicationController
   before_action :authenticate_user!
 
   def create
-    @board = Board.find(params[:board_id])
+    @board = current_user.all_boards.find(params[:board_id])
     @list = @board.lists.new(list_params)
 
     if @list.save
@@ -58,9 +58,12 @@ class ListsController < ApplicationController
     @list.insert_at(list_params[:position].to_i)
 
     # Broadcast new ordering to everyone viewing the board so other
-    # users see the reorder without a refresh.
+    # users see the reorder without a refresh. Every list re-renders every
+    # one of its cards (lists/list -> cards/card), so this needs the same
+    # eager-loading as boards#show or it's an N+1 across the whole board.
     board = @list.board
-    board.lists.each do |list|
+    lists = board.lists.includes(active_cards: Card::BOARD_PAGE_INCLUDES)
+    lists.each do |list|
       Turbo::StreamsChannel.broadcast_replace_to(
         board,
         target: helpers.dom_id(list),

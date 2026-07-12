@@ -1,5 +1,5 @@
 <%# 1. Reset the "new label" trigger so the user can create another. %>
-<% card = Card.find(params[:card_id]) %>
+<% card = @card %>
 <%= turbo_stream.replace "new_label_row" do %>
   <%= link_to new_board_label_path(@board, card_id: card.id),
       data: { turbo_frame: "new_label_row" },

@@ -1,5 +1,6 @@
-<%# Re-render just the star button so the filled/outlined state flips
-    without a full page reload. The button has dom_id "board_star". %>
-<%= turbo_stream.replace "board_star" do %>
+<%# Re-render every instance of this board's star button so the
+    filled/outlined state flips without a full page reload — the boards
+    index can show the same board's star twice (Starred + home section). %>
+<%= turbo_stream.replace_all ".board-star-#{@board.id}" do %>
   <%= render "boards/star_button", board: @board %>
 <% end %>

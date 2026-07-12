@@ -53,6 +53,15 @@ class CardsController < ApplicationController
       return
     end
 
+    # list_id can be mass-assigned here (see card_params) to support moving
+    # a card via the modal, but it must be resolved through the user's scope
+    # and confined to the card's current board — same reasoning as #move.
+    target_list = nil
+    if params.dig(:card, :list_id).present?
+      target_list = board_scoped_list(params[:card][:list_id])
+      return head :unprocessable_entity unless target_list
+    end
+
     old_list = @card.list
 
     # Detect new attachments BEFORE the update fires. We pass these to the
@@ -60,7 +69,17 @@ class CardsController < ApplicationController
     # turbo_stream response to send back (full modal vs. just the due pill).
     new_attachments = Array(params.dig(:card, :attachments)).reject(&:blank?)
 
-    if @card.update(card_params.except(:attachments))
+    # The "Move to list" control (card modal, Actions section) submits a
+    # semantic top/bottom choice rather than a raw position — resolving it
+    # here (against the actual target list, not whatever list was current
+    # when the form was rendered) avoids the value going stale if the user
+    # picks a different list than the one the position select was drawn for.
+    update_attrs = card_params.except(:attachments)
+    if target_list && params.dig(:card, :position).present?
+      update_attrs = update_attrs.merge(position: resolved_move_position(params[:card][:position], target_list))
+    end
+
+    if @card.update(update_attrs)
       if @card.list_id != old_list.id
         @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
       elsif @card.saved_change_to_due_date?
@@ -91,12 +110,15 @@ class CardsController < ApplicationController
 
       if result.success?
         # Decide what to send back. Modal-wide refresh is needed when
-        # something *visible inside the modal body* changed — attachments
-        # or location. Otherwise the cheap due-pill stream is enough.
+        # something *visible inside the modal body* changed — attachments,
+        # location, or the list (the header's list-name pill and the
+        # activity feed both need to reflect a move). Otherwise the cheap
+        # due-pill stream is enough.
         modal_refresh_needed = new_attachments.any? ||
           @card.saved_change_to_latitude? ||
           @card.saved_change_to_longitude? ||
-          @card.saved_change_to_location_name?
+          @card.saved_change_to_location_name? ||
+          @card.saved_change_to_list_id?
 
         respond_to do |format|
           format.turbo_stream do
@@ -151,11 +173,27 @@ class CardsController < ApplicationController
   end
 
   def move
-    @card.update(
-      list_id: params[:list_id],
-      position: params[:position].to_i + 1
-    )
-    head :ok
+    # drag_controller.js PATCHes JSON with the position/list_id nested
+    # under "card" (matching card_params' shape), not at the top level.
+    target_list = board_scoped_list(move_params[:list_id])
+    return head :unprocessable_entity unless target_list
+
+    old_list = @card.list
+
+    # Positions are 1-based; the JS (newDraggableIndex + 1) already
+    # converts from Sortable's 0-based index, so the server trusts it
+    # verbatim rather than adding another +1.
+    if @card.update(list_id: target_list.id, position: move_params[:position].to_i)
+      # Matches #update's activity logging for a list change — without
+      # this, a drag-and-drop move was invisible in the activity feed
+      # while the same move made via the "Move to list" menu was visible.
+      if @card.saved_change_to_list_id?
+        @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
+      end
+      head :ok
+    else
+      head :unprocessable_entity
+    end
   end
 
   def edit_description
@@ -229,6 +267,33 @@ class CardsController < ApplicationController
 
   def set_card
     @card = current_user.all_cards.find(params[:id])
+  end
+
+  # Resolves list_id through the user's scope (raises RecordNotFound, which
+  # renders 404, for a list the user can't access at all), then confines it
+  # to the card's current board. The UI never offers cross-board moves; if
+  # that's ever wanted, this is where you'd strip the card's board-scoped
+  # label/member associations before allowing it.
+  def board_scoped_list(list_id)
+    target_list = current_user.all_lists.find(list_id)
+    target_list.board_id == @card.list.board_id ? target_list : nil
+  end
+
+  def move_params
+    params.require(:card).permit(:list_id, :position)
+  end
+
+  # Translates the "Move to list" form's semantic top/bottom choice into a
+  # real acts_as_list position, relative to the actual target list rather
+  # than whatever list the position select happened to be rendered against.
+  # Counts every card in the list (not just active_cards) — acts_as_list's
+  # position sequence isn't filtered by archived state, matching how drag
+  # (cards#move) already treats position as a raw column value.
+  def resolved_move_position(position_param, target_list)
+    case position_param
+    when "top" then 1
+    else target_list.cards.count + 1
+    end
   end
 
   # Re-eager-loads the card and rebuilds @feed so cards/show.html.erb has

@@ -8,7 +8,12 @@
     <% end %>
 
     <%# THE MODAL BOX %>
-    <div class="relative z-[10000] bg-[#f4f5f7] w-full max-w-6xl h-[90vh] rounded-lg shadow-2xl flex flex-col text-gray-700 m-4 pointer-events-auto">
+    <div class="relative z-[10000] bg-[#f4f5f7] w-full max-w-6xl h-[90vh] rounded-lg shadow-2xl flex flex-col text-gray-700 m-4 pointer-events-auto"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="card_modal_title_<%= @card.id %>"
+         tabindex="-1"
+         data-modal-target="dialog">
 
       <%# =========================================================== %>
       <%# HEADER — current list name (click to open Move Card popover) %>
@@ -20,9 +25,9 @@
 
           <%# Trigger: shows the current list name, clicking opens the Move popover %>
           <button type="button" data-action="click->dropdown#toggle"
-                  class="flex items-center gap-2 bg-[#e9ebee] hover:bg-gray-300 px-3 py-1.5 rounded text-sm font-semibold text-gray-700 cursor-pointer transition-colors">
+                  class="flex items-center gap-2 bg-[#e9ebee] hover:bg-gray-300 px-3 py-1.5 rounded text-sm font-semibold text-gray-700 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
             <span><%= @card.list.name %></span>
-            <i class="fa-solid fa-chevron-down text-xs"></i>
+            <i class="fa-solid fa-chevron-down text-xs" aria-hidden="true"></i>
           </button>
 
           <%# Popover body %>
@@ -32,8 +37,9 @@
             <div class="p-2 border-b border-gray-200 flex items-center justify-center relative">
               <span class="text-xs font-bold text-gray-500">Move card</span>
               <button type="button" data-action="click->dropdown#toggle"
-                      class="absolute right-2 top-2 text-gray-400 hover:text-gray-600 p-1">
-                <i class="fa-solid fa-xmark text-sm"></i>
+                      class="absolute right-2 top-2 text-gray-400 hover:text-gray-600 p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded"
+                      aria-label="Close move card popover">
+                <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
               </button>
             </div>
 
@@ -70,9 +76,10 @@
         <%# CLOSE BUTTON %>
         <div class="flex items-center gap-3">
           <%= link_to board_path(@card.list.board),
-              class: "text-gray-500 hover:text-gray-700 transition flex items-center justify-center p-1",
+              class: "text-gray-500 hover:text-gray-700 transition flex items-center justify-center p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+              "aria-label": "Close card",
               data: { turbo_action: "advance" } do %>
-            <i class="fa-solid fa-xmark text-xl"></i>
+            <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
           <% end %>
         </div>
       </div>
@@ -90,7 +97,7 @@
             <div class="flex items-start gap-4">
               <i class="fa-solid fa-window-maximize mt-1.5 text-gray-600 text-lg"></i>
               <div class="w-full">
-                <h2 class="text-xl font-bold text-gray-800 leading-tight"><%= @card.title %></h2>
+                <h2 id="card_modal_title_<%= @card.id %>" class="text-xl font-bold text-gray-800 leading-tight"><%= @card.title %></h2>
               </div>
             </div>
 
@@ -107,8 +114,10 @@
                 <%# Member-picker dropdown %>
                 <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                   <button type="button" data-action="click->dropdown#toggle"
-                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
-                    <i class="fa-solid fa-plus text-sm text-gray-600"></i>
+                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                          title="Add members"
+                          aria-label="Add members">
+                    <i class="fa-solid fa-plus text-sm text-gray-600" aria-hidden="true"></i>
                   </button>
 
                   <div data-dropdown-target="menu"
@@ -154,9 +163,10 @@
                 <%# Picker dropdown %>
                 <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                   <button type="button" data-action="click->dropdown#toggle"
-                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
-                          title="Add labels">
-                    <i class="fa-solid fa-plus text-sm text-gray-600"></i>
+                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                          title="Add labels"
+                          aria-label="Add labels">
+                    <i class="fa-solid fa-plus text-sm text-gray-600" aria-hidden="true"></i>
                   </button>
 
                   <div data-dropdown-target="menu"
@@ -194,9 +204,10 @@
                 <%# Picker dropdown %>
                 <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                   <button type="button" data-action="click->dropdown#toggle"
-                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
-                          title="Set due date">
-                    <i class="fa-solid fa-clock text-sm text-gray-600"></i>
+                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                          title="Set due date"
+                          aria-label="Set due date">
+                    <i class="fa-solid fa-clock text-sm text-gray-600" aria-hidden="true"></i>
                   </button>
 
                   <div data-dropdown-target="menu"
@@ -314,8 +325,8 @@
               <%# Checklist button %>
               <div class="relative" data-controller="dropdown" data-action="click @window->dropdown#hide">
                 <button type="button" data-action="click->dropdown#toggle"
-                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
-                  <i class="fa-solid fa-square-check w-4"></i> Checklist
+                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
+                  <i class="fa-solid fa-square-check w-4" aria-hidden="true"></i> Checklist
                 </button>
                 <div data-dropdown-target="menu"
                      class="hidden absolute top-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-3">
@@ -340,8 +351,8 @@
                    data-location-search-card-id-value="<%= @card.id %>"
                    data-location-search-card-url-value="<%= card_path(@card) %>">
                 <button type="button" data-action="click->dropdown#toggle"
-                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
-                  <i class="fa-solid fa-location-dot w-4"></i> Location
+                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
+                  <i class="fa-solid fa-location-dot w-4" aria-hidden="true"></i> Location
                 </button>
                 <div data-dropdown-target="menu"
                      class="hidden absolute top-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-2">
@@ -373,8 +384,8 @@
               <%# Attachment button %>
               <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                 <button type="button" data-action="click->dropdown#toggle"
-                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
-                  <i class="fa-solid fa-paperclip w-4"></i> Attachment
+                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
+                  <i class="fa-solid fa-paperclip w-4" aria-hidden="true"></i> Attachment
                 </button>
                 <div data-dropdown-target="menu"
                      class="hidden absolute top-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-3">
@@ -432,14 +443,43 @@
             </div>
           </div>
 
-          <%# Archive action %>
+          <%# Move to list / Archive actions %>
           <div class="mt-6 pt-4 border-t border-gray-200 shrink-0">
             <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Actions</h4>
+
+            <%# Keyboard-accessible alternative to dragging a card between
+                lists — native selects, no custom dropdown JS. PATCHes the
+                same cards#update endpoint the header's "Move card" popover
+                uses, so list_id validation/activity logging/broadcast are
+                all already handled there; this form just adds a position
+                choice on top. %>
+            <%= form_with model: @card, url: card_path(@card), method: :patch, class: "space-y-2 mb-3" do |f| %>
+              <div>
+                <%= f.label :list_id, "Move to list", class: "block text-xs font-medium text-gray-600 mb-1" %>
+                <%= f.collection_select :list_id,
+                    @card.list.board.lists.order(:position),
+                    :id, :name,
+                    { selected: @card.list_id },
+                    { id: "card_move_list_id", class: "w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" } %>
+              </div>
+
+              <div>
+                <%= label_tag "card_move_position", "Position", class: "block text-xs font-medium text-gray-600 mb-1" %>
+                <%= select_tag "card[position]",
+                    options_for_select([["Top", "top"], ["Bottom", "bottom"]], "bottom"),
+                    id: "card_move_position",
+                    class: "w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+              </div>
+
+              <%= f.submit "Move",
+                  class: "w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-1.5 rounded text-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1" %>
+            <% end %>
+
             <%= button_to archive_card_path(@card),
                 method: :patch,
-                class: "w-full text-left bg-gray-200 hover:bg-yellow-100 hover:text-yellow-800 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 justify-center",
+                class: "w-full text-left bg-gray-200 hover:bg-yellow-100 hover:text-yellow-800 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
                 form: { data: { turbo_confirm: "Archive this card? You can restore it later." } } do %>
-              <i class="fa-solid fa-box-archive w-4"></i> Archive Card
+              <i class="fa-solid fa-box-archive w-4" aria-hidden="true"></i> Archive Card
             <% end %>
           </div>
 

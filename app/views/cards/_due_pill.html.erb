@@ -2,8 +2,9 @@
 <% if card.due_date.present? %>
   <% status = card.due_status %>
   <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded <%= due_pill_class(card) %>"
-        title="<%= card.due_date.strftime('%b %-d, %Y at %-l:%M %p') %>">
-    <i class="fa-regular fa-clock text-[10px]"></i>
+        title="<%= card.due_date.strftime('%b %-d, %Y at %-l:%M %p') %>"
+        aria-label="<%= due_pill_aria_label(card) %>">
+    <i class="fa-regular fa-clock text-[10px]" aria-hidden="true"></i>
     <%= due_pill_label(card) %>
   </span>
 <% end %>
