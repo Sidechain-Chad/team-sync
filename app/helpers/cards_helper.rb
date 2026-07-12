@@ -1,11 +1,11 @@
 module CardsHelper
   # Tailwind classes for the due-date pill, by status.
   DUE_PILL_CLASSES = {
-    complete: "bg-green-500 text-white",
-    overdue:  "bg-red-500   text-white",
-    due_soon: "bg-yellow-400 text-yellow-900",
-    upcoming: "bg-gray-200  text-gray-700",
-    none:     "bg-gray-200  text-gray-700"
+    complete: "bg-success-600 text-white",
+    overdue:  "bg-danger-600  text-white",
+    due_soon: "bg-warn-100    text-warn-700",
+    upcoming: "bg-surface-200 text-ink-500",
+    none:     "bg-surface-200 text-ink-500"
   }.freeze
 
   def due_pill_class(card)

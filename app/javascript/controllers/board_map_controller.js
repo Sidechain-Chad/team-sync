@@ -13,10 +13,10 @@ export default class extends Controller {
 
   showError(msg) {
     this.containerTarget.innerHTML = `
-      <div class="h-full flex flex-col items-center justify-center text-red-500 gap-2 p-8 bg-white absolute inset-0 z-50">
+      <div class="h-full flex flex-col items-center justify-center text-danger-600 gap-2 p-8 bg-white absolute inset-0 z-50">
         <i class="fa-solid fa-circle-xmark text-3xl"></i>
         <p class="text-sm font-bold">Map failed to load.</p>
-        <code class="text-xs bg-red-50 p-2 rounded border border-red-200 text-center max-w-md">${msg}</code>
+        <code class="text-xs bg-danger-50 p-2 rounded border border-danger-600/25 text-center max-w-md">${msg}</code>
       </div>
     `
   }
@@ -60,15 +60,15 @@ export default class extends Controller {
 
         const popup = new mapboxgl.Popup({ offset: 18, closeButton: false }).setHTML(`
           <div class="p-1 min-w-[180px]">
-            ${c.meta ? `<div class="text-xs text-gray-500 mb-0.5">${this.escape(c.meta)}</div>` : ""}
-            <div class="font-semibold text-sm text-gray-800 mb-1">${this.escape(c.title)}</div>
-            ${c.address ? `<div class="text-xs text-gray-500 mb-2">${this.escape(c.address)}</div>` : ""}
+            ${c.meta ? `<div class="text-xs text-ink-500 mb-0.5">${this.escape(c.meta)}</div>` : ""}
+            <div class="font-semibold text-sm text-ink-700 mb-1">${this.escape(c.title)}</div>
+            ${c.address ? `<div class="text-xs text-ink-500 mb-2">${this.escape(c.address)}</div>` : ""}
             <a href="${c.url}" data-turbo-frame="modal"
-               class="text-xs text-blue-600 hover:text-blue-800 font-medium">Open card &rarr;</a>
+               class="text-xs text-brand-600 hover:text-brand-700 font-medium">Open card &rarr;</a>
           </div>
         `)
 
-        new mapboxgl.Marker({ color: "#2563eb" })
+        new mapboxgl.Marker({ color: "#C94A1C" }) // brand-600 — Mapbox needs a literal color, can't read the CSS token
           .setLngLat([c.lng, c.lat])
           .setPopup(popup)
           .addTo(this.map)

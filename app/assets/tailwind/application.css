@@ -1,12 +1,79 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Golden Hour — warm rebrand tokens.
+   Design thesis: workshop at golden hour — espresso wood,
+   terracotta, late-afternoon light. Persimmon is rationed:
+   ~60% warm neutral surfaces, ~30% espresso ink, ~10% fire.
+   ============================================================ */
+@theme {
+  /* Persimmon & coral — the fire.
+     brand-600 darkened from the original spec (#C94A1C -> #BE451A) after
+     Task 3 contrast measurement: as text-brand-600 link text on
+     surface-50 it measured 4.36:1, just under the 4.5:1 AA floor. One
+     token change fixes every site using it (links AND button fills, the
+     latter improving further). */
+  --color-brand-700: #A93B12;  /* hover/pressed, focus ring          */
+  --color-brand-600: #BE451A;  /* PRIMARY: button fills (white text passes AA), text links */
+  --color-brand-500: #EE5B2B;  /* vivid persimmon: icons, non-text accents ONLY */
+  --color-brand-400: #F9906B;  /* coral: soft accents, hover tints    */
+  --color-brand-100: #FBE9E0;  /* coral wash: selected/soft fills     */
+
+  /* Espresso & warm neutrals — the volume. */
+  --color-ink-900:   #2A211C;  /* nav bg, strongest text              */
+  --color-ink-700:   #4A3C33;  /* headings                            */
+  --color-ink-500:   #6E5F55;  /* secondary text (replaces gray-500/600) */
+  --color-ink-300:   #B7A99D;  /* disabled, placeholders              */
+  --color-surface-0:   #FFFFFF; /* cards                              */
+  --color-surface-50:  #FAF6F2; /* page background (replaces gray-50) */
+  --color-surface-100: #F7F1EB; /* modal canvas (replaces #f4f5f7)    */
+  --color-surface-200: #EFE7DF; /* chips, wells (replaces #e9ebee, gray-100/200) */
+  --color-surface-300: #E6DACE; /* deeper hover step for surface-200 buttons */
+  --color-line:        #E4D9CF; /* borders (replaces gray-200/300)    */
+
+  /* Functional — warm-shifted, and DISTINCT from brand. */
+  --color-danger-600:  #B91C1C; /* true crimson — must read redder than brand persimmon */
+  --color-danger-50:   #FEE9E7;
+  /* warn-700 darkened from the original spec (#B45309 -> #A94E08) after
+     Task 3 contrast measurement: on warn-100 it measured 4.28:1, just
+     under the 4.5:1 AA floor. */
+  --color-warn-700:    #A94E08; /* due-soon text  */
+  --color-warn-100:    #FDEBC8; /* due-soon fill  */
+  --color-success-600: #4D7C0F; /* warm leaf green (completes, checkmarks) */
+  --color-success-100: #EBF3D8;
+
+  /* Type */
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Warm shadows — espresso-tinted instead of pure black, at a touch
+     higher alpha than Tailwind's black defaults to keep perceived depth.
+     One place; every shadow-sm/md/lg/xl/2xl utility inherits this. */
+  --shadow-2xs: 0 1px rgb(42 33 28 / 0.08);
+  --shadow-xs:  0 1px 2px 0 rgb(42 33 28 / 0.08);
+  --shadow-sm:  0 1px 3px 0 rgb(42 33 28 / 0.14), 0 1px 2px -1px rgb(42 33 28 / 0.14);
+  --shadow-md:  0 4px 6px -1px rgb(42 33 28 / 0.14), 0 2px 4px -2px rgb(42 33 28 / 0.14);
+  --shadow-lg:  0 10px 15px -3px rgb(42 33 28 / 0.14), 0 4px 6px -4px rgb(42 33 28 / 0.14);
+  --shadow-xl:  0 20px 25px -5px rgb(42 33 28 / 0.14), 0 8px 10px -6px rgb(42 33 28 / 0.14);
+  --shadow-2xl: 0 25px 50px -12px rgb(42 33 28 / 0.32);
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background-color: var(--color-brand-100);
+  color: var(--color-ink-900);
+}
+
 .ProseMirror {
   outline: none;
   min-height: 120px;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
-  color: #adb5bd;
+  color: var(--color-ink-300);
   content: attr(data-placeholder);
   float: left;
   height: 0;
@@ -16,14 +83,14 @@
 /* TipTap editor + description display — explicit sizes so headings,
    lists, blockquotes etc. render correctly both during editing
    and in read-only display. */
-.tiptap-content { font-size: 0.875rem; line-height: 1.5; color: #374151; }
+.tiptap-content { font-size: 0.875rem; line-height: 1.5; color: var(--color-ink-700); }
 
 .tiptap-content h1 { font-size: 1.5rem;   font-weight: 700; margin: 0.75rem 0 0.5rem; line-height: 1.2; }
 .tiptap-content h2 { font-size: 1.25rem;  font-weight: 700; margin: 0.75rem 0 0.5rem; line-height: 1.3; }
 .tiptap-content h3 { font-size: 1.125rem; font-weight: 600; margin: 0.5rem  0 0.5rem; line-height: 1.3; }
 .tiptap-content h4 { font-size: 1rem;     font-weight: 600; margin: 0.5rem  0 0.25rem; }
 .tiptap-content h5 { font-size: 0.95rem;  font-weight: 600; margin: 0.5rem  0 0.25rem; }
-.tiptap-content h6 { font-size: 0.875rem; font-weight: 600; margin: 0.5rem  0 0.25rem; color: #6b7280; }
+.tiptap-content h6 { font-size: 0.875rem; font-weight: 600; margin: 0.5rem  0 0.25rem; color: var(--color-ink-500); }
 
 .tiptap-content p { margin: 0.5rem 0; }
 
@@ -31,15 +98,15 @@
 .tiptap-content ol { list-style: decimal; margin: 0.5rem 0 0.5rem 1.5rem; }
 .tiptap-content li { margin: 0.125rem 0; }
 
-.tiptap-content a { color: #2563eb; text-decoration: underline; cursor: pointer; }
-.tiptap-content a:hover { color: #1d4ed8; }
+.tiptap-content a { color: var(--color-brand-600); text-decoration: underline; cursor: pointer; }
+.tiptap-content a:hover { color: var(--color-brand-700); }
 
 .tiptap-content strong { font-weight: 700; }
 .tiptap-content em { font-style: italic; }
 .tiptap-content s { text-decoration: line-through; }
 
 .tiptap-content code {
-  background: #f3f4f6;
+  background: var(--color-surface-200);
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -47,8 +114,8 @@
 }
 
 .tiptap-content pre {
-  background: #1f2937;
-  color: #f9fafb;
+  background: var(--color-ink-900);
+  color: var(--color-surface-50);
   padding: 0.75rem;
   border-radius: 0.375rem;
   overflow-x: auto;
@@ -63,16 +130,16 @@
 }
 
 .tiptap-content blockquote {
-  border-left: 3px solid #d1d5db;
+  border-left: 3px solid var(--color-line);
   padding-left: 0.75rem;
   margin: 0.5rem 0;
-  color: #6b7280;
+  color: var(--color-ink-500);
   font-style: italic;
 }
 
 .tiptap-content hr {
   border: 0;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--color-line);
   margin: 1rem 0;
 }
 
@@ -86,14 +153,14 @@
 /* Card drag-and-drop feel (drag_controller.js) */
 .card-ghost {            /* the slot: quiet, recessed */
   opacity: 1;
-  background: rgb(226 232 240);          /* slate-200 */
+  background: var(--color-surface-200);  /* warm slot, was slate-200 */
   border-radius: 0.375rem;
 }
 .card-ghost > * { visibility: hidden; }  /* hollow slot, keeps height */
 
 .card-dragging {          /* the lifted card following the cursor */
   transform: rotate(3deg) scale(1.03);
-  box-shadow: 0 12px 24px -6px rgb(0 0 0 / 0.25);
+  box-shadow: 0 12px 24px -6px rgb(42 33 28 / 0.32);
   cursor: grabbing !important;
   opacity: 1 !important;
 }
@@ -103,15 +170,67 @@
    lighter tilt/shadow since lists are a coarser, less frequent drag. */
 .list-ghost {
   opacity: 1;
-  background: rgb(226 232 240);
+  background: var(--color-surface-200);
   border-radius: 0.75rem;
 }
 .list-ghost > * { visibility: hidden; }
 
 .list-dragging {
   transform: rotate(1.5deg) scale(1.02);
-  box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.18);
+  box-shadow: 0 8px 16px -4px rgb(42 33 28 / 0.24);
   cursor: grabbing !important;
   opacity: 1 !important;
 }
 .list-chosen { cursor: grabbing; }
+
+/* ============================================================
+   Flatpickr theme override — Golden Hour instead of the vendored
+   blue default. The vendored file itself is untouched; this wins
+   via !important because flatpickr.css is linked in the layout
+   <head> AFTER this file, so a plain same-specificity rule here
+   would otherwise lose to the vendor's own CSS. Selectors matched
+   1:1 against vendor/flatpickr's actual rules.
+   ============================================================ */
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange,
+.flatpickr-day.selected.inRange,
+.flatpickr-day.startRange.inRange,
+.flatpickr-day.endRange.inRange,
+.flatpickr-day.selected:focus,
+.flatpickr-day.startRange:focus,
+.flatpickr-day.endRange:focus,
+.flatpickr-day.selected:hover,
+.flatpickr-day.startRange:hover,
+.flatpickr-day.endRange:hover {
+  background: var(--color-brand-600) !important;
+  border-color: var(--color-brand-600) !important;
+  color: #fff !important;
+}
+
+.flatpickr-day.today {
+  border-color: var(--color-brand-400) !important;
+}
+.flatpickr-day.today:hover,
+.flatpickr-day.today:focus {
+  border-color: var(--color-brand-400) !important;
+  background: var(--color-brand-400) !important;
+  color: #fff !important;
+}
+
+.flatpickr-day:hover,
+.flatpickr-day.prevMonthDay:hover,
+.flatpickr-day.nextMonthDay:hover {
+  background: var(--color-brand-100) !important;
+  border-color: var(--color-brand-100) !important;
+}
+
+.flatpickr-current-month,
+.flatpickr-current-month .cur-month,
+.flatpickr-current-month input.cur-year {
+  color: var(--color-ink-900) !important;
+}
+
+span.flatpickr-weekday {
+  color: var(--color-ink-500) !important;
+}

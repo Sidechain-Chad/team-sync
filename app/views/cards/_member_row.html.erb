@@ -1,18 +1,18 @@
 <div id="member_row_<%= user.id %>">
   <% if assigned %>
     <%# --- ASSIGNED MEMBER (Click to Remove) --- %>
-    <%= button_to card_member_path(card, user), method: :delete, class: "w-full text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1" do %>
-      <div class="flex items-center p-2 hover:bg-red-50 rounded-md cursor-pointer group transition-colors" title="Remove from card">
+    <%= button_to card_member_path(card, user), method: :delete, class: "w-full text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" do %>
+      <div class="flex items-center p-2 hover:bg-danger-50 rounded-md cursor-pointer group transition-colors" title="Remove from card">
 
         <%# Avatar %>
-        <div class="h-7 w-7 rounded-full <%= avatar_soft_classes(user) %> flex items-center justify-center text-[10px] font-bold border mr-2 group-hover:border-red-200 group-hover:bg-red-100 group-hover:text-red-700 transition-colors">
+        <div class="h-7 w-7 rounded-full <%= avatar_soft_classes(user) %> flex items-center justify-center text-[10px] font-bold border mr-2 group-hover:border-danger-600/25 group-hover:bg-danger-50 group-hover:text-danger-600 transition-colors">
           <%= user.initials %>
         </div>
 
         <%# Name info %>
         <div class="flex flex-col">
-          <span class="text-xs text-gray-700 font-medium group-hover:text-red-700"><%= user.display_name %></span>
-          <span class="text-[10px] text-gray-400 group-hover:text-red-400"><%= user.email %></span>
+          <span class="text-xs text-ink-700 font-medium group-hover:text-danger-600"><%= user.display_name %></span>
+          <span class="text-[10px] text-ink-300 group-hover:text-danger-600"><%= user.email %></span>
         </div>
 
       </div>
@@ -22,17 +22,17 @@
 
     <%# --- AVAILABLE MEMBER (Click to Add) --- %>
     <%= button_to card_members_path(card, user_id: user.id), method: :post, class: "w-full text-left" do %>
-      <div class="flex items-center p-2 hover:bg-gray-100 rounded-md cursor-pointer group transition-colors" title="Add to card">
+      <div class="flex items-center p-2 hover:bg-surface-200 rounded-md cursor-pointer group transition-colors" title="Add to card">
 
         <%# Avatar %>
-        <div class="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 mr-2 border border-gray-200 group-hover:bg-white group-hover:border-gray-300">
+        <div class="h-7 w-7 rounded-full bg-surface-200 flex items-center justify-center text-[10px] font-bold text-ink-500 mr-2 border border-line group-hover:bg-white group-hover:border-line">
           <%= user.initials %>
         </div>
 
         <%# Name info %>
         <div class="flex flex-col">
-          <span class="text-xs text-gray-600 font-medium group-hover:text-gray-900"><%= user.display_name %></span>
-          <span class="text-[10px] text-gray-400"><%= user.email %></span>
+          <span class="text-xs text-ink-500 font-medium group-hover:text-ink-900"><%= user.display_name %></span>
+          <span class="text-[10px] text-ink-300"><%= user.email %></span>
         </div>
 
       </div>

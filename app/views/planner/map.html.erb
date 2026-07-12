@@ -5,51 +5,51 @@
     <div class="flex items-center gap-3">
       <% if @last_board %>
         <%= link_to board_path(@last_board),
-            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition",
+            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-ink-500 hover:text-ink-900 hover:bg-surface-200 rounded transition",
             title: "Back to #{@last_board.name}" do %>
           <i class="fa-solid fa-chevron-left text-xs"></i>
           <span class="truncate max-w-[200px]"><%= @last_board.name %></span>
         <% end %>
       <% else %>
         <%= link_to boards_path,
-            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition",
+            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-ink-500 hover:text-ink-900 hover:bg-surface-200 rounded transition",
             title: "Back to boards" do %>
           <i class="fa-solid fa-chevron-left text-xs"></i>
           <span>Boards</span>
         <% end %>
       <% end %>
-      <h1 class="text-2xl font-bold text-gray-800"><%= @first_of_month.strftime("%B %Y") %></h1>
-      <span class="text-xs text-gray-500 px-2 py-0.5 bg-gray-100 rounded-full">
+      <h1 class="font-display text-2xl font-bold text-ink-700"><%= @first_of_month.strftime("%B %Y") %></h1>
+      <span class="text-xs text-ink-500 px-2 py-0.5 bg-surface-200 rounded-full">
         <%= pluralize(@located_cards.size, "card") %> with location
       </span>
     </div>
 
     <div class="flex items-center gap-2">
       <%# Calendar / Map toggle — same component as on the calendar view %>
-      <div class="flex items-center bg-gray-100 rounded p-0.5 mr-2">
+      <div class="flex items-center bg-surface-200 rounded p-0.5 mr-2">
         <%= link_to planner_path(year: @year, month: @month),
-            class: "px-3 py-1 text-xs font-medium rounded transition text-gray-600 hover:text-gray-900" do %>
+            class: "px-3 py-1 text-xs font-medium rounded transition text-ink-500 hover:text-ink-900" do %>
           <i class="fa-regular fa-calendar text-[10px] mr-1"></i>Calendar
         <% end %>
         <%= link_to planner_map_path(year: @year, month: @month),
-            class: "px-3 py-1 text-xs font-medium rounded transition bg-white text-gray-900 shadow-sm" do %>
+            class: "px-3 py-1 text-xs font-medium rounded transition bg-white text-ink-900 shadow-sm" do %>
           <i class="fa-solid fa-map-location-dot text-[10px] mr-1"></i>Map
         <% end %>
       </div>
 
       <%= link_to planner_map_path,
-          class: "px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition" do %>
+          class: "px-3 py-1.5 text-sm font-medium text-ink-700 bg-white border border-line rounded hover:bg-surface-50 transition" do %>
         Today
       <% end %>
 
       <div class="flex items-center">
         <%= link_to planner_map_path(year: @prev_month.year, month: @prev_month.month),
-            class: "px-2 py-1.5 text-gray-600 bg-white border border-gray-300 rounded-l hover:bg-gray-50 transition",
+            class: "px-2 py-1.5 text-ink-500 bg-white border border-line rounded-l hover:bg-surface-50 transition",
             title: "Previous month" do %>
           <i class="fa-solid fa-chevron-left text-xs"></i>
         <% end %>
         <%= link_to planner_map_path(year: @next_month.year, month: @next_month.month),
-            class: "px-2 py-1.5 text-gray-600 bg-white border border-l-0 border-gray-300 rounded-r hover:bg-gray-50 transition",
+            class: "px-2 py-1.5 text-ink-500 bg-white border border-l-0 border-line rounded-r hover:bg-surface-50 transition",
             title: "Next month" do %>
           <i class="fa-solid fa-chevron-right text-xs"></i>
         <% end %>
@@ -58,7 +58,7 @@
   </div>
 
   <%# ===== MAP ===== %>
-  <div class="flex-1 relative bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+  <div class="flex-1 relative bg-white rounded-lg shadow-sm border border-line overflow-hidden"
        data-controller="board-map">
 
     <div data-board-map-target="container" class="absolute inset-0"></div>

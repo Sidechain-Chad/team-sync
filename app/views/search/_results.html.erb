@@ -4,13 +4,13 @@
     (note: highlight is literal substring, so fuzzy/typo matches won't
     visibly highlight — that's cosmetic, the match itself still works). %>
 
-<% highlighter = '<mark class="bg-yellow-200 text-gray-900 rounded px-0.5">\1</mark>' %>
+<% highlighter = '<mark class="bg-warn-100 text-ink-900 rounded px-0.5">\1</mark>' %>
 
 <% if boards.empty? && cards.empty? %>
 
   <div class="px-4 py-10 text-center">
-    <i class="fa-regular fa-face-frown text-3xl text-gray-300 mb-3"></i>
-    <p class="text-sm text-gray-500">No matches for "<%= query %>"</p>
+    <i class="fa-regular fa-face-frown text-3xl text-ink-300 mb-3"></i>
+    <p class="text-sm text-ink-500">No matches for "<%= query %>"</p>
   </div>
 
 <% else %>
@@ -18,24 +18,24 @@
   <div class="max-h-96 overflow-y-auto">
 
     <% if boards.any? %>
-      <div class="px-4 py-2 border-b border-gray-200 bg-gray-50">
-        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Boards</p>
+      <div class="px-4 py-2 border-b border-line bg-surface-50">
+        <p class="text-[10px] font-bold text-ink-500 uppercase tracking-wider">Boards</p>
       </div>
       <div class="py-1">
         <% boards.each do |board| %>
           <%= link_to board_path(board),
               data: { turbo: false },
-              class: "flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100 transition-colors" do %>
-            <div class="h-7 w-10 rounded bg-gradient-to-br from-blue-500 to-blue-700 flex-shrink-0"></div>
-            <span class="truncate text-gray-800"><%= highlight(board.name, query, highlighter: highlighter) %></span>
+              class: "flex items-center gap-3 px-4 py-2 text-sm hover:bg-surface-200 transition-colors" do %>
+            <div class="h-7 w-10 rounded bg-gradient-to-br from-brand-500 to-brand-400 flex-shrink-0"></div>
+            <span class="truncate text-ink-700"><%= highlight(board.name, query, highlighter: highlighter) %></span>
           <% end %>
         <% end %>
       </div>
     <% end %>
 
     <% if cards.any? %>
-      <div class="px-4 py-2 border-y border-gray-200 bg-gray-50">
-        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Cards</p>
+      <div class="px-4 py-2 border-y border-line bg-surface-50">
+        <p class="text-[10px] font-bold text-ink-500 uppercase tracking-wider">Cards</p>
       </div>
       <div class="py-1">
         <% cards.each do |card| %>
@@ -44,11 +44,11 @@
               search panel collapses. %>
           <%= link_to card_path(card),
               data: { turbo_frame: "modal", action: "click->dropdown#close" },
-              class: "flex items-start gap-3 px-4 py-2 text-sm hover:bg-gray-100 transition-colors" do %>
-            <i class="fa-regular fa-credit-card text-gray-400 mt-1 text-xs flex-shrink-0"></i>
+              class: "flex items-start gap-3 px-4 py-2 text-sm hover:bg-surface-200 transition-colors" do %>
+            <i class="fa-regular fa-credit-card text-ink-300 mt-1 text-xs flex-shrink-0"></i>
             <div class="min-w-0 flex-1">
-              <div class="text-gray-800 truncate"><%= highlight(card.title, query, highlighter: highlighter) %></div>
-              <div class="text-xs text-gray-500 truncate">
+              <div class="text-ink-700 truncate"><%= highlight(card.title, query, highlighter: highlighter) %></div>
+              <div class="text-xs text-ink-500 truncate">
                 in <%= card.list.name %> on <%= card.list.board.name %>
               </div>
             </div>

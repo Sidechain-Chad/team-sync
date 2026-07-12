@@ -10,7 +10,7 @@
 <%= turbo_frame_tag frame_id do %>
   <%= form_with model: label, url: url, method: method,
       data: { turbo_frame: frame_id },
-      class: "p-2 bg-gray-50 border border-gray-200 rounded space-y-2" do |f| %>
+      class: "p-2 bg-surface-50 border border-line rounded space-y-2" do |f| %>
 
     <%# Hidden field so the controller knows which card we're editing
         from, in case it needs to render the row back. %>
@@ -18,24 +18,24 @@
 
     <%# --- COLOR PREVIEW + NAME INPUT --- %>
     <div>
-      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Title</label>
+      <label class="block text-[10px] font-bold text-ink-500 uppercase mb-1">Title</label>
       <div class="h-8 rounded flex items-center px-3 text-sm font-semibold mb-2 <%= label_solid_class(label.color) %>"
            id="label_form_preview_<%= label.id || 'new' %>">
         <%= label.name.presence || label.color.capitalize %>
       </div>
       <%= f.text_field :name,
           placeholder: "Label name",
-          class: "w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+          class: "w-full text-sm border border-line rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-700" %>
     </div>
 
     <%# --- COLOR SWATCH GRID --- %>
     <div>
-      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Color</label>
+      <label class="block text-[10px] font-bold text-ink-500 uppercase mb-1">Color</label>
       <div class="grid grid-cols-5 gap-1">
         <% Label::COLORS.each do |color| %>
           <label class="cursor-pointer">
             <%= f.radio_button :color, color, class: "peer sr-only", aria: { label: color.capitalize } %>
-            <div class="h-7 rounded <%= label_solid_class(color) %> peer-checked:ring-2 peer-checked:ring-offset-1 peer-checked:ring-blue-600 hover:opacity-90 peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-blue-600"
+            <div class="h-7 rounded <%= label_solid_class(color) %> peer-checked:ring-2 peer-checked:ring-offset-1 peer-checked:ring-brand-700 hover:opacity-90 peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-brand-700"
                  title="<%= color.capitalize %>"></div>
           </label>
         <% end %>
@@ -43,20 +43,20 @@
     </div>
 
     <%# --- ACTIONS --- %>
-    <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-200">
+    <div class="flex items-center justify-between gap-2 pt-2 border-t border-line">
       <div class="flex gap-2">
         <%= f.submit (is_new ? "Create" : "Save"),
-            class: "bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded cursor-pointer" %>
+            class: "bg-brand-600 hover:bg-brand-700 text-white text-xs px-3 py-1.5 rounded cursor-pointer" %>
         <%# Cancel restores the row to its non-edit state %>
         <% if is_new %>
           <%= link_to "Cancel", new_label_cancel_path(card),
               data: { turbo_frame: frame_id },
-              class: "text-xs text-gray-600 hover:bg-gray-200 px-2 py-1.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1" %>
+              class: "text-xs text-ink-500 hover:bg-surface-200 px-2 py-1.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" %>
         <% else %>
           <%# For edit, "cancel" just re-renders the row %>
           <%= link_to "Cancel", label_row_cancel_path(card, label),
               data: { turbo_frame: frame_id },
-              class: "text-xs text-gray-600 hover:bg-gray-200 px-2 py-1.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1" %>
+              class: "text-xs text-ink-500 hover:bg-surface-200 px-2 py-1.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" %>
         <% end %>
       </div>
 
@@ -64,7 +64,7 @@
         <%= button_to board_label_path(board, label),
             method: :delete,
             data: { turbo_confirm: "Delete this label? It will be removed from any cards using it." },
-            class: "text-xs text-red-600 hover:bg-red-50 px-2 py-1.5 rounded m-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+            class: "text-xs text-danger-600 hover:bg-danger-50 px-2 py-1.5 rounded m-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
             form: { class: "m-0", data: { turbo_frame: frame_id } } do %>
           <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i> Delete
         <% end %>

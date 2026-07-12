@@ -3,12 +3,12 @@
 
     <%# Overlay (clicking it closes the modal by navigating back to the board) %>
     <%= link_to board_path(@card.list.board),
-        class: "absolute inset-0 bg-black/60 cursor-default",
+        class: "absolute inset-0 bg-ink-900/60 cursor-default",
         data: { turbo_action: "advance" } do %>
     <% end %>
 
     <%# THE MODAL BOX %>
-    <div class="relative z-[10000] bg-[#f4f5f7] w-full max-w-6xl h-[90vh] rounded-lg shadow-2xl flex flex-col text-gray-700 m-4 pointer-events-auto"
+    <div class="relative z-[10000] bg-surface-100 w-full max-w-6xl h-[90vh] rounded-lg shadow-2xl flex flex-col text-ink-700 m-4 pointer-events-auto"
          role="dialog"
          aria-modal="true"
          aria-labelledby="card_modal_title_<%= @card.id %>"
@@ -20,16 +20,16 @@
       <%# happens via the "Move to list" control in the Actions       %>
       <%# section, not from here — see cards/show.html.erb Actions).  %>
       <%# =========================================================== %>
-      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-300 bg-[#f4f5f7] rounded-t-lg shrink-0 z-20 relative">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-line bg-surface-100 rounded-t-lg shrink-0 z-20 relative">
 
-        <span class="flex items-center gap-2 bg-[#e9ebee] px-3 py-1.5 rounded text-sm font-semibold text-gray-700">
+        <span class="flex items-center gap-2 bg-surface-200 px-3 py-1.5 rounded text-sm font-semibold text-ink-700">
           in <%= @card.list.name %>
         </span>
 
         <%# CLOSE BUTTON %>
         <div class="flex items-center gap-3">
           <%= link_to board_path(@card.list.board),
-              class: "text-gray-500 hover:text-gray-700 transition flex items-center justify-center p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+              class: "text-ink-500 hover:text-ink-700 transition flex items-center justify-center p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
               "aria-label": "Close card",
               data: { turbo_action: "advance" } do %>
             <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
@@ -43,20 +43,20 @@
       <div class="flex-1 grid grid-cols-[1fr_400px] overflow-hidden">
 
         <%# --- LEFT COLUMN --- %>
-        <div class="p-8 overflow-y-auto border-r border-gray-200">
+        <div class="p-8 overflow-y-auto border-r border-line">
           <div class="space-y-8">
 
             <%# 1. Title %>
             <div class="flex items-start gap-4">
-              <i class="fa-solid fa-window-maximize mt-1.5 text-gray-600 text-lg"></i>
+              <i class="fa-solid fa-window-maximize mt-1.5 text-ink-500 text-lg"></i>
               <div class="w-full">
-                <h2 id="card_modal_title_<%= @card.id %>" class="text-xl font-bold text-gray-800 leading-tight"><%= @card.title %></h2>
+                <h2 id="card_modal_title_<%= @card.id %>" class="font-display text-xl font-bold text-ink-700 leading-tight"><%= @card.title %></h2>
               </div>
             </div>
 
             <%# 2. Members %>
             <div class="ml-9">
-              <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Members</h3>
+              <h3 class="text-xs font-bold text-ink-500 uppercase mb-2">Members</h3>
               <div class="flex items-center gap-1">
 
                 <%# Avatars of currently assigned members %>
@@ -67,18 +67,18 @@
                 <%# Member-picker dropdown %>
                 <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                   <button type="button" data-action="click->dropdown#toggle"
-                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                          class="h-8 w-8 rounded-full bg-surface-200 hover:bg-surface-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
                           title="Add members"
                           aria-label="Add members">
-                    <i class="fa-solid fa-plus text-sm text-gray-600" aria-hidden="true"></i>
+                    <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
                   </button>
 
                   <div data-dropdown-target="menu"
-                       class="hidden absolute top-10 left-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-3 flex flex-col gap-3">
+                       class="hidden absolute top-10 left-0 w-72 bg-white border border-line rounded-lg shadow-xl z-30 p-3 flex flex-col gap-3">
 
                     <%# Members already on this card %>
                     <div>
-                      <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">Card members</div>
+                      <div class="text-[10px] font-bold text-ink-500 uppercase mb-2">Card members</div>
                       <div id="assigned_members_list" class="space-y-1">
                         <% @card.members.each do |user| %>
                           <%= render "cards/member_row", card: @card, user: user, assigned: true %>
@@ -88,7 +88,7 @@
 
                     <%# Board members (owner + invited) not yet on this card %>
                     <div>
-                      <div class="text-[10px] font-bold text-gray-500 uppercase mb-2">Board members</div>
+                      <div class="text-[10px] font-bold text-ink-500 uppercase mb-2">Board members</div>
                       <div id="available_members_list" class="space-y-1 max-h-48 overflow-y-auto">
                         <% board = @card.list.board %>
                         <% (board.active_members - @card.members).each do |user| %>
@@ -105,7 +105,7 @@
 
             <%# Labels %>
             <div class="ml-9">
-              <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Labels</h3>
+              <h3 class="text-xs font-bold text-ink-500 uppercase mb-2">Labels</h3>
               <div class="flex items-center gap-1 flex-wrap">
 
                 <%# Existing label pills %>
@@ -116,15 +116,15 @@
                 <%# Picker dropdown %>
                 <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                   <button type="button" data-action="click->dropdown#toggle"
-                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                          class="h-8 w-8 rounded-full bg-surface-200 hover:bg-surface-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
                           title="Add labels"
                           aria-label="Add labels">
-                    <i class="fa-solid fa-plus text-sm text-gray-600" aria-hidden="true"></i>
+                    <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
                   </button>
 
                   <div data-dropdown-target="menu"
-                       class="hidden absolute top-10 left-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-3 flex flex-col gap-2">
-                    <div class="text-[10px] font-bold text-gray-500 uppercase">Labels</div>
+                       class="hidden absolute top-10 left-0 w-72 bg-white border border-line rounded-lg shadow-xl z-30 p-3 flex flex-col gap-2">
+                    <div class="text-[10px] font-bold text-ink-500 uppercase">Labels</div>
 
                     <div id="labels_list_<%= @card.list.board.id %>" class="space-y-1 max-h-64 overflow-y-auto">
                       <% @card.list.board.labels.order(:id).each do |label| %>
@@ -136,7 +136,7 @@
                     <%= turbo_frame_tag "new_label_row" do %>
                       <%= link_to new_board_label_path(@card.list.board, card_id: @card.id),
                           data: { turbo_frame: "new_label_row" },
-                          class: "block w-full text-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 rounded" do %>
+                          class: "block w-full text-center text-sm bg-surface-200 hover:bg-surface-300 text-ink-700 py-1.5 rounded" do %>
                         <i class="fa-solid fa-plus text-xs mr-1"></i> Create a new label
                       <% end %>
                     <% end %>
@@ -148,7 +148,7 @@
 
             <%# Due date %>
             <div class="ml-9">
-              <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Due date</h3>
+              <h3 class="text-xs font-bold text-ink-500 uppercase mb-2">Due date</h3>
               <div class="flex items-center gap-2">
 
                 <%# Existing pill (or "None" placeholder) %>
@@ -157,14 +157,14 @@
                 <%# Picker dropdown %>
                 <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                   <button type="button" data-action="click->dropdown#toggle"
-                          class="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                          class="h-8 w-8 rounded-full bg-surface-200 hover:bg-surface-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
                           title="Set due date"
                           aria-label="Set due date">
-                    <i class="fa-solid fa-clock text-sm text-gray-600" aria-hidden="true"></i>
+                    <i class="fa-solid fa-clock text-sm text-ink-500" aria-hidden="true"></i>
                   </button>
 
                   <div data-dropdown-target="menu"
-                       class="hidden absolute top-10 left-0 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
+                       class="hidden absolute top-10 left-0 w-72 bg-white border border-line rounded-lg shadow-xl z-30">
                     <%= render "cards/due_form", card: @card %>
                   </div>
                 </div>
@@ -176,12 +176,12 @@
             <div class="ml-9">
               <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-3">
-                  <i class="fa-solid fa-align-left text-gray-600 text-lg"></i>
-                  <h3 class="font-bold text-lg text-gray-800">Description</h3>
+                  <i class="fa-solid fa-align-left text-ink-500 text-lg"></i>
+                  <h3 class="font-bold text-lg text-ink-700">Description</h3>
                 </div>
 
                 <%= link_to "Edit", edit_description_card_path(@card),
-                    class: "bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium px-3 py-1 rounded transition-colors",
+                    class: "bg-surface-200 hover:bg-surface-300 text-ink-700 text-sm font-medium px-3 py-1 rounded transition-colors",
                     data: { turbo_frame: dom_id(@card, :description) } %>
               </div>
 
@@ -194,11 +194,11 @@
             <% if @card.location? %>
               <div class="ml-9">
                 <div class="flex items-center gap-3 mb-3">
-                  <i class="fa-solid fa-location-dot text-gray-600 text-lg"></i>
-                  <h3 class="font-bold text-lg text-gray-800">Location</h3>
+                  <i class="fa-solid fa-location-dot text-ink-500 text-lg"></i>
+                  <h3 class="font-bold text-lg text-ink-700">Location</h3>
                 </div>
 
-                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div class="bg-white border border-line rounded-lg overflow-hidden">
                   <%# Static map preview — Mapbox Static Images API. One HTTP
                       request, no JS, pin centered on the card's coords. %>
                   <% static_url = "https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/" \
@@ -210,9 +210,9 @@
                        class="w-full h-44 object-cover">
 
                   <div class="p-3">
-                    <div class="text-sm font-semibold text-gray-800"><%= @card.location_name %></div>
+                    <div class="text-sm font-semibold text-ink-700"><%= @card.location_name %></div>
                     <% if @card.location_address.present? && @card.location_address != @card.location_name %>
-                      <div class="text-xs text-gray-500 mt-0.5"><%= @card.location_address %></div>
+                      <div class="text-xs text-ink-500 mt-0.5"><%= @card.location_address %></div>
                     <% end %>
                   </div>
                 </div>
@@ -223,30 +223,30 @@
             <% if @card.attachments.attached? %>
               <div class="ml-9">
                 <div class="flex items-center gap-3 mb-3">
-                  <i class="fa-solid fa-paperclip text-gray-600 text-lg"></i>
-                  <h3 class="font-bold text-lg text-gray-800">Attachments</h3>
+                  <i class="fa-solid fa-paperclip text-ink-500 text-lg"></i>
+                  <h3 class="font-bold text-lg text-ink-700">Attachments</h3>
                 </div>
                 <div class="space-y-3">
                   <% @card.attachments.each do |attachment| %>
                     <div id="<%= dom_id(attachment) %>" class="flex items-center gap-3 group">
-                      <div class="h-20 w-28 bg-gray-200 rounded flex items-center justify-center overflow-hidden shrink-0">
+                      <div class="h-20 w-28 bg-surface-200 rounded flex items-center justify-center overflow-hidden shrink-0">
                         <% if attachment.variable? %>
                           <%= image_tag attachment.variant(resize_to_limit: [112, 80]) %>
                         <% else %>
-                          <i class="fa-solid fa-file text-2xl text-gray-400"></i>
+                          <i class="fa-solid fa-file text-2xl text-ink-300"></i>
                         <% end %>
                       </div>
                       <div class="flex flex-col">
-                        <span class="text-sm font-bold text-gray-700"><%= attachment.filename %></span>
-                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                        <span class="text-sm font-bold text-ink-700"><%= attachment.filename %></span>
+                        <div class="flex items-center gap-2 text-xs text-ink-500">
                           <span>Added <%= time_ago_in_words(attachment.created_at) %> ago</span>
                           <span>•</span>
-                          <%= link_to "Download", rails_blob_path(attachment, disposition: "attachment"), class: "underline hover:text-gray-700" %>
+                          <%= link_to "Download", rails_blob_path(attachment, disposition: "attachment"), class: "underline hover:text-ink-700" %>
                           <span>•</span>
                           <%= button_to card_attachment_path(@card, attachment),
                               method: :delete,
                               form: { class: "inline-block m-0", data: { turbo_confirm: "Delete this attachment?" } },
-                              class: "text-xs text-red-600 hover:text-red-700 bg-transparent border-0 cursor-pointer underline p-0 m-0" do %>
+                              class: "text-xs text-danger-600/80 hover:text-danger-600 bg-transparent border-0 cursor-pointer underline p-0 m-0" do %>
                             Delete
                           <% end %>
                         </div>
@@ -268,28 +268,28 @@
         </div>
 
         <%# --- RIGHT COLUMN --- %>
-        <div class="bg-gray-50 p-6 overflow-y-auto flex flex-col h-full" data-controller="activity-toggle">
+        <div class="bg-surface-50 p-6 overflow-y-auto flex flex-col h-full" data-controller="activity-toggle">
 
           <%# Add to Card section %>
           <div class="mb-8 shrink-0">
-            <h4 class="text-xs font-bold text-gray-500 uppercase mb-3">Add to card</h4>
+            <h4 class="text-xs font-bold text-ink-500 uppercase mb-3">Add to card</h4>
             <div class="space-y-2">
               
               <%# Checklist button %>
               <div class="relative" data-controller="dropdown" data-action="click @window->dropdown#hide">
                 <button type="button" data-action="click->dropdown#toggle"
-                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
+                        class="w-full text-left bg-surface-200 hover:bg-surface-300 text-ink-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
                   <i class="fa-solid fa-square-check w-4" aria-hidden="true"></i> Checklist
                 </button>
                 <div data-dropdown-target="menu"
-                     class="hidden absolute top-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-3">
-                  <div class="text-center text-xs font-bold text-gray-500 border-b pb-2 mb-1">Add checklist</div>
+                     class="hidden absolute top-10 left-0 right-0 bg-white border border-line rounded-lg shadow-xl z-50 p-3 flex flex-col gap-3">
+                  <div class="text-center text-xs font-bold text-ink-500 border-b pb-2 mb-1">Add checklist</div>
                   <%= form_with model: [@card, Checklist.new], class: "space-y-3" do |f| %>
                     <div>
-                      <%= f.label :title, "Title", class: "block text-xs font-bold text-gray-700 mb-1" %>
-                      <%= f.text_field :title, value: "Checklist", class: "w-full text-sm border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" %>
+                      <%= f.label :title, "Title", class: "block text-xs font-bold text-ink-700 mb-1" %>
+                      <%= f.text_field :title, value: "Checklist", class: "w-full text-sm border-line rounded focus:ring-brand-700 focus:border-brand-700" %>
                     </div>
-                    <%= f.submit "Add", class: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
+                    <%= f.submit "Add", class: "w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
                   <% end %>
                 </div>
               </div>
@@ -304,30 +304,30 @@
                    data-location-search-card-id-value="<%= @card.id %>"
                    data-location-search-card-url-value="<%= card_path(@card) %>">
                 <button type="button" data-action="click->dropdown#toggle"
-                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
+                        class="w-full text-left bg-surface-200 hover:bg-surface-300 text-ink-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
                   <i class="fa-solid fa-location-dot w-4" aria-hidden="true"></i> Location
                 </button>
                 <div data-dropdown-target="menu"
-                     class="hidden absolute top-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-2">
-                  <div class="text-center text-xs font-bold text-gray-500 border-b pb-2 mb-1">Search for a place</div>
+                     class="hidden absolute top-10 left-0 right-0 bg-white border border-line rounded-lg shadow-xl z-50 p-3 flex flex-col gap-2">
+                  <div class="text-center text-xs font-bold text-ink-500 border-b pb-2 mb-1">Search for a place</div>
 
                   <input type="text"
                          data-location-search-target="input"
                          data-action="input->location-search#search keydown->location-search#keydown"
                          placeholder="Type an address or place"
-                         class="w-full px-3 py-2 bg-gray-50 focus:bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         class="w-full px-3 py-2 bg-surface-50 focus:bg-white border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700"
                          autocomplete="off">
 
                   <ul data-location-search-target="results"
-                      class="max-h-64 overflow-y-auto divide-y divide-gray-100 text-sm hidden"></ul>
+                      class="max-h-64 overflow-y-auto divide-y divide-line text-sm hidden"></ul>
 
                   <p data-location-search-target="empty"
-                     class="text-xs text-gray-400 text-center py-2 hidden">No places match.</p>
+                     class="text-xs text-ink-300 text-center py-2 hidden">No places match.</p>
 
                   <% if @card.location? %>
                     <button type="button"
                             data-action="click->location-search#remove"
-                            class="text-xs text-red-600 hover:text-red-800 underline mt-1">
+                            class="text-xs text-danger-600/80 hover:text-danger-600 underline mt-1">
                       Remove current location
                     </button>
                   <% end %>
@@ -337,17 +337,17 @@
               <%# Attachment button %>
               <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                 <button type="button" data-action="click->dropdown#toggle"
-                        class="w-full text-left bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
+                        class="w-full text-left bg-surface-200 hover:bg-surface-300 text-ink-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
                   <i class="fa-solid fa-paperclip w-4" aria-hidden="true"></i> Attachment
                 </button>
                 <div data-dropdown-target="menu"
-                     class="hidden absolute top-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-3">
-                  <div class="text-center text-xs font-bold text-gray-500 border-b pb-2 mb-1">Attach from computer</div>
+                     class="hidden absolute top-10 left-0 right-0 bg-white border border-line rounded-lg shadow-xl z-50 p-3 flex flex-col gap-3">
+                  <div class="text-center text-xs font-bold text-ink-500 border-b pb-2 mb-1">Attach from computer</div>
                   <%= form_with model: @card, method: :patch, class: "space-y-3" do |f| %>
                     <div>
-                      <%= f.file_field :attachments, multiple: true, class: "w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" %>
+                      <%= f.file_field :attachments, multiple: true, class: "w-full text-sm text-ink-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-100 file:text-brand-700 hover:file:bg-brand-100" %>
                     </div>
-                    <%= f.submit "Attach", class: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
+                    <%= f.submit "Attach", class: "w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
                   <% end %>
                 </div>
               </div>
@@ -360,7 +360,7 @@
                 ends up behind the modal because of z-index stacking,
                 so keep card alerts in here. %>
             <% if flash.now[:alert].present? %>
-              <div class="mt-3 bg-red-50 border border-red-200 text-red-800 text-sm px-3 py-2 rounded flex items-start gap-2"
+              <div class="mt-3 bg-danger-50 border border-danger-600/25 text-danger-600 text-sm px-3 py-2 rounded flex items-start gap-2"
                    data-controller="flash"
                    data-flash-timeout-value="6000">
                 <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0"></i>
@@ -371,14 +371,14 @@
 
           <div class="flex items-center justify-between mb-4 shrink-0">
             <div class="flex items-center gap-2">
-              <i class="fa-solid fa-list-ul text-gray-600"></i>
-              <h3 class="font-bold text-base text-gray-800">Activity</h3>
+              <i class="fa-solid fa-list-ul text-ink-500"></i>
+              <h3 class="font-bold text-base text-ink-700">Activity</h3>
             </div>
 
             <button type="button"
                     data-activity-toggle-target="button"
                     data-action="click->activity-toggle#toggle"
-                    class="text-xs font-medium text-gray-600 hover:text-gray-800 bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded transition-colors">
+                    class="text-xs font-medium text-ink-500 hover:text-ink-700 bg-surface-200 hover:bg-surface-300 px-3 py-1.5 rounded transition-colors">
               Hide details
             </button>
           </div>
@@ -397,8 +397,8 @@
           </div>
 
           <%# Move to list / Archive actions %>
-          <div class="mt-6 pt-4 border-t border-gray-200 shrink-0">
-            <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Actions</h4>
+          <div class="mt-6 pt-4 border-t border-line shrink-0">
+            <h4 class="text-xs font-bold text-ink-500 uppercase mb-2">Actions</h4>
 
             <%# Keyboard-accessible alternative to dragging a card between
                 lists — native selects, no custom dropdown JS. PATCHes the
@@ -408,29 +408,29 @@
                 choice on top. %>
             <%= form_with model: @card, url: card_path(@card), method: :patch, class: "space-y-2 mb-3" do |f| %>
               <div>
-                <%= f.label :list_id, "Move to list", class: "block text-xs font-medium text-gray-600 mb-1" %>
+                <%= f.label :list_id, "Move to list", class: "block text-xs font-medium text-ink-500 mb-1" %>
                 <%= f.collection_select :list_id,
                     @card.list.board.lists.order(:position),
                     :id, :name,
                     { selected: @card.list_id },
-                    { id: "card_move_list_id", class: "w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" } %>
+                    { id: "card_move_list_id", class: "w-full text-sm border border-line rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-700" } %>
               </div>
 
               <div>
-                <%= label_tag "card_move_position", "Position", class: "block text-xs font-medium text-gray-600 mb-1" %>
+                <%= label_tag "card_move_position", "Position", class: "block text-xs font-medium text-ink-500 mb-1" %>
                 <%= select_tag "card[position]",
                     options_for_select([["Top", "top"], ["Bottom", "bottom"]], "bottom"),
                     id: "card_move_position",
-                    class: "w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                    class: "w-full text-sm border border-line rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-700" %>
               </div>
 
               <%= f.submit "Move",
-                  class: "w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-1.5 rounded text-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1" %>
+                  class: "w-full bg-surface-200 hover:bg-surface-300 text-ink-700 font-medium py-1.5 rounded text-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" %>
             <% end %>
 
             <%= button_to archive_card_path(@card),
                 method: :patch,
-                class: "w-full text-left bg-gray-200 hover:bg-yellow-100 hover:text-yellow-800 text-gray-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+                class: "w-full text-left bg-surface-200 hover:bg-warn-100 hover:text-warn-700 text-ink-700 px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2 justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
                 form: { data: { turbo_confirm: "Archive this card? You can restore it later." } } do %>
               <i class="fa-solid fa-box-archive w-4" aria-hidden="true"></i> Archive Card
             <% end %>

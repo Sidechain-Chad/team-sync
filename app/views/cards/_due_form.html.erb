@@ -2,19 +2,19 @@
     data: { turbo_frame: "card_due_pill_#{card.id}", controller: "datepicker" },
     class: "p-3 space-y-3" do |f| %>
 
-  <div class="text-[10px] font-bold text-gray-500 uppercase">Due date</div>
+  <div class="text-[10px] font-bold text-ink-500 uppercase">Due date</div>
 
   <div class="flex items-center gap-1.5">
     <button type="button" data-action="click->datepicker#preset" data-datepicker-preset="today-5pm"
-            class="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-full transition-colors">
+            class="text-xs font-medium text-ink-500 bg-surface-200 hover:bg-surface-300 px-2.5 py-1 rounded-full transition-colors">
       Today 5pm
     </button>
     <button type="button" data-action="click->datepicker#preset" data-datepicker-preset="tomorrow-9am"
-            class="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-full transition-colors">
+            class="text-xs font-medium text-ink-500 bg-surface-200 hover:bg-surface-300 px-2.5 py-1 rounded-full transition-colors">
       Tomorrow 9am
     </button>
     <button type="button" data-action="click->datepicker#preset" data-datepicker-preset="next-week"
-            class="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-full transition-colors">
+            class="text-xs font-medium text-ink-500 bg-surface-200 hover:bg-surface-300 px-2.5 py-1 rounded-full transition-colors">
       Next week
     </button>
   </div>
@@ -22,23 +22,23 @@
   <%= f.datetime_local_field :due_date,
       value: due_date_for_input(card),
       data: { datepicker_target: "input" },
-      class: "w-full text-sm border border-gray-300 rounded px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+      class: "w-full text-sm border border-line rounded px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-brand-700" %>
 
-  <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer py-1">
-    <%= f.check_box :completed, class: "rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4" %>
+  <label class="flex items-center gap-2 text-sm text-ink-700 cursor-pointer py-1">
+    <%= f.check_box :completed, class: "rounded border-line text-brand-600 focus:ring-brand-700 h-4 w-4" %>
     Mark as complete
   </label>
 
-  <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-200">
+  <div class="flex items-center justify-between gap-2 pt-2 border-t border-line">
     <%= f.submit "Save",
-        class: "bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-2 rounded cursor-pointer" %>
+        class: "bg-brand-600 hover:bg-brand-700 text-white text-xs px-3.5 py-2 rounded cursor-pointer" %>
 
     <%# "Remove" clears the Flatpickr instance and checkbox, then submits
         the same form — handled by datepicker#remove so the altInput
         clears too, not just the underlying value. %>
     <button type="button"
             data-action="click->datepicker#remove"
-            class="text-xs text-red-600 hover:bg-red-50 px-2.5 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
+            class="text-xs text-danger-600 hover:bg-danger-50 px-2.5 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
       <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i> Remove
     </button>
   </div>

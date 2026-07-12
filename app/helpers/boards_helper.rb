@@ -2,15 +2,19 @@ module BoardsHelper
   # Deterministic cover gradient for boards without an avatar — same board
   # always gets the same palette entry, so tiles look distinct from each
   # other but stable across page loads.
+  # Golden Hour rebrand: warm-anchored set, with two cool counterpoints kept
+  # so boards stay visually distinct from each other (an all-warm set makes
+  # tiles blur together). Non-brand hues have no theme token, so they're
+  # arbitrary-value hex pairs; ember reuses the brand-500/400 tokens directly.
   BOARD_COVER_GRADIENTS = [
-    "from-blue-500 to-indigo-600",
-    "from-emerald-500 to-teal-600",
-    "from-orange-400 to-rose-500",
-    "from-purple-500 to-fuchsia-600",
-    "from-cyan-500 to-blue-600",
-    "from-amber-400 to-orange-600",
-    "from-pink-500 to-rose-600",
-    "from-lime-500 to-emerald-600",
+    "from-brand-500 to-brand-400",         # ember
+    "from-[#F59E0B] to-[#EA7317]",         # honey
+    "from-[#B0552F] to-[#7C3F21]",         # clay
+    "from-[#C2554F] to-[#F08A7E]",         # rosewood
+    "from-[#7C4A6B] to-[#A9647F]",         # plum (warm purple)
+    "from-[#6B7C2F] to-[#8FA34A]",         # moss
+    "from-[#2F6F6B] to-[#4A9A8F]",         # dusk teal (cool counterpoint)
+    "from-[#4A5A7C] to-[#6B7FA3]",         # slate blue (cool counterpoint)
   ].freeze
 
   def board_cover_gradient_classes(board)

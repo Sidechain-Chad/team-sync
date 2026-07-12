@@ -4,10 +4,10 @@
   </div>
   <div class="flex flex-col">
     <div class="flex items-baseline gap-2">
-      <span class="font-bold text-gray-800"><%= activity.user&.display_name || "Deleted User" %></span>
-      <span class="text-[11px] text-gray-500"><%= time_ago_in_words(activity.created_at) %> ago</span>
+      <span class="font-bold text-ink-700"><%= activity.user&.display_name || "Deleted User" %></span>
+      <span class="text-[11px] text-ink-500"><%= time_ago_in_words(activity.created_at) %> ago</span>
     </div>
-    <div class="text-gray-600 mt-1">
+    <div class="text-ink-500 mt-1">
       <%= activity.message %>
     </div>
   </div>

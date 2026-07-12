@@ -4,10 +4,12 @@ module PlannerHelper
   # parseable at a glance — same colour-language as the cards on the board.
   def planner_chip_classes(card)
     label = card.labels.first
-    return "bg-gray-100 text-gray-700 border-l-4 border-gray-300" unless label
+    return "bg-surface-200 text-ink-500 border-l-4 border-line" unless label
 
     # Reuse the label colour helper your existing label_pills view uses.
-    # Mapping is the same set of colours your labels can be.
+    # Mapping is the same set of colours your labels can be — Label::COLORS
+    # itself is left untouched by the rebrand (user-chosen content colors,
+    # not theme chrome), only the "no label" fallback above is chrome.
     case label.color
     when "red"     then "bg-red-50 text-red-800 border-l-4 border-red-500"
     when "orange"  then "bg-orange-50 text-orange-800 border-l-4 border-orange-500"
@@ -19,7 +21,7 @@ module PlannerHelper
     when "purple"  then "bg-purple-50 text-purple-800 border-l-4 border-purple-500"
     when "pink"    then "bg-pink-50 text-pink-800 border-l-4 border-pink-500"
     when "black"   then "bg-gray-100 text-gray-900 border-l-4 border-gray-900"
-    else                "bg-gray-100 text-gray-700 border-l-4 border-gray-400"
+    else                "bg-surface-200 text-ink-500 border-l-4 border-line"
     end
   end
 end

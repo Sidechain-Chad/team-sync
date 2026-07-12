@@ -5,10 +5,10 @@
   <div class="flex flex-col h-full">
 
     <%# Header %>
-    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-      <h2 class="text-lg font-bold text-gray-800">Planner</h2>
+    <div class="flex items-center justify-between px-4 py-3 border-b border-line">
+      <h2 class="text-lg font-bold text-ink-700">Planner</h2>
       <%= link_to planner_path,
-          class: "text-xs text-blue-600 hover:text-blue-800 font-medium",
+          class: "text-xs text-brand-600 hover:text-brand-700 font-medium",
           data: { turbo: false } do %>
         Open full calendar
         <i class="fa-solid fa-arrow-up-right-from-square text-[10px] ml-1"></i>
@@ -18,8 +18,8 @@
     <%# Agenda list — grouped by day. Empty state if nothing's coming up. %>
     <div class="flex-1 overflow-y-auto px-4 py-3">
       <% if @cards_by_day.empty? %>
-        <div class="text-center text-gray-500 text-sm py-12">
-          <i class="fa-regular fa-calendar text-3xl text-gray-300 mb-3 block"></i>
+        <div class="text-center text-ink-500 text-sm py-12">
+          <i class="fa-regular fa-calendar text-3xl text-ink-300 mb-3 block"></i>
           Nothing due in the next three weeks.
         </div>
       <% else %>
@@ -35,11 +35,11 @@
                       end
             %>
             <div class="flex items-baseline gap-2 mb-2">
-              <h3 class="text-xs font-bold uppercase tracking-wide <%= is_today ? 'text-blue-600' : 'text-gray-500' %>">
+              <h3 class="text-xs font-bold uppercase tracking-wide <%= is_today ? 'text-brand-600' : 'text-ink-500' %>">
                 <%= label %>
               </h3>
               <% unless is_today || is_tomorrow %>
-                <span class="text-[10px] text-gray-400"><%= day.strftime("%b %-d") %></span>
+                <span class="text-[10px] text-ink-300"><%= day.strftime("%b %-d") %></span>
               <% end %>
             </div>
 
@@ -48,21 +48,21 @@
               <% cards.each do |card| %>
                 <%= link_to card_path(card),
                     data: { turbo_frame: "modal" },
-                    class: "block p-2 rounded border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition group" do %>
+                    class: "block p-2 rounded border border-line hover:border-ink-300 hover:bg-surface-50 transition group" do %>
                   <div class="flex items-start gap-2">
                     <%# Color stripe from first label (or gray if none) %>
                     <% color = card.labels.first&.color %>
-                    <div class="w-1 self-stretch rounded-full <%= color ? "bg-#{color}-500" : 'bg-gray-300' %> shrink-0"></div>
+                    <div class="w-1 self-stretch rounded-full <%= color ? "bg-#{color}-500" : 'bg-surface-300' %> shrink-0"></div>
                     <div class="flex-1 min-w-0">
-                      <p class="text-sm font-medium text-gray-800 truncate"><%= card.title %></p>
-                      <p class="text-xs text-gray-500 truncate">
+                      <p class="text-sm font-medium text-ink-700 truncate"><%= card.title %></p>
+                      <p class="text-xs text-ink-500 truncate">
                         <%= card.list.board.name %>
                         <% if card.due_date.hour != 0 %>
                           · <%= card.due_date.strftime("%-l:%M %p") %>
                         <% end %>
                       </p>
                       <% if card.location? %>
-                        <p class="text-xs text-gray-400 truncate flex items-center gap-1 mt-0.5">
+                        <p class="text-xs text-ink-300 truncate flex items-center gap-1 mt-0.5">
                           <i class="fa-solid fa-location-dot text-[9px]"></i>
                           <%= card.location_name %>
                         </p>

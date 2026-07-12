@@ -9,50 +9,50 @@
           board was deleted/unshared). %>
       <% if @last_board %>
         <%= link_to board_path(@last_board),
-            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition",
+            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-ink-500 hover:text-ink-900 hover:bg-surface-200 rounded transition",
             title: "Back to #{@last_board.name}" do %>
           <i class="fa-solid fa-chevron-left text-xs"></i>
           <span class="truncate max-w-[200px]"><%= @last_board.name %></span>
         <% end %>
       <% else %>
         <%= link_to boards_path,
-            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition",
+            class: "flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-ink-500 hover:text-ink-900 hover:bg-surface-200 rounded transition",
             title: "Back to boards" do %>
           <i class="fa-solid fa-chevron-left text-xs"></i>
           <span>Boards</span>
         <% end %>
       <% end %>
-      <h1 class="text-2xl font-bold text-gray-800"><%= @first_of_month.strftime("%B %Y") %></h1>
+      <h1 class="font-display text-2xl font-bold text-ink-700"><%= @first_of_month.strftime("%B %Y") %></h1>
     </div>
 
     <div class="flex items-center gap-2">
       <%# Calendar / Map toggle. Both views share month state via the
           year/month query params, so flipping between them keeps you
           on the same window. %>
-      <div class="flex items-center bg-gray-100 rounded p-0.5 mr-2">
+      <div class="flex items-center bg-surface-200 rounded p-0.5 mr-2">
         <%= link_to planner_path(year: @year, month: @month),
-            class: "px-3 py-1 text-xs font-medium rounded transition #{action_name == 'index' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}" do %>
+            class: "px-3 py-1 text-xs font-medium rounded transition #{action_name == 'index' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-900'}" do %>
           <i class="fa-regular fa-calendar text-[10px] mr-1"></i>Calendar
         <% end %>
         <%= link_to planner_map_path(year: @year, month: @month),
-            class: "px-3 py-1 text-xs font-medium rounded transition #{action_name == 'map' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}" do %>
+            class: "px-3 py-1 text-xs font-medium rounded transition #{action_name == 'map' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-900'}" do %>
           <i class="fa-solid fa-map-location-dot text-[10px] mr-1"></i>Map
         <% end %>
       </div>
 
       <%= link_to planner_path,
-          class: "px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition" do %>
+          class: "px-3 py-1.5 text-sm font-medium text-ink-700 bg-white border border-line rounded hover:bg-surface-50 transition" do %>
         Today
       <% end %>
 
       <div class="flex items-center">
         <%= link_to planner_path(year: @prev_month.year, month: @prev_month.month),
-            class: "px-2 py-1.5 text-gray-600 bg-white border border-gray-300 rounded-l hover:bg-gray-50 transition",
+            class: "px-2 py-1.5 text-ink-500 bg-white border border-line rounded-l hover:bg-surface-50 transition",
             title: "Previous month" do %>
           <i class="fa-solid fa-chevron-left text-xs"></i>
         <% end %>
         <%= link_to planner_path(year: @next_month.year, month: @next_month.month),
-            class: "px-2 py-1.5 text-gray-600 bg-white border border-l-0 border-gray-300 rounded-r hover:bg-gray-50 transition",
+            class: "px-2 py-1.5 text-ink-500 bg-white border border-l-0 border-line rounded-r hover:bg-surface-50 transition",
             title: "Next month" do %>
           <i class="fa-solid fa-chevron-right text-xs"></i>
         <% end %>
@@ -61,12 +61,12 @@
   </div>
 
   <%# ===== CALENDAR GRID ===== %>
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+  <div class="bg-white rounded-lg shadow-sm border border-line overflow-hidden">
 
     <%# Day-of-week header %>
-    <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
+    <div class="grid grid-cols-7 bg-surface-50 border-b border-line">
       <% %w[Sun Mon Tue Wed Thu Fri Sat].each do |day| %>
-        <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">
+        <div class="px-3 py-2 text-xs font-semibold text-ink-500 uppercase tracking-wide text-center">
           <%= day %>
         </div>
       <% end %>
@@ -80,14 +80,14 @@
           is_today         = day == Date.current
           cards_today      = @cards_by_day[day] || []
         %>
-        <div class="min-h-[110px] border-r border-b border-gray-100 p-1.5 last:border-r-0
-                    <%= 'bg-gray-50/50' unless in_current_month %>">
+        <div class="min-h-[110px] border-r border-b border-line p-1.5 last:border-r-0
+                    <%= 'bg-surface-50/50' unless in_current_month %>">
 
           <%# Date number — highlighted if today %>
           <div class="flex items-center justify-end mb-1">
-            <span class="text-xs font-medium <%= 'h-5 w-5 rounded-full bg-blue-600 text-white flex items-center justify-center' if is_today %>
-                          <%= 'text-gray-400' unless in_current_month %>
-                          <%= 'text-gray-700' if in_current_month && !is_today %>">
+            <span class="text-xs font-medium <%= 'h-5 w-5 rounded-full bg-brand-600 text-white flex items-center justify-center' if is_today %>
+                          <%= 'text-ink-300' unless in_current_month %>
+                          <%= 'text-ink-700' if in_current_month && !is_today %>">
               <%= day.day %>
             </span>
           </div>

@@ -12,7 +12,7 @@
   <div data-side-panel-target="panel"
        class="fixed top-14 left-0 bottom-0 w-[340px] bg-white shadow-xl z-30
               transform -translate-x-full transition-transform duration-200 ease-out
-              flex flex-col border-r border-gray-200">
+              flex flex-col border-r border-line">
 
     <%= turbo_frame_tag "side_panel_frame",
         data: { side_panel_target: "frame" },
@@ -23,7 +23,7 @@
 
   <%# ===== BOTTOM NAV BAR ===== %>
   <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
-    <div class="flex items-center bg-gray-900 text-gray-200 rounded-full shadow-lg ring-1 ring-white/10 px-2 py-1.5 gap-1">
+    <div class="flex items-center bg-ink-900 text-gray-200 rounded-full shadow-lg ring-1 ring-white/10 px-2 py-1.5 gap-1">
 
       <%# Board — links to board#show. Highlighted when you're already
           there; otherwise navigates back from the map view. %>

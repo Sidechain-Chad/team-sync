@@ -5,16 +5,16 @@
 <%= turbo_frame_tag "modal" do %>
   <%# Backdrop click closes the modal. The inner panel uses an inline JS
       stopPropagation so clicks inside don't bubble up and trigger the close. %>
-  <div class="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-20"
+  <div class="fixed inset-0 bg-ink-900/40 z-50 flex items-start justify-center pt-20"
        data-action="click->modal#close">
     <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col"
          onclick="event.stopPropagation()">
 
       <%# Header %>
-      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-bold text-gray-800">Switch boards</h2>
+      <div class="flex items-center justify-between px-5 py-4 border-b border-line">
+        <h2 class="text-lg font-bold text-ink-700">Switch boards</h2>
         <%= link_to "#", data: { action: "click->modal#close" },
-            class: "text-gray-400 hover:text-gray-600 text-xl leading-none" do %>
+            class: "text-ink-300 hover:text-ink-500 text-xl leading-none" do %>
           &times;
         <% end %>
       </div>
@@ -24,15 +24,15 @@
 
         <% if @owned_boards.any? %>
           <div class="mb-6">
-            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Your boards</h3>
+            <h3 class="text-xs font-bold text-ink-500 uppercase tracking-wide mb-3">Your boards</h3>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <% @owned_boards.each do |board| %>
                 <%= link_to board_path(board),
-                    class: "block group rounded-md overflow-hidden border border-gray-200 hover:border-gray-300 hover:shadow-md transition",
+                    class: "block group rounded-md overflow-hidden border border-line hover:border-ink-300 hover:shadow-md transition",
                     data: { turbo: false } do %>
-                  <div class="h-24 bg-gradient-to-br from-blue-500 to-blue-700 group-hover:opacity-90 transition"></div>
+                  <div class="h-24 bg-gradient-to-br from-brand-500 to-brand-400 group-hover:opacity-90 transition"></div>
                   <div class="p-2.5">
-                    <p class="text-sm font-medium text-gray-800 truncate"><%= board.name %></p>
+                    <p class="text-sm font-medium text-ink-700 truncate"><%= board.name %></p>
                   </div>
                 <% end %>
               <% end %>
@@ -42,15 +42,15 @@
 
         <% if @shared_boards.any? %>
           <div>
-            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Shared with you</h3>
+            <h3 class="text-xs font-bold text-ink-500 uppercase tracking-wide mb-3">Shared with you</h3>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <% @shared_boards.each do |board| %>
                 <%= link_to board_path(board),
-                    class: "block group rounded-md overflow-hidden border border-gray-200 hover:border-gray-300 hover:shadow-md transition",
+                    class: "block group rounded-md overflow-hidden border border-line hover:border-ink-300 hover:shadow-md transition",
                     data: { turbo: false } do %>
                   <div class="h-24 bg-gradient-to-br from-purple-500 to-purple-700 group-hover:opacity-90 transition"></div>
                   <div class="p-2.5">
-                    <p class="text-sm font-medium text-gray-800 truncate"><%= board.name %></p>
+                    <p class="text-sm font-medium text-ink-700 truncate"><%= board.name %></p>
                   </div>
                 <% end %>
               <% end %>
@@ -59,8 +59,8 @@
         <% end %>
 
         <% if @owned_boards.empty? && @shared_boards.empty? %>
-          <div class="text-center text-gray-500 py-8">
-            No boards yet. <%= link_to "Create your first board", new_board_path, class: "text-blue-600 hover:text-blue-800 font-medium", data: { turbo: false } %>
+          <div class="text-center text-ink-500 py-8">
+            No boards yet. <%= link_to "Create your first board", new_board_path, class: "text-brand-600 hover:text-brand-700 font-medium", data: { turbo: false } %>
           </div>
         <% end %>
       </div>

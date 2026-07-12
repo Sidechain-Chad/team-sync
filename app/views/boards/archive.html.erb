@@ -1,15 +1,15 @@
 <div class="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
 
   <%# Header %>
-  <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+  <div class="flex items-center justify-between mb-6 pb-4 border-b border-line">
     <div>
       <%= link_to board_path(@board),
-          class: "text-sm text-gray-500 hover:text-blue-600 flex items-center gap-1 mb-2" do %>
+          class: "text-sm text-ink-500 hover:text-brand-600 flex items-center gap-1 mb-2" do %>
         <i class="fa-solid fa-arrow-left text-xs"></i>
         Back to <%= @board.name %>
       <% end %>
-      <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-        <i class="fa-solid fa-box-archive text-gray-500"></i>
+      <h1 class="font-display text-2xl font-bold text-ink-700 flex items-center gap-2">
+        <i class="fa-solid fa-box-archive text-ink-500"></i>
         Archived Items
       </h1>
     </div>
@@ -18,19 +18,19 @@
   <%# Empty state %>
   <% if @archived_cards.empty? %>
     <div class="text-center py-12">
-      <i class="fa-solid fa-box-archive text-5xl text-gray-300 mb-4"></i>
-      <p class="text-gray-500">Nothing has been archived yet.</p>
-      <p class="text-sm text-gray-400 mt-1">Archived cards will appear here.</p>
+      <i class="fa-solid fa-box-archive text-5xl text-ink-300 mb-4"></i>
+      <p class="text-ink-500">Nothing has been archived yet.</p>
+      <p class="text-sm text-ink-300 mt-1">Archived cards will appear here.</p>
     </div>
   <% else %>
 
-    <div class="text-xs text-gray-500 uppercase font-bold mb-3">
+    <div class="text-xs text-ink-500 uppercase font-bold mb-3">
       Cards (<%= @archived_cards.size %>)
     </div>
 
     <div class="space-y-2">
       <% @archived_cards.each do |card| %>
-        <div class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-md transition-colors">
+        <div class="flex items-center gap-3 p-3 bg-surface-50 hover:bg-surface-200 border border-line rounded-md transition-colors">
 
           <%# Card preview %>
           <div class="flex-1 min-w-0">
@@ -41,11 +41,11 @@
                   <%= label.name.presence || label.color.capitalize %>
                 </span>
               <% end %>
-              <span class="font-medium text-gray-800 text-sm truncate"><%= card.title %></span>
+              <span class="font-medium text-ink-700 text-sm truncate"><%= card.title %></span>
             </div>
 
             <%# Context — which list it came from + when archived %>
-            <div class="text-xs text-gray-500 flex items-center gap-2">
+            <div class="text-xs text-ink-500 flex items-center gap-2">
               <span>From list <strong><%= card.list.name %></strong></span>
               <span>·</span>
               <span>Archived <%= time_ago_in_words(card.archived_at) %> ago</span>
@@ -61,7 +61,7 @@
             <%= button_to unarchive_card_path(card),
                 method: :patch,
                 form: { class: "m-0" },
-                class: "text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded transition-colors flex items-center gap-1" do %>
+                class: "text-sm bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded transition-colors flex items-center gap-1" do %>
               <i class="fa-solid fa-rotate-left text-xs"></i>
               Restore
             <% end %>
@@ -69,7 +69,7 @@
             <%= button_to card_path(card),
                 method: :delete,
                 form: { class: "m-0", data: { turbo_confirm: "Permanently delete this card? This cannot be undone." } },
-                class: "text-sm bg-gray-200 hover:bg-red-100 hover:text-red-700 text-gray-700 px-3 py-1.5 rounded transition-colors flex items-center gap-1" do %>
+                class: "text-sm bg-surface-200 hover:bg-danger-50 hover:text-danger-600 text-ink-700 px-3 py-1.5 rounded transition-colors flex items-center gap-1" do %>
               <i class="fa-solid fa-trash text-xs"></i>
               Delete
             <% end %>

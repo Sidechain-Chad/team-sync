@@ -7,7 +7,7 @@
 <%# Reset the trigger so it's the empty link again, ready for the next card %>
 <%= turbo_stream.replace "list_#{@list.id}_new_card" do %>
   <%= link_to new_list_card_path(@list),
-      class: "flex items-center gap-2 w-full p-2 text-gray-600 hover:bg-gray-200 rounded text-sm font-medium transition-colors" do %>
+      class: "flex items-center gap-2 w-full p-2 text-ink-500 hover:bg-surface-200 rounded text-sm font-medium transition-colors" do %>
     <i class="fa-solid fa-plus text-xs"></i>
     <span>Add a card</span>
   <% end %>

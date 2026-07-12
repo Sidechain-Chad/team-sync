@@ -63,14 +63,14 @@ export default class extends Controller {
       const name = f.text || f.place_name
       const addr = f.place_name
       return `
-        <li class="cursor-pointer hover:bg-blue-50 px-2 py-2 rounded"
+        <li class="cursor-pointer hover:bg-brand-100 px-2 py-2 rounded"
             data-action="click->location-search#pick"
             data-lat="${lat}"
             data-lng="${lng}"
             data-name="${this.escape(name)}"
             data-address="${this.escape(addr)}">
-          <div class="font-medium text-gray-800 text-sm">${this.escape(name)}</div>
-          <div class="text-xs text-gray-500">${this.escape(addr)}</div>
+          <div class="font-medium text-ink-700 text-sm">${this.escape(name)}</div>
+          <div class="text-xs text-ink-500">${this.escape(addr)}</div>
         </li>
       `
     }).join("")

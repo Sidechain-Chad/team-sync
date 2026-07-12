@@ -1,6 +1,6 @@
 <%= turbo_frame_tag card, data: { id: card.id } do %>
   <%# Wrapper: relative + group for hover interactions. %>
-  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-gray-300 transition-all duration-150 ease-out cursor-grab overflow-hidden">
+  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-line transition-all duration-150 ease-out cursor-grab overflow-hidden">
 
     <%# ============ TOP-RIGHT: contextual quick actions ============
         Dark translucent badges read cleanly over both cover images and white
@@ -16,7 +16,7 @@
               class: "m-0",
               data: { turbo_confirm: "Archive this card? You can restore it from the archive view." }
             },
-            class: "h-7 w-7 rounded-md bg-black/55 hover:bg-black/75 backdrop-blur-sm text-white flex items-center justify-center shadow-md ring-1 ring-white/10 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+            class: "h-7 w-7 rounded-md bg-ink-900/55 hover:bg-ink-900/75 backdrop-blur-sm text-white flex items-center justify-center shadow-md ring-1 ring-white/10 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
             title: "Archive card",
             aria: { label: "Archive card" } do %>
           <i class="fa-solid fa-box-archive text-[11px]" aria-hidden="true"></i>
@@ -25,7 +25,7 @@
 
       <%= link_to card_path(card),
           data: { turbo_frame: "modal" },
-          class: "h-7 w-7 rounded-md bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+          class: "h-7 w-7 rounded-md bg-ink-900/40 hover:bg-ink-900/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
           title: "Edit card",
           "aria-label": "Edit card" do %>
         <i class="fa-solid fa-pencil text-[11px]" aria-hidden="true"></i>
@@ -36,7 +36,7 @@
     <% if (cover_url = card_cover_url(card)) %>
       <%= link_to card_path(card),
           data: { turbo_frame: "modal" },
-          class: "block bg-gray-100" do %>
+          class: "block bg-surface-200" do %>
         <%= image_tag cover_url, class: "w-full h-[100px] object-cover block", loading: "lazy" %>
       <% end %>
     <% end %>
@@ -67,7 +67,7 @@
           <%= button_to toggle_complete_card_path(card),
               method: :patch,
               form: { class: "m-0 shrink-0 mr-1.5 mt-px" },
-              class: "h-5 w-5 rounded-full bg-green-500 hover:bg-green-600 border-2 border-green-500 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+              class: "h-5 w-5 rounded-full bg-success-600/90 hover:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
               title: "Mark incomplete",
               aria: { label: "Mark incomplete" } do %>
             <i class="fa-solid fa-check text-[10px] text-white" aria-hidden="true"></i>
@@ -82,10 +82,10 @@
             <%= button_to toggle_complete_card_path(card),
                 method: :patch,
                 form: { class: "m-0 mt-px" },
-                class: "h-5 w-5 rounded-full bg-white border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center transition-colors cursor-pointer group/btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+                class: "h-5 w-5 rounded-full bg-white border-2 border-line hover:border-success-600 hover:bg-success-100 flex items-center justify-center transition-colors cursor-pointer group/btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
                 title: "Mark complete",
                 aria: { label: "Mark complete" } do %>
-              <i class="fa-solid fa-check text-[10px] text-transparent group-hover/btn:text-green-500" aria-hidden="true"></i>
+              <i class="fa-solid fa-check text-[10px] text-transparent group-hover/btn:text-success-600" aria-hidden="true"></i>
             <% end %>
           </div>
         <% end %>
@@ -94,7 +94,7 @@
         <%= link_to card_path(card),
             data: { turbo_frame: "modal" },
             class: "flex-1 no-underline text-inherit min-w-0" do %>
-          <h4 class="text-sm font-medium text-gray-800 leading-tight"><%= card.title %></h4>
+          <h4 class="text-sm font-medium text-ink-700 leading-tight"><%= card.title %></h4>
         <% end %>
       </div>
 
@@ -104,7 +104,7 @@
           class: "block no-underline text-inherit" do %>
 
         <% if card.description.present? %>
-          <p class="text-xs text-gray-500 mt-1 line-clamp-2">
+          <p class="text-xs text-ink-500 mt-1 line-clamp-2">
             <%= strip_tags(card.description).truncate(100) %>
           </p>
         <% end %>
@@ -124,9 +124,9 @@
           has_members = card.members.any?
         %>
         <% if has_status || has_members %>
-          <div class="mt-3 flex justify-between items-center border-t border-gray-100 pt-2">
+          <div class="mt-3 flex justify-between items-center border-t border-line pt-2">
 
-            <div class="flex items-center gap-3 text-xs text-gray-500">
+            <div class="flex items-center gap-3 text-xs text-ink-500">
               <% if card.description.present? %>
                 <i class="fa-solid fa-align-left" title="Has description"></i>
               <% end %>
@@ -145,7 +145,7 @@
                    title="<%= card.location_name %>"></i>
               <% end %>
               <% if items_total.positive? %>
-                <span class="flex items-center gap-1 <%= 'text-green-700 bg-green-50 px-1.5 py-0.5 rounded' if items_done == items_total %>"
+                <span class="flex items-center gap-1 <%= 'text-success-600 bg-success-100 px-1.5 py-0.5 rounded' if items_done == items_total %>"
                       title="Checklist progress">
                   <i class="fa-solid fa-square-check"></i><%= items_done %>/<%= items_total %>
                 </span>
@@ -160,7 +160,7 @@
                   </div>
                 <% end %>
                 <% if card.members.size > 3 %>
-                  <div class="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[10px] font-bold border border-gray-200" title="<%= card.members.size %> members">
+                  <div class="h-6 w-6 rounded-full bg-surface-200 flex items-center justify-center text-ink-500 text-[10px] font-bold border border-line" title="<%= card.members.size %> members">
                     +<%= card.members.size - 3 %>
                   </div>
                 <% end %>

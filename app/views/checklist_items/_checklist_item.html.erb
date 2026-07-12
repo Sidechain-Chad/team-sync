@@ -6,16 +6,16 @@
         class: "flex items-center gap-3 w-full" do |f| %>
       <%= f.check_box :completed,
           onchange: "this.form.requestSubmit()",
-          class: "h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500",
+          class: "h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-700",
           aria: { label: "Mark \"#{checklist_item.content}\" as #{checklist_item.completed? ? 'incomplete' : 'complete'}" } %>
-      <span class="text-sm <%= checklist_item.completed? ? 'line-through text-gray-400' : 'text-gray-700' %> flex-1">
+      <span class="text-sm <%= checklist_item.completed? ? 'line-through text-ink-300' : 'text-ink-700' %> flex-1">
         <%= checklist_item.content %>
       </span>
     <% end %>
     <%= button_to card_checklist_checklist_item_path(checklist_item.checklist.card, checklist_item.checklist, checklist_item),
         method: :delete,
         form: { class: "m-0", data: { turbo_frame: dom_id(checklist_item) } },
-        class: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-gray-400 hover:text-red-600 transition-opacity bg-transparent border-0 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+        class: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-ink-300 hover:text-danger-600 transition-opacity bg-transparent border-0 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
         title: "Delete item",
         aria: { label: "Delete item" } do %>
       <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>

@@ -1,31 +1,31 @@
 <div class="max-w-md mx-auto py-10 px-4">
-  <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+  <div class="bg-white p-6 rounded-lg shadow-sm border border-line">
 
     <div class="flex justify-between items-center mb-6">
-      <h2 class="text-xl font-bold text-gray-800">Create New Board</h2>
-      <%= link_to "Cancel", root_path, class: "text-sm text-gray-500 hover:text-gray-700" %>
+      <h2 class="text-xl font-bold text-ink-700">Create New Board</h2>
+      <%= link_to "Cancel", root_path, class: "text-sm text-ink-500 hover:text-ink-700" %>
     </div>
 
     <%= form_with(model: @board, class: "space-y-4") do |f| %>
 
       <div>
-        <%= f.label :name, class: "block text-sm font-medium text-gray-700 mb-1" %>
-        <%= f.text_field :name, class: "w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500", autofocus: true, placeholder: "e.g. Marketing Launch" %>
+        <%= f.label :name, class: "block text-sm font-medium text-ink-700 mb-1" %>
+        <%= f.text_field :name, class: "w-full border-line rounded-md shadow-sm focus:border-brand-700 focus:ring-brand-700", autofocus: true, placeholder: "e.g. Marketing Launch" %>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Board Logo (Optional)</label>
-        <%= f.file_field :avatar, class: "block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" %>
+        <label class="block text-sm font-medium text-ink-700 mb-1">Board Logo (Optional)</label>
+        <%= f.file_field :avatar, class: "block w-full text-sm text-ink-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-100 file:text-brand-700 hover:file:bg-brand-100" %>
       </div>
 
       <div class="pt-2">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Invite Members (Optional)</label>
-        <%= text_field_tag :emails, nil, placeholder: "bob@example.com, alice@example.com", class: "w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm" %>
-        <p class="text-xs text-gray-500 mt-1">Separate multiple emails with commas.</p>
+        <label class="block text-sm font-medium text-ink-700 mb-1">Invite Members (Optional)</label>
+        <%= text_field_tag :emails, nil, placeholder: "bob@example.com, alice@example.com", class: "w-full border-line rounded-md shadow-sm focus:border-brand-700 focus:ring-brand-700 text-sm" %>
+        <p class="text-xs text-ink-500 mt-1">Separate multiple emails with commas.</p>
       </div>
 
-      <div class="pt-4 border-t border-gray-100 flex justify-end mt-6">
-        <%= f.submit "Create Board", class: "bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 cursor-pointer" %>
+      <div class="pt-4 border-t border-line flex justify-end mt-6">
+        <%= f.submit "Create Board", class: "bg-brand-600 text-white px-4 py-2 rounded-md hover:bg-brand-700 cursor-pointer" %>
       </div>
 
     <% end %>

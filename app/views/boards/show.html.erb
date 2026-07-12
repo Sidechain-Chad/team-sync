@@ -1,6 +1,11 @@
 <%= turbo_stream_from @board %>
 
-<div class="h-[calc(100vh-3.5rem)] bg-blue-600 overflow-x-auto flex flex-col">
+<%# Canvas wallpaper — same deterministic warm gradient as this board's
+    tile cover, so the board recognizably matches its index-page tile.
+    Persimmon is rationed to actions elsewhere; this is background
+    wallpaper behind opaque white list panels, same visual role the
+    original flat blue-600 canvas played. %>
+<div class="h-[calc(100vh-3.5rem)] bg-gradient-to-br <%= board_cover_gradient_classes(@board) %> overflow-x-auto flex flex-col">
 
   <%# ===== BOARD HEADER ===== Trello-style title + action cluster.
       Title on the left (with dropdown), actions and members on the right. %>
@@ -14,37 +19,37 @@
       <button type="button"
               data-action="click->dropdown#toggle"
               class="group flex items-center gap-2 text-white font-bold text-lg px-2 py-1 rounded-md hover:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1">
-        <span><%= @board.name %></span>
+        <span class="font-display"><%= @board.name %></span>
         <i class="fa-solid fa-chevron-down text-[10px] opacity-80 group-hover:opacity-100" aria-hidden="true"></i>
       </button>
 
       <%# Menu — hidden until toggle. Pinned to the button's lower-left edge. %>
       <div data-dropdown-target="menu"
-           class="hidden absolute left-0 top-full mt-2 w-72 bg-white rounded-lg shadow-2xl ring-1 ring-black/5 z-40 overflow-hidden">
+           class="hidden absolute left-0 top-full mt-2 w-72 bg-white rounded-lg shadow-2xl ring-1 ring-ink-900/5 z-40 overflow-hidden">
 
-        <div class="px-4 py-3 border-b border-gray-200">
-          <h3 class="text-sm font-semibold text-gray-800">Board menu</h3>
+        <div class="px-4 py-3 border-b border-line">
+          <h3 class="text-sm font-semibold text-ink-700">Board menu</h3>
         </div>
 
         <div class="py-1">
           <%# Edit board name + cover %>
           <%= link_to edit_board_path(@board),
-              class: "flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors" do %>
-            <i class="fa-solid fa-pen-to-square text-gray-500 w-4 text-center" aria-hidden="true"></i>
+              class: "flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors" do %>
+            <i class="fa-solid fa-pen-to-square text-ink-500 w-4 text-center" aria-hidden="true"></i>
             <span>Edit board details</span>
           <% end %>
 
           <%# Members — same edit page, just scrolled to the members section %>
           <%= link_to edit_board_path(@board, anchor: "members"),
-              class: "flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors" do %>
-            <i class="fa-solid fa-user-group text-gray-500 w-4 text-center" aria-hidden="true"></i>
+              class: "flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors" do %>
+            <i class="fa-solid fa-user-group text-ink-500 w-4 text-center" aria-hidden="true"></i>
             <span>Members</span>
           <% end %>
 
           <%# Archived items — re-uses the existing archive page %>
           <%= link_to archive_board_path(@board),
-              class: "flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors" do %>
-            <i class="fa-solid fa-box-archive text-gray-500 w-4 text-center" aria-hidden="true"></i>
+              class: "flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors" do %>
+            <i class="fa-solid fa-box-archive text-ink-500 w-4 text-center" aria-hidden="true"></i>
             <span>Archived items</span>
           <% end %>
         </div>
@@ -52,10 +57,10 @@
         <%# Destructive action separated by a divider, styled red.
             Owner-only — matches boards#destroy's enforcement. %>
         <% if @board.owner?(current_user) %>
-          <div class="py-1 border-t border-gray-200">
+          <div class="py-1 border-t border-line">
             <%= link_to board_path(@board),
                 data: { turbo_method: :delete, turbo_confirm: "Delete this entire board and all cards? This cannot be undone." },
-                class: "flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors" do %>
+                class: "flex items-center gap-3 px-4 py-2.5 text-sm text-danger-600 hover:bg-danger-50 transition-colors" do %>
               <i class="fa-solid fa-trash w-4 text-center" aria-hidden="true"></i>
               <span>Delete board</span>
             <% end %>

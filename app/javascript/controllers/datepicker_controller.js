@@ -14,7 +14,7 @@ export default class extends Controller {
       dateFormat: "Y-m-d\\TH:i",
       altInput: true,
       altFormat: "M j, Y at h:i K",
-      altInputClass: "w-full text-sm border border-gray-300 rounded px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer",
+      altInputClass: "w-full text-sm border border-line rounded px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-brand-700 cursor-pointer",
       defaultHour: 9,
       defaultMinute: 0,
       minuteIncrement: 15,
