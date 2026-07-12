@@ -117,13 +117,9 @@ class LabelsControllerTest < ActionDispatch::IntegrationTest
     list = board.lists.create!(name: "List", position: 1)
     label = board.labels.create!(color: "red")
 
-    # Keep the labeled subset fixed at 2 regardless of card_count — Label
-    # has_many :card_labels, dependent: :destroy issues one DELETE per join
-    # row, which is a separate pre-existing N+1 unrelated to the broadcast
-    # this test targets. Scaling it here would conflate the two.
     card_count.times do |i|
       card = list.cards.create!(title: "Card #{i}")
-      card.labels << label if i < 2
+      card.labels << label
     end
 
     result = count_queries do

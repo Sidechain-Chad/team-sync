@@ -290,9 +290,14 @@ class CardsController < ApplicationController
   # position sequence isn't filtered by archived state, matching how drag
   # (cards#move) already treats position as a raw column value.
   def resolved_move_position(position_param, target_list)
-    case position_param
-    when "top" then 1
-    else target_list.cards.count + 1
+    return 1 if position_param == "top"
+
+    # If the card is already in the target list, it's part of this count —
+    # the true bottom is the count itself, not count + 1.
+    if @card.list_id == target_list.id
+      target_list.cards.count
+    else
+      target_list.cards.count + 1
     end
   end
 

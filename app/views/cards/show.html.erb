@@ -16,62 +16,15 @@
          data-modal-target="dialog">
 
       <%# =========================================================== %>
-      <%# HEADER — current list name (click to open Move Card popover) %>
+      <%# HEADER — current list name for context (moving a card now   %>
+      <%# happens via the "Move to list" control in the Actions       %>
+      <%# section, not from here — see cards/show.html.erb Actions).  %>
       <%# =========================================================== %>
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-300 bg-[#f4f5f7] rounded-t-lg shrink-0 z-20 relative">
 
-        <%# MOVE CARD POPOVER %>
-        <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
-
-          <%# Trigger: shows the current list name, clicking opens the Move popover %>
-          <button type="button" data-action="click->dropdown#toggle"
-                  class="flex items-center gap-2 bg-[#e9ebee] hover:bg-gray-300 px-3 py-1.5 rounded text-sm font-semibold text-gray-700 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
-            <span><%= @card.list.name %></span>
-            <i class="fa-solid fa-chevron-down text-xs" aria-hidden="true"></i>
-          </button>
-
-          <%# Popover body %>
-          <div data-dropdown-target="menu"
-               class="hidden absolute top-full left-0 mt-2 w-72 bg-white border border-gray-300 rounded-lg shadow-xl z-[1001] flex flex-col text-left">
-
-            <div class="p-2 border-b border-gray-200 flex items-center justify-center relative">
-              <span class="text-xs font-bold text-gray-500">Move card</span>
-              <button type="button" data-action="click->dropdown#toggle"
-                      class="absolute right-2 top-2 text-gray-400 hover:text-gray-600 p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded"
-                      aria-label="Close move card popover">
-                <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
-              </button>
-            </div>
-
-            <div class="p-3 bg-gray-50 rounded-b-lg">
-              <div class="text-xs font-bold text-gray-500 mb-2 uppercase">Select destination</div>
-
-              <%= form_with model: @card, method: :patch, class: "space-y-3" do |f| %>
-
-                <div>
-                  <label class="block text-xs font-bold text-gray-700 mb-1">Board</label>
-                  <div class="w-full p-2 bg-gray-200 border border-gray-300 rounded text-sm text-gray-600 cursor-not-allowed truncate">
-                    <%= @card.list.board.name %>
-                  </div>
-                </div>
-
-                <div>
-                  <label class="block text-xs font-bold text-gray-700 mb-1">List</label>
-                  <%= f.collection_select :list_id,
-                      @card.list.board.lists.order(:position),
-                      :id,
-                      :name,
-                      { selected: @card.list_id },
-                      { class: "w-full p-2 bg-gray-50 focus:bg-white border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" } %>
-                </div>
-
-                <%= f.submit "Move",
-                    class: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer mt-2 shadow-sm transition-colors" %>
-
-              <% end %>
-            </div>
-          </div>
-        </div>
+        <span class="flex items-center gap-2 bg-[#e9ebee] px-3 py-1.5 rounded text-sm font-semibold text-gray-700">
+          in <%= @card.list.name %>
+        </span>
 
         <%# CLOSE BUTTON %>
         <div class="flex items-center gap-3">

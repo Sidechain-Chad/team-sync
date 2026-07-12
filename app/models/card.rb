@@ -18,7 +18,9 @@ class Card < ApplicationRecord
   end
 
   # NEW: labels
-  has_many :card_labels, dependent: :destroy
+  # CardLabel is a bare join row (no callbacks, no dependents of its own),
+  # so a bulk DELETE is safe and avoids one query per row on card destroy.
+  has_many :card_labels, dependent: :delete_all
   has_many :labels, through: :card_labels
 
   # 1. Scope: This ensures that if I move a card to position 1,

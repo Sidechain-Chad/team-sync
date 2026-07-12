@@ -241,6 +241,24 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, existing_in_target.reload.position
   end
 
+  test "member moves a card to bottom within its own current list via the move-to-list menu" do
+    list = @board_one.lists.create!(name: "Same List Position Test")
+    c1 = list.cards.create!(title: "C1")
+    c2 = list.cards.create!(title: "C2")
+    c3 = list.cards.create!(title: "C3")
+
+    # c1 is already in `list` — moving it to "bottom" of the SAME list it's
+    # already in must land it at the true bottom (position 3), not one past
+    # it (4), which is what target_list.cards.count + 1 would naively give
+    # since that count still includes c1 itself.
+    patch card_url(c1), params: { card: { list_id: list.id, position: "bottom" } }
+
+    assert_response :redirect
+    assert_equal 3, c1.reload.position
+    assert_equal 1, c2.reload.position
+    assert_equal 2, c3.reload.position
+  end
+
   test "move-to-list select only offers lists from the card's own board" do
     foreign_board = @user.boards.create!(name: "Another Accessible Board")
     foreign_board.lists.create!(name: "Should Not Appear List")
@@ -250,6 +268,18 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_no_match(/Should Not Appear List/, response.body)
     assert_match(/#{Regexp.escape(@list_three.name)}/, response.body)
+  end
+
+  # The card modal used to also have an older, list-only "Move card" popover
+  # in the header, duplicating the Actions-section move form above. It's
+  # been removed — the header is now plain context text, not a control.
+  test "the modal has exactly one list_id select, and the header list name is plain text, not a control" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "select[name='card[list_id]']", count: 1
+    assert_select "button", text: /#{Regexp.escape(@list_one.name)}/, count: 0
+    assert_match(/#{Regexp.escape(@list_one.name)}/, response.body)
   end
 
   # --- #move (drag) now logs a "moved" activity too, matching #update ---
