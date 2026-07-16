@@ -235,6 +235,23 @@ class CardsController < ApplicationController
     )
 
     respond_to do |format|
+      format.turbo_stream do
+        if params[:from_modal].present?
+          # The board-tile toggle relies on the broadcast above (every
+          # connected client, including this one, is subscribed via
+          # turbo_stream_from @board) — nothing else to render. But this
+          # same endpoint is also the modal's title-circle toggle, which
+          # isn't on the board page at all; for that one, explicitly
+          # refresh the modal frame so the completed state flips in
+          # place instead of the request falling through to the html
+          # redirect below (which would just empty the modal, since the
+          # board page's turbo-frame "modal" placeholder is empty).
+          reload_card_for_modal!
+          render turbo_stream: turbo_stream.replace("modal", template: "cards/show")
+        else
+          head :no_content
+        end
+      end
       format.html { redirect_to board_path(@card.list.board) }
     end
   end

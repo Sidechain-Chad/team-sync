@@ -303,6 +303,78 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_select "button[aria-label=?]", "Move card, currently in #{@list_one.name}", count: 1
   end
 
+  # --- Phase A: Trello-anatomy modal restructure ---
+  # Relocation, not rebuild: the assertions below check WHERE things live.
+  # Every behavior test above/below (checklist create, attachment upload,
+  # location clear, move popover) exercises the same endpoints unchanged.
+
+  test "modal title row has the complete-toggle button beside the title" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_not @card.completed?
+    assert_select "button[aria-label=?]", "Mark complete", count: 1
+    assert_select "button[aria-label=?]", "Mark incomplete", count: 0
+  end
+
+  test "modal title row shows the incomplete-toggle affordance when the card is already completed" do
+    @card.update!(completed: true)
+
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "button[aria-label=?]", "Mark incomplete", count: 1
+    assert_select "button[aria-label=?]", "Mark complete", count: 0
+  end
+
+  test "modal has exactly one archive control, inside the header's card-actions menu" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "#card_actions_menu form[action=?]", archive_card_path(@card), count: 1
+    assert_select "form[action=?]", archive_card_path(@card), count: 1
+    assert_select "button[aria-label=?]", "Card actions", count: 1
+  end
+
+  test "modal quick-add row (Checklist, Location, Attachment) lives in the left column" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "#quick_add_row button", count: 3
+    assert_select "#quick_add_row i.fa-square-check", count: 1
+    assert_select "#quick_add_row i.fa-location-dot", count: 1
+    assert_select "#quick_add_row i.fa-paperclip", count: 1
+  end
+
+  test "right column is the comments-and-activity conversation pane only" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "#conversation_column h3", text: "Comments and activity", count: 1
+    assert_select "#conversation_column #quick_add_row", count: 0
+    assert_select "#conversation_column form[action=?]", archive_card_path(@card), count: 0
+  end
+
+  test "toggling complete from the modal updates card.completed and refreshes the modal" do
+    assert_not @card.completed?
+
+    patch toggle_complete_card_url(@card), params: { from_modal: true }, as: :turbo_stream
+
+    assert_response :success
+    assert_match(/turbo-stream action="replace" target="modal"/, response.body)
+    assert_match "Mark incomplete", response.body
+    assert @card.reload.completed?
+  end
+
+  test "toggling complete from the board tile (no from_modal) does not try to render the modal" do
+    assert_not @card.completed?
+
+    patch toggle_complete_card_url(@card), as: :turbo_stream
+
+    assert_response :no_content
+    assert @card.reload.completed?
+  end
+
   test "move popover: integer position lands the card at that exact slot" do
     existing_in_target = @list_three.cards.create!(title: "Already in Three")
     existing_in_target2 = @list_three.cards.create!(title: "Already in Three 2")
