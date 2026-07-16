@@ -1,83 +1,87 @@
-<div class="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
+<div class="canvas-golden min-h-[calc(100vh-3.5rem)]">
+  <div class="w-full max-w-4xl mx-auto p-6">
 
-  <%# Header %>
-  <div class="flex items-center justify-between mb-6 pb-4 border-b border-line">
-    <div>
-      <%= link_to board_path(@board),
-          class: "text-sm text-ink-500 hover:text-brand-600 flex items-center gap-1 mb-2" do %>
-        <i class="fa-solid fa-arrow-left text-xs"></i>
-        Back to <%= @board.name %>
-      <% end %>
-      <h1 class="font-display text-2xl font-bold text-ink-700 flex items-center gap-2">
-        <i class="fa-solid fa-box-archive text-ink-500"></i>
-        Archived Items
-      </h1>
-    </div>
-  </div>
-
-  <%# Empty state %>
-  <% if @archived_cards.empty? %>
-    <div class="text-center py-12">
-      <i class="fa-solid fa-box-archive text-5xl text-ink-300 mb-4"></i>
-      <p class="text-ink-500">Nothing has been archived yet.</p>
-      <p class="text-sm text-ink-300 mt-1">Archived cards will appear here.</p>
-    </div>
-  <% else %>
-
-    <div class="text-xs text-ink-500 uppercase font-bold mb-3">
-      Cards (<%= @archived_cards.size %>)
+    <%# Header %>
+    <div class="flex items-center justify-between mb-6 pb-4 border-b border-line">
+      <div>
+        <%= link_to board_path(@board),
+            class: "text-sm text-ink-500 hover:text-brand-600 flex items-center gap-1 mb-2" do %>
+          <i class="fa-solid fa-arrow-left text-xs"></i>
+          Back to <%= @board.name %>
+        <% end %>
+        <h1 class="font-display text-2xl font-bold text-ink-700 flex items-center gap-2">
+          <i class="fa-solid fa-box-archive text-ink-500"></i>
+          Archived Items
+        </h1>
+      </div>
     </div>
 
-    <div class="space-y-2">
-      <% @archived_cards.each do |card| %>
-        <div class="flex items-center gap-3 p-3 bg-surface-50 hover:bg-surface-200 border border-line rounded-md transition-colors">
+    <%# Empty state %>
+    <% if @archived_cards.empty? %>
+      <div class="bg-white rounded-lg shadow-sm border border-line text-center py-12">
+        <i class="fa-solid fa-box-archive text-5xl text-ink-300 mb-4"></i>
+        <p class="text-ink-500">Nothing has been archived yet.</p>
+        <p class="text-sm text-ink-300 mt-1">Archived cards will appear here.</p>
+      </div>
+    <% else %>
 
-          <%# Card preview %>
-          <div class="flex-1 min-w-0">
-            <%# Label pills + title %>
-            <div class="flex flex-wrap items-center gap-2 mb-1">
-              <% card.labels.each do |label| %>
-                <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded <%= label_solid_class(label.color) %>">
-                  <%= label.name.presence || label.color.capitalize %>
-                </span>
-              <% end %>
-              <span class="font-medium text-ink-700 text-sm truncate"><%= card.title %></span>
-            </div>
-
-            <%# Context — which list it came from + when archived %>
-            <div class="text-xs text-ink-500 flex items-center gap-2">
-              <span>From list <strong><%= card.list.name %></strong></span>
-              <span>·</span>
-              <span>Archived <%= time_ago_in_words(card.archived_at) %> ago</span>
-              <% if card.members.any? %>
-                <span>·</span>
-                <span><%= pluralize(card.members.size, "member") %></span>
-              <% end %>
-            </div>
-          </div>
-
-          <%# Actions %>
-          <div class="flex items-center gap-2 shrink-0">
-            <%= button_to unarchive_card_path(card),
-                method: :patch,
-                form: { class: "m-0" },
-                class: "text-sm bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded transition-colors flex items-center gap-1" do %>
-              <i class="fa-solid fa-rotate-left text-xs"></i>
-              Restore
-            <% end %>
-
-            <%= button_to card_path(card),
-                method: :delete,
-                form: { class: "m-0", data: { turbo_confirm: "Permanently delete this card? This cannot be undone." } },
-                class: "text-sm bg-surface-200 hover:bg-danger-50 hover:text-danger-600 text-ink-700 px-3 py-1.5 rounded transition-colors flex items-center gap-1" do %>
-              <i class="fa-solid fa-trash text-xs"></i>
-              Delete
-            <% end %>
-          </div>
-
+      <div class="bg-white rounded-lg shadow-sm border border-line p-4">
+        <div class="text-xs text-ink-500 uppercase font-bold mb-3">
+          Cards (<%= @archived_cards.size %>)
         </div>
-      <% end %>
-    </div>
-  <% end %>
 
+        <div class="space-y-2">
+          <% @archived_cards.each do |card| %>
+            <div class="flex items-center gap-3 p-3 bg-surface-50 hover:bg-surface-200 border border-line rounded-md transition-colors">
+
+              <%# Card preview %>
+              <div class="flex-1 min-w-0">
+                <%# Label pills + title %>
+                <div class="flex flex-wrap items-center gap-2 mb-1">
+                  <% card.labels.each do |label| %>
+                    <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded <%= label_solid_class(label.color) %>">
+                      <%= label.name.presence || label.color.capitalize %>
+                    </span>
+                  <% end %>
+                  <span class="font-medium text-ink-700 text-sm truncate"><%= card.title %></span>
+                </div>
+
+                <%# Context — which list it came from + when archived %>
+                <div class="text-xs text-ink-500 flex items-center gap-2">
+                  <span>From list <strong><%= card.list.name %></strong></span>
+                  <span>·</span>
+                  <span>Archived <%= time_ago_in_words(card.archived_at) %> ago</span>
+                  <% if card.members.any? %>
+                    <span>·</span>
+                    <span><%= pluralize(card.members.size, "member") %></span>
+                  <% end %>
+                </div>
+              </div>
+
+              <%# Actions %>
+              <div class="flex items-center gap-2 shrink-0">
+                <%= button_to unarchive_card_path(card),
+                    method: :patch,
+                    form: { class: "m-0" },
+                    class: "text-sm bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded transition-colors flex items-center gap-1" do %>
+                  <i class="fa-solid fa-rotate-left text-xs"></i>
+                  Restore
+                <% end %>
+
+                <%= button_to card_path(card),
+                    method: :delete,
+                    form: { class: "m-0", data: { turbo_confirm: "Permanently delete this card? This cannot be undone." } },
+                    class: "text-sm bg-surface-200 hover:bg-danger-50 hover:text-danger-600 text-ink-700 px-3 py-1.5 rounded transition-colors flex items-center gap-1" do %>
+                  <i class="fa-solid fa-trash text-xs"></i>
+                  Delete
+                <% end %>
+              </div>
+
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+  </div>
 </div>

@@ -101,6 +101,23 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_match "/rails/active_storage/", response.body
   end
 
+  test "switcher renders each board with its own cover gradient, not one shared hardcoded gradient" do
+    other_board = @user.boards.create!(name: "Other Board")
+
+    helper = Object.new.extend(BoardsHelper)
+    gradient1 = helper.board_cover_gradient_classes(@board)
+    gradient2 = helper.board_cover_gradient_classes(other_board)
+
+    assert_not_equal gradient1, gradient2,
+      "fixture boards must land in different gradient buckets for this test to prove anything"
+
+    get switch_boards_url
+
+    assert_response :success
+    assert_match gradient1, response.body
+    assert_match gradient2, response.body
+  end
+
   test "board show query count stays flat as card count grows" do
     # Each size gets its own user + fresh sign-in — reusing one Warden
     # session across two `get`s in a row adds an extra session-revalidation

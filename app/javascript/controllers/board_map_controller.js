@@ -68,7 +68,7 @@ export default class extends Controller {
           </div>
         `)
 
-        new mapboxgl.Marker({ color: "#C94A1C" }) // brand-600 — Mapbox needs a literal color, can't read the CSS token
+        new mapboxgl.Marker({ color: "#BE451A" }) // brand-600 — Mapbox needs a literal color, can't read the CSS token; must be kept in sync by hand with --color-brand-600
           .setLngLat([c.lng, c.lat])
           .setPopup(popup)
           .addTo(this.map)

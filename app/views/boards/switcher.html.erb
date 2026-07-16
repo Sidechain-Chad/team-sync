@@ -30,7 +30,9 @@
                 <%= link_to board_path(board),
                     class: "block group rounded-md overflow-hidden border border-line hover:border-ink-300 hover:shadow-md transition",
                     data: { turbo: false } do %>
-                  <div class="h-24 bg-gradient-to-br from-brand-500 to-brand-400 group-hover:opacity-90 transition"></div>
+                  <div class="group-hover:opacity-90 transition">
+                    <%= render "boards/cover", board: board, height_class: "h-24" %>
+                  </div>
                   <div class="p-2.5">
                     <p class="text-sm font-medium text-ink-700 truncate"><%= board.name %></p>
                   </div>
@@ -48,7 +50,9 @@
                 <%= link_to board_path(board),
                     class: "block group rounded-md overflow-hidden border border-line hover:border-ink-300 hover:shadow-md transition",
                     data: { turbo: false } do %>
-                  <div class="h-24 bg-gradient-to-br from-purple-500 to-purple-700 group-hover:opacity-90 transition"></div>
+                  <div class="group-hover:opacity-90 transition">
+                    <%= render "boards/cover", board: board, height_class: "h-24" %>
+                  </div>
                   <div class="p-2.5">
                     <p class="text-sm font-medium text-ink-700 truncate"><%= board.name %></p>
                   </div>

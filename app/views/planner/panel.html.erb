@@ -48,7 +48,7 @@
               <% cards.each do |card| %>
                 <%= link_to card_path(card),
                     data: { turbo_frame: "modal" },
-                    class: "block p-2 rounded border border-line hover:border-ink-300 hover:bg-surface-50 transition group" do %>
+                    class: "block p-2 rounded bg-white border border-line hover:border-ink-300 hover:bg-surface-50 transition group" do %>
                   <div class="flex items-start gap-2">
                     <%# Color stripe from first label (or gray if none) %>
                     <% color = card.labels.first&.color %>

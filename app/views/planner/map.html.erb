@@ -1,4 +1,5 @@
-<div class="max-w-7xl mx-auto p-6 flex flex-col h-[calc(100vh-3.5rem)]">
+<div class="canvas-golden min-h-[calc(100vh-3.5rem)]">
+  <div class="max-w-7xl mx-auto p-6 flex flex-col h-[calc(100vh-3.5rem)]">
 
   <%# ===== HEADER — mirrors planner/index.html.erb ===== %>
   <div class="flex items-center justify-between mb-6 shrink-0">
@@ -58,27 +59,34 @@
   </div>
 
   <%# ===== MAP ===== %>
-  <div class="flex-1 relative bg-white rounded-lg shadow-sm border border-line overflow-hidden"
-       data-controller="board-map">
+  <% if @located_cards.empty? %>
+    <div class="flex-1">
+      <%= render "shared/map_empty_state" %>
+    </div>
+  <% else %>
+    <div class="flex-1 relative bg-white rounded-lg shadow-sm border border-line overflow-hidden"
+         data-controller="board-map">
 
-    <div data-board-map-target="container" class="absolute inset-0"></div>
+      <div data-board-map-target="container" class="absolute inset-0"></div>
 
-    <%# JSON payload — meta is "Board Name · Due Date" so popups make sense
-        across boards. Same controller as the per-board map; the controller
-        treats `meta` as a free-form pre-title line. %>
-    <script type="application/json" data-board-map-target="data">
-      <%= raw @located_cards.map { |c|
-        {
-          id:      c.id,
-          title:   c.title,
-          meta:    "#{c.list.board.name} · #{c.due_date.strftime('%a, %b %-d')}",
-          address: c.location_address,
-          lat:     c.latitude.to_f,
-          lng:     c.longitude.to_f,
-          url:     card_path(c)
-        }
-      }.to_json %>
-    </script>
+      <%# JSON payload — meta is "Board Name · Due Date" so popups make sense
+          across boards. Same controller as the per-board map; the controller
+          treats `meta` as a free-form pre-title line. %>
+      <script type="application/json" data-board-map-target="data">
+        <%= raw @located_cards.map { |c|
+          {
+            id:      c.id,
+            title:   c.title,
+            meta:    "#{c.list.board.name} · #{c.due_date.strftime('%a, %b %-d')}",
+            address: c.location_address,
+            lat:     c.latitude.to_f,
+            lng:     c.longitude.to_f,
+            url:     card_path(c)
+          }
+        }.to_json %>
+      </script>
+    </div>
+  <% end %>
+
   </div>
-
 </div>

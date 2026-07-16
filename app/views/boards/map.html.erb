@@ -23,10 +23,8 @@
   <%# Body %>
   <div class="flex-1 relative overflow-hidden bg-surface-200">
     <% if @located_cards.empty? %>
-      <div class="absolute inset-0 flex flex-col items-center justify-center text-ink-500 gap-3 p-8">
-        <i class="fa-solid fa-map-location-dot text-5xl text-ink-300"></i>
-        <p class="text-sm font-medium">No cards on this board have a location yet.</p>
-        <p class="text-xs text-ink-300">Open any card and click <b>Location</b> to add one.</p>
+      <div class="absolute inset-0 p-6">
+        <%= render "shared/map_empty_state" %>
       </div>
     <% else %>
       <div class="absolute inset-0" data-controller="board-map">

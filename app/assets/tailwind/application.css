@@ -60,6 +60,39 @@
 
 body {
   font-family: var(--font-sans);
+  /* Floor so no page can ever show pure white below short content — pages
+     that don't opt into .canvas-golden (or their own wallpaper/backdrop)
+     still land on the warm neutral instead of stark white. */
+  background-color: var(--color-surface-50);
+}
+
+/* Golden Hour ambient canvas — layered gradients (not a flat fill) for
+   the page-level wrapper on "canvas" pages: boards index, planner
+   (calendar + map), and board archive. Kept light — atmosphere behind
+   saturated content, not a color statement of its own. Darkest point is
+   the #F1E6DA bottom stop; ink-500 measures 4.98:1 there (AA floor is
+   4.5:1) — if this stop darkens later, re-check that number first.
+   Excludes the board show page (its own per-board wallpaper gradient,
+   see board_cover_gradient_classes) and the card modal. */
+.canvas-golden {
+  background:
+    radial-gradient(1100px 480px at 72% -8%,
+      rgb(249 144 107 / 0.16), transparent 62%),   /* coral sun glow, top-right under the nav */
+    radial-gradient(800px 420px at 8% 2%,
+      rgb(245 158 11 / 0.08), transparent 55%),    /* faint amber counter-glow, top-left */
+    linear-gradient(180deg, var(--color-surface-50) 0%, #F1E6DA 100%);
+}
+
+/* Mapbox container fix — mapbox-gl.css is linked in the layout <head>
+   AFTER this file, so its own `.mapboxgl-map { position: relative }` rule
+   wins over our `.absolute inset-0` utility at equal specificity by
+   source order. That collapses the map container (board_map_controller.js
+   / planner map) to 0 height — no JS error, tiles fetch fine, the canvas
+   just renders clipped to nothing. Same "vendor CSS loaded after ours"
+   trap as the flatpickr override below; force our fill-parent layout back. */
+.mapboxgl-map {
+  position: absolute !important;
+  inset: 0 !important;
 }
 
 ::selection {
