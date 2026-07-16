@@ -108,6 +108,28 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_nil @card.latitude
   end
 
+  # Quick-remove × button on the card's location row — same param shape as
+  # the blank-location patch above, but exercised against a card that
+  # actually has a location set, so the clearing path (not the no-op guard)
+  # is what's under test.
+  test "quick-remove location button clears all four location fields" do
+    @card.update!(latitude: 40.7128, longitude: -74.0060, location_name: "NYC", location_address: "New York, NY")
+
+    patch card_url(@card), params: { card: {
+      latitude: "", longitude: "", location_name: "", location_address: ""
+    } }, as: :turbo_stream
+
+    assert_response :success
+    assert_match /turbo-stream action="replace" target="modal"/, response.body
+
+    @card.reload
+    assert_nil @card.latitude
+    assert_nil @card.longitude
+    assert @card.location_name.blank?
+    assert @card.location_address.blank?
+    assert_not @card.location?
+  end
+
   # --- #move (drag-and-drop endpoint) ---
   # drag_controller.js PATCHes JSON with position/list_id nested under
   # "card", matching card_params' shape.
@@ -270,16 +292,45 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/#{Regexp.escape(@list_three.name)}/, response.body)
   end
 
-  # The card modal used to also have an older, list-only "Move card" popover
-  # in the header, duplicating the Actions-section move form above. It's
-  # been removed — the header is now plain context text, not a control.
-  test "the modal has exactly one list_id select, and the header list name is plain text, not a control" do
+  # Trello parity pass reverses the earlier cleanup: the sidebar "Move to
+  # list" form is gone, and the header chip is the move control again (now
+  # with a numeric Position select instead of the old top/bottom-only form).
+  test "the modal has exactly one list_id select, and the header list name is a button that opens the move popover" do
     get card_url(@card)
 
     assert_response :success
     assert_select "select[name='card[list_id]']", count: 1
-    assert_select "button", text: /#{Regexp.escape(@list_one.name)}/, count: 0
-    assert_match(/#{Regexp.escape(@list_one.name)}/, response.body)
+    assert_select "button[aria-label=?]", "Move card, currently in #{@list_one.name}", count: 1
+  end
+
+  test "move popover: integer position lands the card at that exact slot" do
+    existing_in_target = @list_three.cards.create!(title: "Already in Three")
+    existing_in_target2 = @list_three.cards.create!(title: "Already in Three 2")
+    existing_in_target3 = @list_three.cards.create!(title: "Already in Three 3")
+
+    patch card_url(@card), params: { card: { list_id: @list_three.id, position: 2 } }
+
+    assert_redirected_to board_url(@list_three.board)
+    @card.reload
+    assert_equal @list_three.id, @card.list_id
+    assert_equal 2, @card.position
+  end
+
+  test "move popover: out-of-range position clamps to the list's bounds" do
+    @list_three.cards.create!(title: "Already in Three")
+
+    patch card_url(@card), params: { card: { list_id: @list_three.id, position: 999 } }
+
+    assert_redirected_to board_url(@list_three.board)
+    @card.reload
+    assert_equal @list_three.id, @card.list_id
+    assert_equal 2, @card.position # bottom: 1 existing card + the moved card
+
+    other_card = @list_three.cards.create!(title: "Bottom filler")
+    patch card_url(other_card), params: { card: { list_id: @list_one.id, position: -5 } }
+
+    assert_redirected_to board_url(@list_one.board)
+    assert_equal 1, other_card.reload.position
   end
 
   # --- #move (drag) now logs a "moved" activity too, matching #update ---

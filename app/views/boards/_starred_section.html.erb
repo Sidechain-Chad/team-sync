@@ -1,0 +1,16 @@
+<%# Stable id so toggle_favorite can always find a replace target, whether
+    the section is currently showing tiles or is empty. %>
+<div id="starred_section">
+  <% if starred_boards.present? %>
+    <div class="mb-10">
+      <h2 class="flex items-center gap-2 text-lg font-semibold text-ink-700 mb-4 border-b border-line pb-2">
+        <i class="fa-solid fa-star text-yellow-400"></i> Starred
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <% starred_boards.each do |board| %>
+          <%= render "board_card", board: board %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

@@ -16,15 +16,62 @@
          data-modal-target="dialog">
 
       <%# =========================================================== %>
-      <%# HEADER — current list name for context (moving a card now   %>
-      <%# happens via the "Move to list" control in the Actions       %>
-      <%# section, not from here — see cards/show.html.erb Actions).  %>
+      <%# HEADER — the list chip is the Move card control (Trello     %>
+      <%# position): click it to open a popover with List + Position  %>
+      <%# selects. Submits to the same cards#update path the sidebar  %>
+      <%# used to (that form has been removed — this is the only move %>
+      <%# UI now).                                                    %>
       <%# =========================================================== %>
       <div class="flex items-center justify-between px-6 py-4 border-b border-line bg-surface-100 rounded-t-lg shrink-0 z-20 relative">
 
-        <span class="flex items-center gap-2 bg-surface-200 px-3 py-1.5 rounded text-sm font-semibold text-ink-700">
-          in <%= @card.list.name %>
-        </span>
+        <%
+          list_card_counts = @card.list.board.lists.each_with_object({}) do |list, counts|
+            counts[list.id] = list.active_cards.count
+          end
+        %>
+        <div class="relative"
+             data-controller="dropdown move-picker"
+             data-action="click@window->dropdown#hide"
+             data-move-picker-counts-value="<%= list_card_counts.to_json %>"
+             data-move-picker-current-list-id-value="<%= @card.list_id %>"
+             data-move-picker-current-position-value="<%= @card.position %>">
+
+          <button type="button" data-action="click->dropdown#toggle"
+                  aria-haspopup="true"
+                  aria-label="Move card, currently in <%= @card.list.name %>"
+                  class="flex items-center gap-2 bg-surface-200 hover:bg-surface-300 px-3 py-1.5 rounded text-sm font-semibold text-ink-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
+            <span>in <%= @card.list.name %></span>
+            <i class="fa-solid fa-chevron-down text-[10px] opacity-70" aria-hidden="true"></i>
+          </button>
+
+          <div data-dropdown-target="menu"
+               class="hidden absolute left-0 top-full mt-2 w-72 bg-white border border-line rounded-lg shadow-xl z-30 p-3 flex flex-col gap-3">
+            <div class="text-center text-xs font-bold text-ink-500 border-b border-line pb-2">Move card</div>
+
+            <%= form_with model: @card, url: card_path(@card), method: :patch, class: "space-y-3" do |f| %>
+              <div>
+                <%= f.label :list_id, "List", class: "block text-xs font-medium text-ink-500 mb-1" %>
+                <%= f.collection_select :list_id,
+                    @card.list.board.lists.order(:position),
+                    :id, :name,
+                    { selected: @card.list_id },
+                    { data: { move_picker_target: "listSelect", action: "change->move-picker#refreshPositions" },
+                      class: "w-full text-sm border border-line rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-700" } %>
+              </div>
+
+              <div>
+                <%= label_tag "card_move_position", "Position", class: "block text-xs font-medium text-ink-500 mb-1" %>
+                <%= select_tag "card[position]", nil,
+                    id: "card_move_position",
+                    data: { move_picker_target: "positionSelect" },
+                    class: "w-full text-sm border border-line rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-700" %>
+              </div>
+
+              <%= f.submit "Move",
+                  class: "w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" %>
+            <% end %>
+          </div>
+        </div>
 
         <%# CLOSE BUTTON %>
         <div class="flex items-center gap-3">
@@ -209,10 +256,22 @@
                        alt="Map showing <%= @card.location_name %>"
                        class="w-full h-44 object-cover">
 
-                  <div class="p-3">
-                    <div class="text-sm font-semibold text-ink-700"><%= @card.location_name %></div>
-                    <% if @card.location_address.present? && @card.location_address != @card.location_name %>
-                      <div class="text-xs text-ink-500 mt-0.5"><%= @card.location_address %></div>
+                  <div class="p-3 flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <div class="text-sm font-semibold text-ink-700"><%= @card.location_name %></div>
+                      <% if @card.location_address.present? && @card.location_address != @card.location_name %>
+                        <div class="text-xs text-ink-500 mt-0.5"><%= @card.location_address %></div>
+                      <% end %>
+                    </div>
+
+                    <%= button_to card_path(@card),
+                        method: :patch,
+                        params: { card: { latitude: "", longitude: "", location_name: "", location_address: "" } },
+                        form: { class: "m-0 shrink-0", data: { turbo_confirm: "Remove this location?" } },
+                        class: "h-6 w-6 rounded flex items-center justify-center text-ink-500 hover:text-danger-600 hover:bg-danger-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+                        title: "Remove location",
+                        aria: { label: "Remove location" } do %>
+                      <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
                     <% end %>
                   </div>
                 </div>
@@ -396,37 +455,9 @@
             </div>
           </div>
 
-          <%# Move to list / Archive actions %>
+          <%# Archive action — moving now happens via the header popover. %>
           <div class="mt-6 pt-4 border-t border-line shrink-0">
             <h4 class="text-xs font-bold text-ink-500 uppercase mb-2">Actions</h4>
-
-            <%# Keyboard-accessible alternative to dragging a card between
-                lists — native selects, no custom dropdown JS. PATCHes the
-                same cards#update endpoint the header's "Move card" popover
-                uses, so list_id validation/activity logging/broadcast are
-                all already handled there; this form just adds a position
-                choice on top. %>
-            <%= form_with model: @card, url: card_path(@card), method: :patch, class: "space-y-2 mb-3" do |f| %>
-              <div>
-                <%= f.label :list_id, "Move to list", class: "block text-xs font-medium text-ink-500 mb-1" %>
-                <%= f.collection_select :list_id,
-                    @card.list.board.lists.order(:position),
-                    :id, :name,
-                    { selected: @card.list_id },
-                    { id: "card_move_list_id", class: "w-full text-sm border border-line rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-700" } %>
-              </div>
-
-              <div>
-                <%= label_tag "card_move_position", "Position", class: "block text-xs font-medium text-ink-500 mb-1" %>
-                <%= select_tag "card[position]",
-                    options_for_select([["Top", "top"], ["Bottom", "bottom"]], "bottom"),
-                    id: "card_move_position",
-                    class: "w-full text-sm border border-line rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-700" %>
-              </div>
-
-              <%= f.submit "Move",
-                  class: "w-full bg-surface-200 hover:bg-surface-300 text-ink-700 font-medium py-1.5 rounded text-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" %>
-            <% end %>
 
             <%= button_to archive_card_path(@card),
                 method: :patch,

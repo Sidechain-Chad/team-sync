@@ -23,6 +23,26 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_not @board.favorited_by?(@user)
   end
 
+  test "toggle_favorite response replaces both the star button and the starred section" do
+    patch toggle_favorite_board_url(@board), as: :turbo_stream
+
+    assert_response :success
+    assert_match(/turbo-stream action="replace" targets=".board-star-#{@board.id}"/, response.body)
+    assert_match(/turbo-stream action="replace" target="starred_section"/, response.body)
+    assert_match @board.name, response.body
+  end
+
+  test "unstarring the last starred board renders the empty starred-section placeholder" do
+    patch toggle_favorite_board_url(@board), as: :turbo_stream
+    assert @board.reload.favorited_by?(@user)
+
+    patch toggle_favorite_board_url(@board), as: :turbo_stream
+
+    assert_response :success
+    assert_match(/turbo-stream action="replace" target="starred_section"/, response.body)
+    assert_no_match "fa-star text-yellow-400", response.body
+  end
+
   test "owner can destroy their board" do
     assert_difference('Board.count', -1) do
       delete board_url(@board)

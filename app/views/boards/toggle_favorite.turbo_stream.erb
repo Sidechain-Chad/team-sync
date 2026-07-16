@@ -4,3 +4,9 @@
 <%= turbo_stream.replace_all ".board-star-#{@board.id}" do %>
   <%= render "boards/star_button", board: @board %>
 <% end %>
+
+<%# Replace target only exists on the boards index; Turbo silently no-ops
+    this stream when toggling from a board's own header (board#show). %>
+<%= turbo_stream.replace "starred_section" do %>
+  <%= render "boards/starred_section", starred_boards: @starred_boards %>
+<% end %>

@@ -83,6 +83,48 @@ body {
     linear-gradient(180deg, var(--color-surface-50) 0%, #F1E6DA 100%);
 }
 
+/* ============================================================
+   Themed scrollbars — thin, warm-neutral thumb everywhere by
+   default so scroll tracks read as part of the Golden Hour theme
+   instead of raw OS chrome. Two contextual overrides below:
+   the dark/gradient board canvas gets a light thumb (it needs
+   contrast against its own background), and list card containers
+   nested inside that canvas are reset back to the warm thumb so
+   they don't inherit the light variant via CSS scrollbar-color's
+   inheritance. Cosmetic only — no scroll *behavior* changes here.
+   ============================================================ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-300) transparent;
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-ink-300); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-ink-500); }
+
+/* Descendant selectors, not inheritance — the universal `*` rule above
+   already sets an explicit (non-inherited) scrollbar-color on every
+   element, including the board's actual horizontally-scrolling row, so
+   simply setting it on `.board-canvas` itself would never reach that
+   descendant. */
+.board-canvas,
+.board-canvas * {
+  scrollbar-color: rgb(255 255 255 / .35) transparent;
+}
+.board-canvas::-webkit-scrollbar-thumb,
+.board-canvas *::-webkit-scrollbar-thumb { background: rgb(255 255 255 / .35); }
+.board-canvas::-webkit-scrollbar-thumb:hover,
+.board-canvas *::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / .55); }
+
+/* List card containers stay on the warm thumb even nested inside the
+   board canvas — higher specificity (two classes) wins over the rule
+   above (one class + universal). */
+.board-canvas .list-cards-scroll {
+  scrollbar-color: var(--color-ink-300) transparent;
+}
+.board-canvas .list-cards-scroll::-webkit-scrollbar-thumb { background: var(--color-ink-300); }
+.board-canvas .list-cards-scroll::-webkit-scrollbar-thumb:hover { background: var(--color-ink-500); }
+
 /* Mapbox container fix — mapbox-gl.css is linked in the layout <head>
    AFTER this file, so its own `.mapboxgl-map { position: relative }` rule
    wins over our `.absolute inset-0` utility at equal specificity by

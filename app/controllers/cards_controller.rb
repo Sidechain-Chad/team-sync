@@ -283,17 +283,26 @@ class CardsController < ApplicationController
     params.require(:card).permit(:list_id, :position)
   end
 
-  # Translates the "Move to list" form's semantic top/bottom choice into a
-  # real acts_as_list position, relative to the actual target list rather
-  # than whatever list the position select happened to be rendered against.
-  # Counts every card in the list (not just active_cards) — acts_as_list's
-  # position sequence isn't filtered by archived state, matching how drag
-  # (cards#move) already treats position as a raw column value.
+  # Translates the "Move card" popover's position choice into a real
+  # acts_as_list position, relative to the actual target list rather than
+  # whatever list the position select happened to be rendered against.
+  # Accepts "top"/"bottom" (Actions-menu heritage) as well as a plain
+  # integer (the popover's numeric Position select) — either way the
+  # result is clamped to 1..bottom_position, so a stale or tampered client
+  # count can never push the card out of the list's real bounds.
   def resolved_move_position(position_param, target_list)
     return 1 if position_param == "top"
+    return bottom_position(target_list) if position_param == "bottom"
 
-    # If the card is already in the target list, it's part of this count —
-    # the true bottom is the count itself, not count + 1.
+    position_param.to_i.clamp(1, bottom_position(target_list))
+  end
+
+  # Counts every card in the list (not just active_cards) — acts_as_list's
+  # position sequence isn't filtered by archived state, matching how drag
+  # (cards#move) already treats position as a raw column value. If the
+  # card is already in the target list, it's part of this count — the
+  # true bottom is the count itself, not count + 1.
+  def bottom_position(target_list)
     if @card.list_id == target_list.id
       target_list.cards.count
     else

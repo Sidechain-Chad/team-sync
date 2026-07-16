@@ -110,6 +110,10 @@ class BoardsController < ApplicationController
       current_user.board_favorites.create!(board: @board)
     end
 
+    # Recomputed fresh (same ordering as #index) so the turbo_stream response
+    # can replace the whole Starred section without a page reload.
+    @starred_boards = current_user.favorited_boards.order("board_favorites.created_at DESC")
+
     respond_to do |format|
       format.turbo_stream
       format.html { redirect_to board_path(@board) }
