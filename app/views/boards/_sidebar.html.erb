@@ -6,7 +6,7 @@
     the top nav logo links via root_path ("/"), which renders this same
     index action at a different URL, so a path comparison would miss it. %>
 <% on_boards_index = controller_name == "boards" && action_name == "index" %>
-<nav aria-label="Workspace" class="hidden lg:flex flex-col w-60 flex-shrink-0 gap-1 lg:sticky lg:top-6 lg:self-start">
+<nav aria-label="Workspace" class="hidden lg:flex flex-col w-60 flex-shrink-0 gap-1 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
 
   <%= link_to boards_path,
       class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{on_boards_index ? "bg-brand-100 text-brand-600" : "text-ink-700 hover:bg-surface-100"}",

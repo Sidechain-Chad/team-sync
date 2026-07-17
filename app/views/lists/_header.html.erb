@@ -2,8 +2,13 @@
   <div class="flex justify-between items-center mb-2 handle cursor-grab hover:bg-surface-200 rounded py-1 px-2 transition group">
 
     <%# 1. The Title (Clicking it activates Edit Mode) %>
-    <div class="flex-1">
-      <%= link_to list.name, edit_list_path(list), class: "font-display font-semibold text-ink-700 block w-full", style: "text-decoration: none;" %>
+    <div class="flex-1 flex items-center gap-2 min-w-0">
+      <%= link_to list.name, edit_list_path(list), class: "font-display font-semibold text-ink-700 truncate", style: "text-decoration: none;" %>
+      <%# Filtered count ("3 of 7") — hidden until a filter is active;
+          board_filter_controller.js fills it in and toggles visibility. %>
+      <span data-board-filter-target="listCount"
+            data-list-id="<%= list.id %>"
+            class="hidden text-xs text-ink-500 flex-shrink-0"></span>
     </div>
 
     <%# 2. The Delete Button (Only visible on hover, or on keyboard focus) %>

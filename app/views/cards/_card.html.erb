@@ -1,6 +1,12 @@
 <%= turbo_frame_tag card, data: { id: card.id } do %>
-  <%# Wrapper: relative + group for hover interactions. %>
-  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-line transition-all duration-300 ease-out cursor-grab overflow-hidden">
+  <%# Wrapper: relative + group for hover interactions. Filter data
+      attributes are read by board_filter_controller.js — they render
+      server-side so any turbo-stream re-render (drag, edit, broadcast)
+      automatically carries fresh values. %>
+  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-line transition-all duration-300 ease-out cursor-grab overflow-hidden"
+       data-filter-labels="<%= card.labels.map(&:id).join(' ') %>"
+       data-filter-members="<%= card.members.map(&:id).join(' ') %>"
+       data-filter-due="<%= card.due_status %>">
 
     <%# ============ TOP-RIGHT: contextual quick actions ============
         Dark translucent badges read cleanly over both cover images and white

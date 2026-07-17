@@ -1,0 +1,123 @@
+<%# Filter cards popover — client-side only, no persistence. board_filter_controller.js
+    reads these checkboxes (data-category + value) to decide which cards show. %>
+<% due_statuses = [
+     ["overdue",  "Overdue"],
+     ["due_soon", "Due soon"],
+     ["upcoming", "Upcoming"],
+     ["complete", "Complete"],
+     ["none",     "No due date"],
+   ] %>
+
+<div class="relative inline-block"
+     data-controller="dropdown"
+     data-action="click@document->dropdown#hide">
+
+  <button type="button"
+          data-action="click->dropdown#toggle"
+          class="relative h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
+          title="Filter cards"
+          aria-label="Filter cards">
+    <i class="fa-solid fa-filter text-sm" aria-hidden="true"></i>
+    <span data-board-filter-target="badge"
+          class="hidden absolute top-1 right-1 h-2 w-2 rounded-full bg-brand-600 ring-1 ring-ink-900"
+          aria-hidden="true"></span>
+  </button>
+
+  <div data-dropdown-target="menu"
+       class="hidden absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-2xl ring-1 ring-ink-900/5 z-40 overflow-hidden text-ink-700 max-h-[70vh] overflow-y-auto">
+
+    <div class="px-4 py-3 border-b border-line">
+      <h3 class="text-sm font-semibold">Filter cards</h3>
+    </div>
+
+    <div class="p-4 space-y-4">
+
+      <%# --- Due status --- %>
+      <fieldset>
+        <legend class="text-[10px] font-bold text-ink-500 uppercase tracking-wider mb-2">Due date</legend>
+        <div class="space-y-1.5">
+          <% due_statuses.each do |value, label_text| %>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox"
+                     value="<%= value %>"
+                     data-category="due"
+                     data-board-filter-target="checkbox"
+                     data-action="change->board-filter#apply"
+                     class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+              <%= label_text %>
+            </label>
+          <% end %>
+        </div>
+      </fieldset>
+
+      <%# --- Labels --- %>
+      <fieldset>
+        <legend class="text-[10px] font-bold text-ink-500 uppercase tracking-wider mb-2">Labels</legend>
+        <div class="space-y-1.5">
+          <% board.labels.each do |label| %>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox"
+                     value="<%= label.id %>"
+                     data-category="label"
+                     data-board-filter-target="checkbox"
+                     data-action="change->board-filter#apply"
+                     class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+              <span class="inline-block h-4 w-7 rounded <%= label_solid_class(label.color) %>" aria-hidden="true"></span>
+              <span class="truncate"><%= label.name.presence || label.color.capitalize %></span>
+            </label>
+          <% end %>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox"
+                   value="none"
+                   data-category="label"
+                   data-board-filter-target="checkbox"
+                   data-action="change->board-filter#apply"
+                   class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+            No labels
+          </label>
+        </div>
+      </fieldset>
+
+      <%# --- Members --- %>
+      <fieldset>
+        <legend class="text-[10px] font-bold text-ink-500 uppercase tracking-wider mb-2">Members</legend>
+        <div class="space-y-1.5">
+          <% board.active_members.each do |member| %>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox"
+                     value="<%= member.id %>"
+                     data-category="member"
+                     data-board-filter-target="checkbox"
+                     data-action="change->board-filter#apply"
+                     class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+              <div class="h-5 w-5 rounded-full <%= avatar_soft_classes(member) %> flex items-center justify-center text-[9px] font-bold flex-shrink-0">
+                <%= member.initials %>
+              </div>
+              <span class="truncate"><%= member.display_name %></span>
+            </label>
+          <% end %>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox"
+                   value="none"
+                   data-category="member"
+                   data-board-filter-target="checkbox"
+                   data-action="change->board-filter#apply"
+                   class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+            Unassigned
+          </label>
+        </div>
+      </fieldset>
+
+    </div>
+
+    <div class="px-4 py-3 border-t border-line">
+      <button type="button"
+              data-board-filter-target="clearButton"
+              data-action="click->board-filter#clear"
+              disabled
+              class="w-full text-sm font-medium text-ink-500 hover:bg-surface-200 rounded px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
+        Clear filters
+      </button>
+    </div>
+  </div>
+</div>

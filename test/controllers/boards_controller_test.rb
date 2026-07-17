@@ -86,6 +86,36 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [@board.id], session[:recent_board_ids]
   end
 
+  test "board show renders each card with filter data attributes" do
+    list = @board.lists.first
+    card = list.cards.create!(title: "Filtered card", due_date: 2.days.from_now)
+    label = @board.labels.first
+    card.labels << label
+    member = User.create!(email: "filter_member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    card.members << member
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_match %r{data-filter-labels="#{label.id}"}, response.body
+    assert_match %r{data-filter-members="#{member.id}"}, response.body
+    assert_match %r{data-filter-due="upcoming"}, response.body
+  end
+
+  test "filter popover renders one checkbox per board label and board member" do
+    member = User.create!(email: "filter_member2@example.com", password: "password")
+    @board.board_users.create!(user: member)
+
+    get board_url(@board)
+
+    assert_response :success
+    # +1 each for the "No labels" / "Unassigned" checkboxes.
+    assert_equal @board.labels.count + 1, response.body.scan(/data-category="label"/).size
+    assert_equal @board.active_members.count + 1, response.body.scan(/data-category="member"/).size
+    assert_equal 5, response.body.scan(/data-category="due"/).size
+  end
+
   test "owner can destroy their board" do
     assert_difference('Board.count', -1) do
       delete board_url(@board)
@@ -194,7 +224,10 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     # cache instead of being loaded): a handful of includes queries plus
     # auth/session lookups. Small buffer over the observed number so an
     # unrelated future addition doesn't make this test flaky for no reason.
-    assert_operator small, :<=, 13
+    # Bumped 13 -> 14 for the filter popover's board.labels read (a single
+    # fixed-cost query, independent of card count — board.user/.members
+    # were already loaded for the header avatar row and aren't duplicated).
+    assert_operator small, :<=, 14
 
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end

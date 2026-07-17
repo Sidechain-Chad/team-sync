@@ -5,7 +5,8 @@
     Persimmon is rationed to actions elsewhere; this is background
     wallpaper behind opaque white list panels, same visual role the
     original flat blue-600 canvas played. %>
-<div class="board-canvas h-[calc(100vh-3.5rem)] bg-gradient-to-br <%= board_cover_gradient_classes(@board) %> overflow-x-auto flex flex-col">
+<div class="board-canvas h-[calc(100vh-3.5rem)] bg-gradient-to-br <%= board_cover_gradient_classes(@board) %> overflow-x-auto flex flex-col"
+     data-controller="board-filter">
 
   <%# ===== BOARD HEADER ===== Trello-style title + action cluster.
       Title on the left (with dropdown), actions and members on the right. %>
@@ -73,13 +74,8 @@
     <%# ===== RIGHT: header action cluster ===== %>
     <div class="flex items-center gap-1">
 
-      <%# Filter — placeholder %>
-      <button type="button"
-              class="h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
-              title="Filter cards (coming soon)"
-              aria-label="Filter cards (coming soon)">
-        <i class="fa-solid fa-filter text-sm" aria-hidden="true"></i>
-      </button>
+      <%# Filter — real, client-side (board_filter_controller.js) %>
+      <%= render "boards/filter_popover", board: @board %>
 
       <%# Automation / lightning — placeholder %>
       <button type="button"
