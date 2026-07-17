@@ -1,0 +1,21 @@
+<%# Compact shortcut row, distinct from the Starred/Created-by-me sections
+    below — recency is its own axis, so boards intentionally repeat. No
+    star or gear here; these are shortcuts, not full tiles. %>
+<% if recent_boards.present? %>
+  <div class="mb-10">
+    <h2 class="flex items-center gap-2 text-lg font-semibold text-ink-700 mb-4 border-b border-line pb-2">
+      <i class="fa-solid fa-clock-rotate-left text-ink-300"></i> Recently viewed
+    </h2>
+    <div class="flex flex-wrap gap-4">
+      <% recent_boards.each do |board| %>
+        <%= link_to board_path(board),
+            class: "block w-[190px] rounded-lg overflow-hidden border border-line hover:shadow-md transition-shadow duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2" do %>
+          <%= render "boards/cover", board: board, height_class: "h-16" %>
+          <div class="px-2.5 py-1.5 bg-white">
+            <p class="text-xs font-medium text-ink-700 truncate"><%= board.name %></p>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+<% end %>

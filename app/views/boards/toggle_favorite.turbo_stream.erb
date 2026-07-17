@@ -10,3 +10,8 @@
 <%= turbo_stream.replace "starred_section" do %>
   <%= render "boards/starred_section", starred_boards: @starred_boards %>
 <% end %>
+
+<%# Sidebar Starred mini-list — same no-op-off-index behavior as above. %>
+<%= turbo_stream.replace "starred_sidebar_list" do %>
+  <%= render "boards/starred_sidebar_list", starred_boards: @starred_boards %>
+<% end %>

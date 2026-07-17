@@ -22,6 +22,8 @@ class BoardsController < ApplicationController
     # Starred boards (owned or shared) shown in their own section up top.
     # They still appear in their home section below too — same as Trello.
     @starred_boards = current_user.favorited_boards.order("board_favorites.created_at DESC")
+
+    @recent_boards = recent_boards_from_session
   end
 
   def show
@@ -37,6 +39,7 @@ class BoardsController < ApplicationController
     # uses this to offer a "back to <board>" link, since /planner has no
     # inherent board context of its own.
     session[:last_board_id] = @board.id
+    track_recent_board(@board)
   end
 
   def archive
@@ -121,6 +124,31 @@ class BoardsController < ApplicationController
   end
 
   private
+
+  RECENT_BOARDS_LIMIT = 6
+
+  # Session-scoped LRU of recently visited board ids, most-recent first.
+  # Per-browser and cleared on logout — acceptable for now. If cross-device
+  # recency is ever wanted, upgrade path is a `board_visits` table instead
+  # of this session list.
+  def track_recent_board(board)
+    ids = session[:recent_board_ids] || []
+    ids = ids.reject { |id| id == board.id }
+    ids.unshift(board.id)
+    session[:recent_board_ids] = ids.first(RECENT_BOARDS_LIMIT)
+  end
+
+  # Resolves the session's id list to real boards the user still has access
+  # to, in session order. Ids for boards since deleted or un-shared are
+  # dropped silently, and the pruned list is written back to the session.
+  def recent_boards_from_session
+    ids = session[:recent_board_ids] || []
+    boards_by_id = current_user.all_boards.where(id: ids).index_by(&:id)
+    ordered = ids.filter_map { |id| boards_by_id[id] }
+
+    session[:recent_board_ids] = ordered.map(&:id)
+    ordered
+  end
 
   def set_board
     # Scoped to boards the user actually has access to

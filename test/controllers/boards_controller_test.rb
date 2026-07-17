@@ -23,12 +23,13 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_not @board.favorited_by?(@user)
   end
 
-  test "toggle_favorite response replaces both the star button and the starred section" do
+  test "toggle_favorite response replaces the star button, starred section, and sidebar starred list" do
     patch toggle_favorite_board_url(@board), as: :turbo_stream
 
     assert_response :success
     assert_match(/turbo-stream action="replace" targets=".board-star-#{@board.id}"/, response.body)
     assert_match(/turbo-stream action="replace" target="starred_section"/, response.body)
+    assert_match(/turbo-stream action="replace" target="starred_sidebar_list"/, response.body)
     assert_match @board.name, response.body
   end
 
@@ -41,6 +42,48 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match(/turbo-stream action="replace" target="starred_section"/, response.body)
     assert_no_match "fa-star text-yellow-400", response.body
+  end
+
+  test "visiting boards A, B, A yields recents in [A, B] order, most-recent first" do
+    board_b = @user.boards.create!(name: "Board B")
+
+    get board_url(@board)
+    get board_url(board_b)
+    get board_url(@board)
+
+    get boards_url
+
+    assert_response :success
+    assert_equal [@board.id, board_b.id], session[:recent_board_ids]
+  end
+
+  test "recent boards cap holds at 6 — visiting a 7th drops the oldest" do
+    boards = 6.times.map { |i| @user.boards.create!(name: "Extra #{i}") }
+    boards.each { |b| get board_url(b) }
+    get board_url(@board) # 7th distinct visit, @board pushes out boards.first
+
+    get boards_url
+
+    assert_response :success
+    assert_equal 6, session[:recent_board_ids].size
+    assert_not_includes session[:recent_board_ids], boards.first.id
+    assert_equal @board.id, session[:recent_board_ids].first
+  end
+
+  test "a board the user loses access to disappears from recents without erroring" do
+    other_owner = User.create!(email: "other_owner@example.com", password: "password")
+    shared_board = other_owner.boards.create!(name: "Shared Board")
+    shared_board.board_users.create!(user: @user)
+
+    get board_url(shared_board)
+    get board_url(@board)
+
+    shared_board.board_users.find_by(user: @user).destroy
+
+    get boards_url
+
+    assert_response :success
+    assert_equal [@board.id], session[:recent_board_ids]
   end
 
   test "owner can destroy their board" do

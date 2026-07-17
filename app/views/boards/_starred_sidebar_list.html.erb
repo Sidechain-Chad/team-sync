@@ -1,0 +1,18 @@
+<%# Stable id so toggle_favorite can replace this whether it's currently
+    showing rows or empty — same pattern as #starred_section. Lives inside
+    the sidebar, which only renders on the boards index; the stream target
+    silently no-ops from board#show, same as #starred_section's. %>
+<div id="starred_sidebar_list">
+  <% if starred_boards.present? %>
+    <div class="border-t border-line my-3" aria-hidden="true"></div>
+    <div class="flex flex-col gap-0.5">
+      <% starred_boards.each do |board| %>
+        <%= link_to board_path(board),
+            class: "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-ink-700 hover:bg-surface-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2" do %>
+          <%= render "boards/cover", board: board, height_class: "h-5 w-8 rounded-sm flex-shrink-0" %>
+          <span class="truncate"><%= board.name %></span>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+</div>

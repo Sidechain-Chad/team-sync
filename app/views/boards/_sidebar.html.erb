@@ -1,0 +1,31 @@
+<%# Slim left sidebar — boards index only. Real destinations only: Boards,
+    Planner, Map, then a live-updating Starred mini-list. Hidden below `lg`;
+    the index page already works without it, so no drawer is built for
+    small screens. %>
+<%# Active check uses controller/action, not current_page?(boards_path) —
+    the top nav logo links via root_path ("/"), which renders this same
+    index action at a different URL, so a path comparison would miss it. %>
+<% on_boards_index = controller_name == "boards" && action_name == "index" %>
+<nav aria-label="Workspace" class="hidden lg:flex flex-col w-60 flex-shrink-0 gap-1 lg:sticky lg:top-6 lg:self-start">
+
+  <%= link_to boards_path,
+      class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{on_boards_index ? "bg-brand-100 text-brand-600" : "text-ink-700 hover:bg-surface-100"}",
+      "aria-current": (on_boards_index ? "page" : nil) do %>
+    <i class="fa-solid fa-table-columns w-4 text-center <%= on_boards_index ? "text-brand-600" : "text-ink-300" %>" aria-hidden="true"></i>
+    Boards
+  <% end %>
+
+  <%= link_to planner_path,
+      class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-ink-700 hover:bg-surface-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2" do %>
+    <i class="fa-solid fa-calendar-days w-4 text-center text-ink-300" aria-hidden="true"></i>
+    Planner
+  <% end %>
+
+  <%= link_to planner_map_path,
+      class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-ink-700 hover:bg-surface-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2" do %>
+    <i class="fa-solid fa-map-location-dot w-4 text-center text-ink-300" aria-hidden="true"></i>
+    Map
+  <% end %>
+
+  <%= render "boards/starred_sidebar_list", starred_boards: starred_boards %>
+</nav>
