@@ -15,7 +15,7 @@ export default class extends Controller {
     this.editor = new Editor({
       element: this.elementTarget,
       extensions: [
-        StarterKit,
+        StarterKit.configure({ link: false }),
         Link.configure({ openOnClick: false }),
         Image,
         Placeholder.configure({ placeholder: 'Add a more detailed description...' }),
