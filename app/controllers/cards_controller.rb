@@ -28,13 +28,47 @@ class CardsController < ApplicationController
 
   def create
     @list = current_user.all_lists.find(params[:list_id])
-    @card = @list.cards.build(card_params)
+    # The gap inserter (gap_insert_controller.js) submits an explicit
+    # position — the position of the card that ends up BELOW the new one.
+    # Pulled out before building so acts_as_list's normal "add to bottom"
+    # create callback runs first; inserting mid-list is then a follow-up
+    # #insert_at, same as any other card move.
+    requested_position = card_params[:position]
+    @card = @list.cards.build(card_params.except(:position))
 
     if @card.save
       @card.log_activity(current_user, "created", @list.name)
-      respond_to do |format|
-        format.turbo_stream
-        format.html { redirect_to @list.board }
+
+      if requested_position.present?
+        @card.insert_at(resolved_move_position(requested_position, @list))
+
+        # Unlike the bottom "Add a card" flow (which only needs to append
+        # for the requester), a mid-list insert shifts every card below it —
+        # their data-position attributes are now stale for anyone else
+        # looking at this list. Broadcasting a full list replace (the same
+        # partial ListsController#move already broadcasts for reordering)
+        # refreshes every viewer, including this client, since boards/show
+        # subscribes to the board's stream too — so the HTTP response
+        # itself has nothing left to render.
+        list_for_broadcast = current_user.all_lists
+                                          .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
+                                          .find(@list.id)
+        Turbo::StreamsChannel.broadcast_replace_to(
+          @list.board,
+          target: helpers.dom_id(@list),
+          partial: "lists/list",
+          locals: { list: list_for_broadcast }
+        )
+
+        respond_to do |format|
+          format.turbo_stream { head :ok }
+          format.html { redirect_to @list.board }
+        end
+      else
+        respond_to do |format|
+          format.turbo_stream
+          format.html { redirect_to @list.board }
+        end
       end
     else
       redirect_to @list.board, alert: "Title cannot be blank."
@@ -345,7 +379,7 @@ class CardsController < ApplicationController
 
   def card_params
     params.require(:card).permit(
-      :title, :description, :due_date, :completed, :list_id,
+      :title, :description, :due_date, :completed, :list_id, :position,
       :latitude, :longitude, :location_name, :location_address,
       attachments: []
     )
