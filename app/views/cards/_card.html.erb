@@ -107,15 +107,21 @@
           <% end %>
         <% else %>
           <%# Hover-only — empty circle, animates from 0 width to ~26px.
-              The wrapper handles width animation; the button inside is
-              fixed-size and visible only after the wrapper has expanded.
-              Also expands on focus-within so the button is reachable (and
-              its focus ring visible) via keyboard, not just mouse hover. %>
-          <div class="shrink-0 overflow-hidden transition-[width] duration-150 ease-out w-0 group-hover:w-[26px] group-focus-within:w-[26px]">
+              The wrapper handles width animation; the button inside fades
+              in via opacity on the same timing/duration, so the circle
+              eases into view as the space opens rather than popping in
+              the instant the wrapper is wide enough to show it. Also
+              expands on focus-within so the button is reachable (and its
+              focus ring visible) via keyboard, not just mouse hover. This
+              is deliberately the one reveal on the card slow enough to
+              notice — the ring above it stays instant, and a fast sweep
+              must still show no title-wobble trail; if 250ms ever
+              reintroduces that, drop back to 200. %>
+          <div class="shrink-0 overflow-hidden transition-[width] duration-[250ms] ease-in-out w-0 group-hover:w-[26px] group-focus-within:w-[26px]">
             <%= button_to toggle_complete_card_path(card),
                 method: :patch,
                 form: { class: "m-0 mt-px" },
-                class: "h-5 w-5 rounded-full bg-white border-2 border-line hover:border-success-600 hover:bg-success-100 flex items-center justify-center transition-colors cursor-pointer group/btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+                class: "h-5 w-5 rounded-full bg-white border-2 border-line hover:border-success-600 hover:bg-success-100 flex items-center justify-center cursor-pointer group/btn opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-[250ms] ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
                 title: "Mark complete",
                 aria: { label: "Mark complete" } do %>
               <i class="fa-solid fa-check text-[10px] text-transparent group-hover/btn:text-success-600" aria-hidden="true"></i>
