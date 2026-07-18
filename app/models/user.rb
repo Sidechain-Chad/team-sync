@@ -16,6 +16,17 @@ class User < ApplicationRecord
   has_many :favorited_boards, through: :board_favorites, source: :board
   has_many :assigned_cards,   through: :card_members, source: :card
 
+  # Only enforced on the Account > Profile name form (AccountController
+  # passes context: :profile_update). Can't use `validates :name,
+  # presence: true` unscoped — that would call the #name reader below,
+  # which already falls back to the email prefix and so is NEVER blank,
+  # making a plain presence validation a silent no-op. Checking the raw
+  # attribute directly via a custom validation is what actually catches
+  # a blank submission, and scoping it to :profile_update keeps every
+  # other save path (deactivate!, Devise's own updates, fixtures) — none
+  # of which ever set a name — from suddenly failing validation.
+  validate :name_present_for_profile_update, on: :profile_update
+
   # ---- Soft delete ----
 
   scope :active,      -> { where(deactivated_at: nil) }
@@ -80,5 +91,11 @@ class User < ApplicationRecord
 
   def initials
     name.split.map(&:first).join.upcase.first(2)
+  end
+
+  private
+
+  def name_present_for_profile_update
+    errors.add(:name, "can't be blank") if self[:name].blank?
   end
 end

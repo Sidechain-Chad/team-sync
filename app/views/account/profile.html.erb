@@ -1,0 +1,37 @@
+<%= render "account/shell", active: :profile, title: "Profile" do %>
+  <div class="bg-white rounded-lg shadow-sm border border-line p-6 max-w-lg space-y-6">
+
+    <%# Identity block — read-only avatar/name/email. %>
+    <div class="flex items-center gap-4">
+      <div class="h-16 w-16 rounded-full <%= avatar_soft_classes(current_user) %> flex items-center justify-center text-xl font-bold flex-shrink-0">
+        <%= current_user.initials %>
+      </div>
+      <div class="min-w-0">
+        <div class="text-lg font-semibold text-ink-700 truncate"><%= current_user.display_name %></div>
+        <div class="text-sm text-ink-500 truncate"><%= current_user.email %></div>
+      </div>
+    </div>
+
+    <%# Editable name only — email/password changes live in Settings. %>
+    <%= form_with model: current_user, url: account_profile_path, method: :patch, class: "space-y-1.5" do |f| %>
+      <%= f.label :name, class: "block text-xs font-bold text-ink-700 uppercase tracking-wide" %>
+      <%# Bound to the raw attribute, not the `name` reader — that reader
+          falls back to the email prefix when blank, which would silently
+          paper over an empty submission instead of showing it back to
+          the user alongside the validation error. %>
+      <%= f.text_field :name,
+          value: current_user[:name],
+          class: "w-full max-w-xs px-3 py-2.5 bg-surface-50 focus:bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition #{current_user.errors[:name].any? ? "border-danger-600" : "border-line"}" %>
+      <% if current_user.errors[:name].any? %>
+        <p class="text-xs text-danger-600"><%= current_user.errors[:name].first %></p>
+      <% end %>
+      <div class="pt-2">
+        <%= f.submit "Save name", class: "bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors" %>
+      </div>
+    <% end %>
+
+    <p class="text-xs text-ink-500 border-t border-line pt-4">
+      Email and password are managed in <%= link_to "Settings", account_settings_path, class: "text-brand-600 hover:underline" %>.
+    </p>
+  </div>
+<% end %>

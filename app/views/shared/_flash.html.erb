@@ -1,8 +1,12 @@
 <%# Flash slot — replaced via turbo_stream when actions need to surface
-    a transient message. We intentionally only render :alert (errors).
-    Success "you did the thing" notices are skipped because the UI
-    already reflects the change — flashing "Board created!" on top of
-    the new board is just noise. %>
+    a transient message. :alert (errors) has always rendered here; :notice
+    (success) now does too — the account pages need an explicit
+    confirmation after redirecting away from the form that made the
+    change, where the UI itself no longer shows it. This is app-wide, so
+    Devise's own notices ("Signed in successfully.", "Signed out.", etc.)
+    render with this styling too now — that's intentional, not a leak;
+    if they ever prove noisy, blank those specific keys in
+    config/locales/devise.en.yml rather than special-casing here. %>
 <div id="flash" class="fixed top-20 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4 pointer-events-none">
   <% if flash[:alert].present? %>
     <div class="bg-danger-600 text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg ring-1 ring-white/10 mb-2 pointer-events-auto flex items-start gap-2"
@@ -10,6 +14,14 @@
          data-flash-timeout-value="5000">
       <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0"></i>
       <span><%= flash[:alert] %></span>
+    </div>
+  <% end %>
+  <% if flash[:notice].present? %>
+    <div class="bg-success-100 text-success-600 text-sm font-medium px-4 py-3 rounded-lg shadow-lg mb-2 pointer-events-auto flex items-start gap-2"
+         data-controller="flash"
+         data-flash-timeout-value="5000">
+      <i class="fa-solid fa-circle-check mt-0.5 shrink-0"></i>
+      <span><%= flash[:notice] %></span>
     </div>
   <% end %>
 </div>
