@@ -11,7 +11,11 @@ import { post } from "@rails/request.js"
 // temporarily, but it also carries no `data-id`, so it's inert to Sortable
 // too.
 const SHOW_DELAY = 500
-const HIDE_DELAY = 150
+// Short: this fires on every mousemove where the cursor has left the shown
+// gap's zone — including moving straight onto the card above or below it,
+// not just leaving the list entirely — so it only needs to cover the
+// reaction time to reach the + button, not a lingering grace period.
+const HIDE_DELAY = 75
 // Card gap is 12px (list container's space-y-3) — the zone is proportional
 // to that, same ratio as before (zone == full gap on each side).
 const EDGE_ZONE = 12 // px around a card's top edge that counts as "the gap"
