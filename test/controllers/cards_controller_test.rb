@@ -15,6 +15,55 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     sign_in @user
   end
 
+  # --- #create ---
+
+  test "create: no position appends to the bottom of the list" do
+    @list_three.cards.create!(title: "Existing")
+
+    assert_difference -> { Card.count }, 1 do
+      post list_cards_url(@list_three), params: { card: { title: "New Card" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    card = Card.find_by!(title: "New Card")
+    assert_equal 2, card.position
+  end
+
+  test "create: an explicit position inserts the card there and shifts the rest down" do
+    c1 = @list_three.cards.create!(title: "C1")
+    c2 = @list_three.cards.create!(title: "C2")
+    c3 = @list_three.cards.create!(title: "C3")
+    c4 = @list_three.cards.create!(title: "C4")
+
+    post list_cards_url(@list_three), params: { card: { title: "Inserted", position: 2 } }, as: :turbo_stream
+
+    assert_response :success
+    inserted = Card.find_by!(title: "Inserted")
+    assert_equal 2, inserted.position
+    assert_equal 1, c1.reload.position
+    assert_equal 3, c2.reload.position
+    assert_equal 4, c3.reload.position
+    assert_equal 5, c4.reload.position
+  end
+
+  test "create: an out-of-range position clamps to the bottom of the list" do
+    @list_three.cards.create!(title: "C1")
+    @list_three.cards.create!(title: "C2")
+
+    post list_cards_url(@list_three), params: { card: { title: "Inserted", position: 999 } }, as: :turbo_stream
+
+    assert_response :success
+    assert_equal 3, Card.find_by!(title: "Inserted").position
+  end
+
+  test "create: 404 for a list on a board the user cannot access at all" do
+    assert_no_difference -> { Card.count } do
+      post list_cards_url(@list_two), params: { card: { title: "Nope" } }
+    end
+
+    assert_response :not_found
+  end
+
   test "should update card and log move activity when list changes" do
     assert_difference -> { Activity.count }, 1 do
       patch card_url(@card), params: { card: { list_id: @list_three.id } }

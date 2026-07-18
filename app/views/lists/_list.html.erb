@@ -8,10 +8,12 @@
 
   <%# --- CARDS LIST + ADD A CARD trigger --- %>
   <div id="list_<%= list.id %>_cards"
-       class="list-cards-scroll flex-1 overflow-y-auto min-h-[50px] space-y-2"
-       data-controller="drag"
+       class="list-cards-scroll flex-1 overflow-y-auto min-h-[50px] space-y-3 relative"
+       data-controller="drag gap-insert"
        data-drag-url-value="/cards/:id/move"
-       data-list-id="<%= list.id %>">
+       data-list-id="<%= list.id %>"
+       data-gap-insert-list-id-value="<%= list.id %>"
+       data-gap-insert-create-url-value="<%= list_cards_path(list) %>">
 
     <% list.active_cards.each do |card| %>
       <%= render card %>
@@ -24,6 +26,27 @@
         <span>Add a card</span>
       <% end %>
     <% end %>
+
+    <%# --- GAP INSERTER (Trello-style "insert here") ---
+        A single absolutely-positioned overlay, not a per-gap strip: it has
+        no data-id, so SortableJS's `draggable: '[data-id]'` filter ignores
+        it entirely (same trick the "Add a card" trigger above already
+        relies on) and gap_insert_controller.js excludes it from its own
+        gap math the same way. It's moved via style.top to whichever gap
+        is currently hovered, so nothing about turbo-stream re-renders or
+        drag index math ever has to account for it. %>
+    <div class="absolute left-0 right-0 z-20 hidden pointer-events-none"
+         data-gap-insert-target="inserter">
+      <div class="relative h-0">
+        <div class="absolute inset-x-0 top-0 border-t-2 border-dashed border-brand-400 -translate-y-1/2"></div>
+        <button type="button"
+                class="pointer-events-auto absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-white text-brand-600 shadow-sm flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
+                aria-label="Add a card here"
+                data-action="click->gap-insert#insertHere">
+          <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
 
   </div>
 

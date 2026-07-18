@@ -1,9 +1,36 @@
-<%= turbo_frame_tag card, data: { id: card.id } do %>
+<%= turbo_frame_tag card, class: "block", data: { id: card.id, position: card.position } do %>
   <%# Wrapper: relative + group for hover interactions. Filter data
       attributes are read by board_filter_controller.js — they render
       server-side so any turbo-stream re-render (drag, edit, broadcast)
-      automatically carries fresh values. %>
-  <div class="bg-white rounded shadow-sm hover:shadow-md mb-2 group relative border border-transparent hover:border-line transition-all duration-300 ease-out cursor-grab overflow-hidden"
+      automatically carries fresh values. data-position is read by
+      gap_insert_controller.js so it never has to count DOM nodes (which
+      would miscount once filtered/hidden cards are in the mix). Card
+      spacing lives on the list container (`space-y-3`, see lists/_list)
+      — no margin here, so there's exactly one source of truth for the
+      gap. That only works because the frame is forced `block`: a bare
+      `<turbo-frame>` defaults to `display: inline`, so `space-y-3`'s
+      margin (applied to this frame, not the div inside it) would
+      otherwise be a no-op — inline boxes ignore vertical margins. This
+      is exactly why the old `mb-2` (on the div below, a real block box)
+      was the one actually creating the gap, and the container's
+      `space-y-2` was dead weight. Hover/focus is an `outline`, not a
+      `ring`: a non-inset `ring` is a box-shadow painted OUTSIDE the
+      border box, which (a) reads as a faint halo rather than a lit edge
+      against the warm canvas, brand-400 was tuned for, and (b) sits
+      behind the card visually since nothing paints over it. `outline`
+      paints on top of the box (and, unlike a normal border, doesn't
+      affect layout or get clipped by this element's own overflow-hidden
+      needed for the cover image's corners), so a negative offset pulls
+      it onto the edge itself, over the cover image, in brand-600 for
+      real contrast. Modern browsers clip `outline` to the element's
+      `border-radius`, so it still follows `rounded-lg` cleanly. No
+      transition on the wrapper at all: box-shadow (shadow-md) and
+      outline are separate CSS properties here, but transitioning either
+      reintroduces the "two cards lit at once" trail a fast sweep
+      exposes, so both snap instantly. `focus-within` (not
+      `group-focus-within`) since the outline lives on the same element
+      that contains the focusable controls. %>
+  <div class="bg-white rounded-lg shadow-sm hover:shadow-md group relative border border-transparent hover:outline-2 hover:outline-brand-600 hover:-outline-offset-2 focus-within:outline-2 focus-within:outline-brand-600 focus-within:-outline-offset-2 cursor-grab overflow-hidden"
        data-filter-labels="<%= card.labels.map(&:id).join(' ') %>"
        data-filter-members="<%= card.members.map(&:id).join(' ') %>"
        data-filter-due="<%= card.due_status %>">
@@ -13,7 +40,7 @@
         card bodies — the same pattern Trello uses. Archive only appears once
         the card is marked complete and gets a more pronounced shadow as the
         "next-step" affordance. %>
-    <div class="absolute top-2 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300 ease-out z-10">
+    <div class="absolute top-2 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 ease-out z-10">
 
       <% if card.completed? %>
         <%= button_to archive_card_path(card),
@@ -84,7 +111,7 @@
               fixed-size and visible only after the wrapper has expanded.
               Also expands on focus-within so the button is reachable (and
               its focus ring visible) via keyboard, not just mouse hover. %>
-          <div class="shrink-0 overflow-hidden transition-[width] duration-300 ease-out w-0 group-hover:w-[26px] group-focus-within:w-[26px]">
+          <div class="shrink-0 overflow-hidden transition-[width] duration-150 ease-out w-0 group-hover:w-[26px] group-focus-within:w-[26px]">
             <%= button_to toggle_complete_card_path(card),
                 method: :patch,
                 form: { class: "m-0 mt-px" },

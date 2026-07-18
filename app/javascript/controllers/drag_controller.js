@@ -17,11 +17,18 @@ export default class extends Controller {
       scroll: true,
       scrollSensitivity: 60,
       scrollSpeed: 12,
+      // gap_insert_controller.js listens for these on `document` (not this
+      // element) since a card can be dragged from one list's container into
+      // another's — every list's inserter needs to suppress itself for the
+      // whole lifetime of the drag, not just the one it started in.
+      onStart: () => document.dispatchEvent(new CustomEvent("cards:drag-start")),
       onEnd: this.end.bind(this)
     })
   }
 
   end(event) {
+    document.dispatchEvent(new CustomEvent("cards:drag-end"))
+
     // Dropped back where it started — nothing changed, skip the PATCH.
     if (event.from === event.to && event.oldIndex === event.newIndex) return
 
