@@ -10,6 +10,16 @@ Rails.application.routes.draw do
   get "switch_boards"  => "boards#switcher", as: :switch_boards
   get "search"         => "search#index",   as: :search
 
+  # Personal Settings (account dropdown). Root redirects to profile so
+  # linking bare "/account" (e.g. from a bookmark) lands somewhere real.
+  get   "account",            to: redirect("/account/profile")
+  get   "account/profile",    to: "account#profile",        as: :account_profile
+  patch "account/profile",    to: "account#update_profile"
+  get   "account/activity",   to: "account#activity",       as: :account_activity
+  get   "account/cards",      to: "account#cards",          as: :account_cards
+  get   "account/settings",   to: "account#settings",       as: :account_settings
+  patch "account/deactivate", to: "account#deactivate",     as: :account_deactivate
+
   # 3. Health check (Standard Rails 7.1+)
   get "up" => "rails/health#show", as: :rails_health_check
 

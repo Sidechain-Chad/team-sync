@@ -1,0 +1,31 @@
+<%# Shared account-page chrome — canvas-golden background, sidebar (lg+)
+    or tab row (below), content column of white card(s). Pages render
+    their body through the block: `render "account/shell", active: :profile,
+    title: "Profile" do ... end`. %>
+<div class="canvas-golden min-h-screen">
+  <div class="max-w-5xl mx-auto px-4 py-10">
+
+    <%= render "account/tabs", active: active %>
+
+    <div class="lg:flex lg:gap-8">
+      <%= render "account/sidebar", active: active %>
+
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between mb-6">
+          <h1 class="font-display text-2xl font-bold text-ink-700"><%= title %></h1>
+
+          <%# Trello-style exit — back to wherever the account section was
+              entered from (see AccountController#stash_return_to), not
+              just "back" (moving between account tabs doesn't overwrite
+              it) and not a dead end if there's nothing stashed. %>
+          <%= link_to session[:account_return_to] || boards_path,
+              class: "text-ink-500 hover:text-ink-700 hover:bg-surface-100 transition flex items-center justify-center h-8 w-8 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+              "aria-label": "Close settings" do %>
+            <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
+          <% end %>
+        </div>
+        <%= yield %>
+      </div>
+    </div>
+  </div>
+</div>

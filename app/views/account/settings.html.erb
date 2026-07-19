@@ -1,0 +1,39 @@
+<%= render "account/shell", active: :settings, title: "Settings" do %>
+  <div class="space-y-6 max-w-lg">
+
+    <%# Login & security — links out to Devise's own form rather than
+        rebuilding it here (see devise/registrations/edit.html.erb, restyled
+        but logic-untouched). %>
+    <div class="bg-white rounded-lg shadow-sm border border-line p-6">
+      <h2 class="text-sm font-bold text-ink-700 uppercase tracking-wide mb-1">Login & security</h2>
+      <p class="text-sm text-ink-500 mb-4">Change the email address or password you sign in with.</p>
+      <%= link_to edit_user_registration_path,
+          class: "inline-flex items-center gap-2 bg-surface-200 hover:bg-surface-300 text-ink-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors" do %>
+        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+        Change email or password
+      <% end %>
+    </div>
+
+    <%# Notifications — explicitly absent, no fake toggle. %>
+    <div class="bg-white rounded-lg shadow-sm border border-line p-6">
+      <h2 class="text-sm font-bold text-ink-700 uppercase tracking-wide mb-1">Notifications</h2>
+      <p class="text-sm text-ink-300">Notification preferences will appear here when notifications launch.</p>
+    </div>
+
+    <%# Danger zone — the one real, working control on this page: soft
+        deactivation. %>
+    <div class="bg-white rounded-lg shadow-sm border-2 border-danger-600/40 p-6">
+      <h2 class="text-sm font-bold text-danger-600 uppercase tracking-wide mb-1">Danger zone</h2>
+      <p class="text-sm text-ink-500 mb-1">Deactivate your account.</p>
+      <ul class="text-sm text-ink-500 list-disc list-inside mb-4 space-y-0.5">
+        <li>You'll be removed from every board and card you're a member of.</li>
+        <li>Your comments and activity history stay intact.</li>
+        <li>You will not be able to sign back in.</li>
+      </ul>
+      <%= button_to "Deactivate account", account_deactivate_path,
+          method: :patch,
+          form: { data: { turbo_confirm: "Deactivate your account? You'll be removed from every board and card, and won't be able to sign back in. This cannot be undone by you." } },
+          class: "bg-danger-600 hover:bg-danger-600/90 text-white text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors" %>
+    </div>
+  </div>
+<% end %>

@@ -177,13 +177,27 @@
         </div>
       </div>
 
+      <%# Personal Settings — Profile / Activity / Cards / Settings.
+          Same four destinations as the account/_sidebar and account/_tabs
+          partials (account_nav_links), just rendered as menu rows here
+          instead of nav links. %>
+      <div class="py-1">
+        <% account_nav_links.each do |link| %>
+          <%= link_to link[:path],
+              class: "flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-100 transition-colors" do %>
+            <i class="<%= link[:icon] %> text-ink-500 w-4 text-center" aria-hidden="true"></i>
+            <span><%= link[:label] %></span>
+          <% end %>
+        <% end %>
+      </div>
+
       <%# Log out — Devise session destroy. button_to so we get a real
           form with CSRF + DELETE method, no Turbo data-method shim. %>
       <div class="py-1 border-t border-line">
         <%= button_to destroy_user_session_path,
             method: :delete,
             form: { data: { turbo: false } },
-            class: "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors text-left" do %>
+            class: "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-danger-50 hover:text-danger-600 transition-colors text-left" do %>
           <i class="fa-solid fa-arrow-right-from-bracket text-ink-500 w-4 text-center" aria-hidden="true"></i>
           <span>Log out</span>
         <% end %>
