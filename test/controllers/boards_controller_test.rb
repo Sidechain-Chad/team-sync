@@ -44,6 +44,16 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match "fa-star text-yellow-400", response.body
   end
 
+  test "a plain GET of the board page never carries the one-shot completion pop, even with completed cards present" do
+    list = @board.lists.create!(name: "List", position: 1)
+    list.cards.create!(title: "Done already", completed: true)
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_no_match(/animate-complete-pop/, response.body)
+  end
+
   test "visiting boards A, B, A yields recents in [A, B] order, most-recent first" do
     board_b = @user.boards.create!(name: "Board B")
 

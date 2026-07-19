@@ -259,6 +259,74 @@ body {
 .list-chosen { cursor: grabbing; }
 
 /* ============================================================
+   Completion pop — one-shot celebration for a card LANDING on
+   completed=true (never on un-completing; Trello celebrates finishing,
+   not regret). Server-driven, not a pure-CSS "on state change" trick:
+   .animate-complete-pop is only added to a render when the just_completed
+   local is true, and that local is only ever true on the exact response
+   that resulted from THIS toggle (see CardsController#toggle_complete).
+   A plain page load, a drag re-render, or another client's broadcast of
+   someone else's edit never carries it — otherwise every already-completed
+   card would replay the pop on every visit. Reduced-motion users still
+   get the state change (solid fill + check), just with no motion.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-complete-pop {
+    position: relative;
+    animation: complete-pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .animate-complete-pop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 2px solid var(--color-success-600);
+    animation: complete-pop-ring 450ms ease-out;
+    pointer-events: none;
+  }
+}
+
+@keyframes complete-pop {
+  0%   { transform: scale(0.6); }
+  60%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes complete-pop-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* ============================================================
+   Account "My Cards" page — ONE grid template shared by the header row
+   (account/cards.html.erb) and every data row (account/_card_row.html.erb).
+   They used to each declare their own `md:grid-cols-[1fr_auto_auto_auto_auto]`
+   utility — harmless-looking, but `auto` tracks size to THAT grid's own
+   content only, so the header (short column labels) and each data row
+   (its own card's content) landed on different column widths and never
+   lined up. Fixed pixel tracks here, referenced by both templates via
+   this one class, is the only way they can't drift apart again.
+
+   Widths were measured against real rendered content, not guessed: this
+   page's content column tops out around 640px usable width once the
+   lg+ sidebar (account/_shell.html.erb, max-w-5xl minus the w-56
+   sidebar) is showing — the most space-constrained case. List/Board
+   truncate, Labels wrap, Due is short and single-line ("Jul 26"-style,
+   ~60px natural). The four fixed columns are kept lean specifically so
+   the flexible Card column — the actual title, the thing being
+   scanned — doesn't get starved down to something that truncates on
+   every ordinary title. Below md this class does nothing — the mobile
+   stacked layout still comes from the plain `grid grid-cols-1` utility.
+   ============================================================ */
+@media (min-width: 48rem) {
+  .account-cards-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 85px 110px 75px 145px;
+  }
+}
+
+/* ============================================================
    Flatpickr theme override — Golden Hour instead of the vendored
    blue default. The vendored file itself is untouched; this wins
    via !important because flatpickr.css is linked in the layout

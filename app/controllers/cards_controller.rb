@@ -259,13 +259,24 @@ class CardsController < ApplicationController
     @card.update!(completed: !@card.completed?)
     @card.log_activity(current_user, @card.completed? ? "completed_card" : "uncompleted_card")
 
+    # true only when this toggle just landed on completed (never on
+    # un-completing) — passed to every render path below so the pop
+    # animation is a one-shot tied to this exact transition, not a
+    # property of the completed state itself.
+    just_completed = @card.completed?
+
     # Re-broadcast the card to all viewers of the board so the green check
-    # appears (or disappears) on every connected client.
+    # appears (or disappears) on every connected client. Other connected
+    # clients get the pop too (acceptable — they're seeing the state
+    # change land in real time same as the actor). The actor themselves
+    # only double-renders here when the toggle came from the board tile
+    # itself (see the bare `else` below, which renders nothing else), so
+    # this is still exactly one visible pop for the actor in every case.
     Turbo::StreamsChannel.broadcast_replace_to(
       @card.list.board,
       target: @card,
       partial: "cards/card",
-      locals: { card: @card }
+      locals: { card: @card, just_completed: just_completed }
     )
 
     respond_to do |format|
@@ -281,12 +292,31 @@ class CardsController < ApplicationController
           # redirect below (which would just empty the modal, since the
           # board page's turbo-frame "modal" placeholder is empty).
           reload_card_for_modal!
-          render turbo_stream: turbo_stream.replace("modal", template: "cards/show")
+          render turbo_stream: turbo_stream.replace("modal", template: "cards/show", locals: { just_completed: just_completed })
+        elsif params[:from_account].present?
+          # The account Cards page toggle — replace just this row in
+          # place. Deliberately NOT re-sorting/removing the row here even
+          # though completion can affect its sort position (due-date sort
+          # pushes completed cards to the end): matches how the board
+          # filter treats in-place changes, ordering catches up next
+          # visit or sort click rather than the row jumping/disappearing
+          # out from under the click that just landed.
+          render turbo_stream: turbo_stream.replace(
+            helpers.dom_id(@card, :account_row),
+            partial: "account/card_row",
+            locals: { card: @card, sort: params[:sort], just_completed: just_completed }
+          )
         else
           head :no_content
         end
       end
-      format.html { redirect_to board_path(@card.list.board) }
+      format.html do
+        if params[:from_account].present?
+          redirect_to account_cards_path(sort: params[:sort])
+        else
+          redirect_to board_path(@card.list.board)
+        end
+      end
     end
   end
 

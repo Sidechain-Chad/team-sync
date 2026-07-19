@@ -100,7 +100,7 @@
           <%= button_to toggle_complete_card_path(card),
               method: :patch,
               form: { class: "m-0 shrink-0 mr-1.5 mt-px" },
-              class: "h-5 w-5 rounded-full bg-success-600/90 hover:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+              class: "h-5 w-5 rounded-full bg-success-600/90 hover:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1#{" animate-complete-pop" if local_assigns.fetch(:just_completed, false)}",
               title: "Mark incomplete",
               aria: { label: "Mark incomplete" } do %>
             <i class="fa-solid fa-check text-[10px] text-white" aria-hidden="true"></i>

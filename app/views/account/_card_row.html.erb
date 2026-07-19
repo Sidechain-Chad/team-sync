@@ -1,0 +1,69 @@
+<%
+  just_completed = local_assigns.fetch(:just_completed, false)
+%>
+<div id="<%= dom_id(card, :account_row) %>" class="grid grid-cols-1 account-cards-grid gap-2 md:gap-4 md:items-center px-4 py-3 hover:bg-surface-50 transition-colors group">
+
+  <%# Card — complete toggle (Trello anatomy, now interactive: mirrors
+      cards/_card.html.erb's board-tile mechanic) + title. The toggle is a
+      SIBLING of the title link, not nested inside it, to avoid a button
+      form nested inside an anchor. %>
+  <div class="flex items-center gap-2 min-w-0">
+    <% if card.completed? %>
+      <%# Always visible — green filled check, click to un-complete %>
+      <%= button_to toggle_complete_card_path(card),
+          method: :patch,
+          params: { from_account: true, sort: sort },
+          form: { class: "m-0 shrink-0" },
+          class: "h-4.5 w-4.5 rounded-full bg-success-600 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1#{" animate-complete-pop" if just_completed}",
+          title: "Mark incomplete",
+          aria: { label: "Mark incomplete" } do %>
+        <i class="fa-solid fa-check text-white text-[10px]" aria-hidden="true"></i>
+      <% end %>
+      <span class="sr-only">Completed.</span>
+    <% else %>
+      <%# Hover/focus-only reveal — same width-expansion timing as the
+          board-card toggle (250ms, w-0 -> 18px to match this page's
+          smaller h-4.5 badge). At rest: no marker, no reserved space. %>
+      <div class="shrink-0 overflow-hidden transition-[width] duration-[250ms] ease-in-out w-0 group-hover:w-[18px] group-focus-within:w-[18px]">
+        <%= button_to toggle_complete_card_path(card),
+            method: :patch,
+            params: { from_account: true, sort: sort },
+            form: { class: "m-0" },
+            class: "h-4.5 w-4.5 rounded-full bg-white border-2 border-line hover:border-success-600 hover:bg-success-100 flex items-center justify-center cursor-pointer group/btn opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-[250ms] ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+            title: "Mark complete",
+            aria: { label: "Mark complete" } do %>
+          <i class="fa-solid fa-check text-[8px] text-transparent group-hover/btn:text-success-600" aria-hidden="true"></i>
+        <% end %>
+      </div>
+    <% end %>
+
+    <%= link_to card_path(card), data: { turbo_frame: "modal" }, class: "flex-1 min-w-0 no-underline text-inherit" do %>
+      <%# `block` is load-bearing: `truncate` (overflow:hidden + ellipsis) is a
+          no-op on a plain inline `<span>` per spec — needs a block box to
+          actually clip against the column's constrained width. %>
+      <span class="block text-sm font-medium text-ink-700 truncate"><%= card.title %></span>
+    <% end %>
+  </div>
+
+  <%# List — truncates rather than pushing Labels/Due/Board out of column %>
+  <div class="text-xs text-ink-500 min-w-0 truncate">
+    <span class="md:hidden font-bold uppercase tracking-wide mr-1">List:</span><%= card.list.name %>
+  </div>
+
+  <%# Labels — wraps within its fixed-width column instead of overflowing %>
+  <div class="flex flex-wrap gap-1 min-w-0">
+    <%= render "cards/label_pills", card: card %>
+  </div>
+
+  <%# Due %>
+  <div class="min-w-0">
+    <%= render "cards/due_pill", card: card %>
+  </div>
+
+  <%# Board — small cover swatch + name %>
+  <%= link_to board_path(card.list.board), class: "flex items-center gap-2 min-w-0 no-underline text-inherit" do %>
+    <%= render "boards/cover", board: card.list.board, height_class: "h-6 w-9 rounded flex-shrink-0" %>
+    <span class="block min-w-0 text-xs text-ink-500 truncate"><%= card.list.board.name %></span>
+  <% end %>
+
+</div>

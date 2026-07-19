@@ -404,6 +404,15 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#conversation_column form[action=?]", archive_card_path(@card), count: 0
   end
 
+  test "a plain GET of a completed card's modal never carries the one-shot completion pop" do
+    @card.update!(completed: true)
+
+    get card_url(@card)
+
+    assert_response :success
+    assert_no_match(/animate-complete-pop/, response.body)
+  end
+
   test "toggling complete from the modal updates card.completed and refreshes the modal" do
     assert_not @card.completed?
 
@@ -412,7 +421,18 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match(/turbo-stream action="replace" target="modal"/, response.body)
     assert_match "Mark incomplete", response.body
+    assert_match "animate-complete-pop", response.body
     assert @card.reload.completed?
+  end
+
+  test "un-completing from the modal never carries the pop animation" do
+    @card.update!(completed: true)
+
+    patch toggle_complete_card_url(@card), params: { from_modal: true }, as: :turbo_stream
+
+    assert_response :success
+    assert_no_match(/animate-complete-pop/, response.body)
+    assert_not @card.reload.completed?
   end
 
   test "toggling complete from the board tile (no from_modal) does not try to render the modal" do
@@ -421,6 +441,41 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     patch toggle_complete_card_url(@card), as: :turbo_stream
 
     assert_response :no_content
+    assert @card.reload.completed?
+  end
+
+  test "toggling complete from the account page replaces just that row and marks it just-completed" do
+    assert_not @card.completed?
+    row_id = ActionView::RecordIdentifier.dom_id(@card, :account_row)
+
+    patch toggle_complete_card_url(@card), params: { from_account: true, sort: "due" }, as: :turbo_stream
+
+    assert_response :success
+    assert_match(/turbo-stream action="replace" target="#{row_id}"/, response.body)
+    assert_match "Mark incomplete", response.body
+    # The one-shot pop only fires on the transition that lands on complete.
+    assert_match "animate-complete-pop", response.body
+    assert @card.reload.completed?
+  end
+
+  test "un-completing from the account page never carries the pop animation" do
+    @card.update!(completed: true)
+    row_id = ActionView::RecordIdentifier.dom_id(@card, :account_row)
+
+    patch toggle_complete_card_url(@card), params: { from_account: true, sort: "due" }, as: :turbo_stream
+
+    assert_response :success
+    assert_match(/turbo-stream action="replace" target="#{row_id}"/, response.body)
+    assert_no_match(/animate-complete-pop/, response.body)
+    assert_not @card.reload.completed?
+  end
+
+  test "account page toggle HTML fallback redirects back to account cards, preserving sort" do
+    assert_not @card.completed?
+
+    patch toggle_complete_card_url(@card), params: { from_account: true, sort: "updated" }
+
+    assert_redirected_to account_cards_url(sort: "updated")
     assert @card.reload.completed?
   end
 

@@ -186,7 +186,7 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     assert_no_match archived_card.title, response.body
   end
 
-  test "cards marks completed rows with a filled check and leaves incomplete rows unmarked" do
+  test "cards marks completed rows with a filled check button and leaves incomplete rows unmarked at rest" do
     sign_in @user
     @card_one.update!(completed: true)
 
@@ -196,14 +196,27 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     get account_cards_url
 
     assert_response :success
-    assert_select "a", text: /#{Regexp.escape(@card_one.title)}/ do
-      assert_select "span.bg-success-600 i.fa-check"
+    assert_select "##{ActionView::RecordIdentifier.dom_id(@card_one, :account_row)}" do
+      assert_select "button.bg-success-600 i.fa-check"
       assert_select "span.sr-only", text: "Completed."
     end
-    assert_select "a", text: /#{Regexp.escape(incomplete_card.title)}/ do
-      assert_select "span.bg-success-600", count: 0
+    assert_select "##{ActionView::RecordIdentifier.dom_id(incomplete_card, :account_row)}" do
+      assert_select "button.bg-success-600", count: 0
       assert_select "span.sr-only", count: 0
+      # At rest the reveal wrapper is collapsed to w-0 — still present in
+      # the DOM (for the hover/focus-within reveal) but reserves no space.
+      assert_select "button[aria-label=?]", "Mark complete", count: 1
     end
+  end
+
+  test "a plain GET of the cards page never carries the one-shot completion pop, even with completed cards present" do
+    sign_in @user
+    @card_one.update!(completed: true)
+
+    get account_cards_url
+
+    assert_response :success
+    assert_no_match(/animate-complete-pop/, response.body)
   end
 
   test "cards empty state renders when nothing is assigned" do

@@ -131,7 +131,7 @@
                     method: :patch,
                     params: { from_modal: true },
                     form: { class: "m-0 shrink-0 mt-1" },
-                    class: "h-6 w-6 rounded-full bg-success-600/90 hover:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+                    class: "h-6 w-6 rounded-full bg-success-600/90 hover:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1#{" animate-complete-pop" if local_assigns.fetch(:just_completed, false)}",
                     title: "Mark incomplete",
                     aria: { label: "Mark incomplete" } do %>
                   <i class="fa-solid fa-check text-xs text-white" aria-hidden="true"></i>
