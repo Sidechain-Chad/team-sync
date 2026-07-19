@@ -186,6 +186,26 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     assert_no_match archived_card.title, response.body
   end
 
+  test "cards marks completed rows with a filled check and leaves incomplete rows unmarked" do
+    sign_in @user
+    @card_one.update!(completed: true)
+
+    incomplete_card = @list_one.cards.create!(title: "Incomplete Assigned Card")
+    CardMember.create!(card: incomplete_card, user: @user)
+
+    get account_cards_url
+
+    assert_response :success
+    assert_select "a", text: /#{Regexp.escape(@card_one.title)}/ do
+      assert_select "span.bg-success-600 i.fa-check"
+      assert_select "span.sr-only", text: "Completed."
+    end
+    assert_select "a", text: /#{Regexp.escape(incomplete_card.title)}/ do
+      assert_select "span.bg-success-600", count: 0
+      assert_select "span.sr-only", count: 0
+    end
+  end
+
   test "cards empty state renders when nothing is assigned" do
     # The fixture set assigns @user to @card_one via card_members.yml —
     # clear it so this test genuinely exercises the zero-cards case.

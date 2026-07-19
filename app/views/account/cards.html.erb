@@ -36,12 +36,14 @@
         <% @cards.each do |card| %>
           <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto_auto] gap-2 md:gap-4 md:items-center px-4 py-3 hover:bg-surface-50 transition-colors">
 
-            <%# Card — complete indicator + title %>
+            <%# Card — complete indicator (Trello anatomy: solid filled circle,
+                white check, no reserved space when incomplete) + title %>
             <%= link_to card_path(card), data: { turbo_frame: "modal" }, class: "flex items-center gap-2 min-w-0 no-underline text-inherit" do %>
               <% if card.completed? %>
-                <i class="fa-solid fa-circle-check text-success-600 text-sm flex-shrink-0" title="Completed" aria-hidden="true"></i>
-              <% else %>
-                <i class="fa-regular fa-circle text-ink-300 text-sm flex-shrink-0" aria-hidden="true"></i>
+                <span class="h-4.5 w-4.5 rounded-full bg-success-600 flex items-center justify-center flex-shrink-0" aria-hidden="true">
+                  <i class="fa-solid fa-check text-white text-[10px]"></i>
+                </span>
+                <span class="sr-only">Completed.</span>
               <% end %>
               <span class="text-sm font-medium text-ink-700 truncate"><%= card.title %></span>
             <% end %>
