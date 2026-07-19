@@ -16,6 +16,7 @@ class CardsController < ApplicationController
                         .find(params[:id])
 
     @feed = (@card.comments + @card.activities).sort_by(&:created_at).reverse
+    resolve_return_to!
   end
 
   def edit
@@ -279,6 +280,22 @@ class CardsController < ApplicationController
       locals: { card: @card, just_completed: just_completed }
     )
 
+    # Same idea, per member's own "My Cards" stream (account/cards.html.erb)
+    # rather than the board — a card's members aren't all necessarily
+    # looking at its board, but anyone with it assigned sees its row
+    # everywhere it's open (another tab, or the row behind an open modal).
+    # `sort` can't be known per-recipient here (each viewer's own page load
+    # picked its own sort param) — "due" is just the account page's own
+    # default, only relevant to that row's NEXT toggle's html fallback.
+    @card.members.each do |member|
+      Turbo::StreamsChannel.broadcast_replace_to(
+        member, :cards,
+        target: helpers.dom_id(@card, :account_row),
+        partial: "account/card_row",
+        locals: { card: @card, sort: "due", just_completed: just_completed }
+      )
+    end
+
     respond_to do |format|
       format.turbo_stream do
         if params[:from_modal].present?
@@ -292,20 +309,16 @@ class CardsController < ApplicationController
           # redirect below (which would just empty the modal, since the
           # board page's turbo-frame "modal" placeholder is empty).
           reload_card_for_modal!
+          resolve_return_to!
           render turbo_stream: turbo_stream.replace("modal", template: "cards/show", locals: { just_completed: just_completed })
         elsif params[:from_account].present?
-          # The account Cards page toggle — replace just this row in
-          # place. Deliberately NOT re-sorting/removing the row here even
-          # though completion can affect its sort position (due-date sort
-          # pushes completed cards to the end): matches how the board
-          # filter treats in-place changes, ordering catches up next
-          # visit or sort click rather than the row jumping/disappearing
-          # out from under the click that just landed.
-          render turbo_stream: turbo_stream.replace(
-            helpers.dom_id(@card, :account_row),
-            partial: "account/card_row",
-            locals: { card: @card, sort: params[:sort], just_completed: just_completed }
-          )
+          # The account Cards page toggle now relies entirely on the
+          # per-member broadcast above (the actor is one of @card.members,
+          # so their own row gets replaced by it same as everyone else's) —
+          # rendering the row again here too would double the pop for the
+          # actor (response + their own broadcast landing back on the same
+          # target). Nothing left for this response to do.
+          head :ok
         else
           head :no_content
         end
@@ -405,6 +418,18 @@ class CardsController < ApplicationController
                         )
                         .find(@card.id)
     @feed = (@card.comments + @card.activities).sort_by(&:created_at).reverse
+  end
+
+  # Where the modal's close (✕) button and overlay-click should land —
+  # normally the card's board, but the account Cards page opens the modal
+  # over itself and needs its own close destination back. `return_to` is
+  # a strict enum check (never a path/URL), and `sort` is whitelisted to
+  # the two values the account page's own sort links produce — neither
+  # value is ever reflected into a link/redirect verbatim, so this can't
+  # become an open redirect no matter what a client sends.
+  def resolve_return_to!
+    @return_to_account = params[:return_to] == "account"
+    @return_to_sort = %w[due updated].include?(params[:sort]) ? params[:sort] : "due"
   end
 
   def card_params

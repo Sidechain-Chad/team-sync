@@ -1,8 +1,15 @@
+<%
+  # Where closing this modal lands — the card's board normally, but back
+  # to the account Cards page (sort preserved) when that's where it was
+  # opened from. @return_to_account/@return_to_sort come from a strict
+  # whitelist (CardsController#resolve_return_to!), never a reflected path.
+  close_path = @return_to_account ? account_cards_path(sort: @return_to_sort) : board_path(@card.list.board)
+%>
 <%= turbo_frame_tag "modal" do %>
   <div class="fixed inset-0 z-[9999] flex items-center justify-center">
 
-    <%# Overlay (clicking it closes the modal by navigating back to the board) %>
-    <%= link_to board_path(@card.list.board),
+    <%# Overlay (clicking it closes the modal, same destination as ✕) %>
+    <%= link_to close_path,
         class: "absolute inset-0 bg-ink-900/60 cursor-default",
         data: { turbo_action: "advance", modal_exit: true } do %>
     <% end %>
@@ -104,7 +111,7 @@
           </div>
 
           <%# CLOSE BUTTON %>
-          <%= link_to board_path(@card.list.board),
+          <%= link_to close_path,
               class: "text-ink-500 hover:text-ink-700 transition flex items-center justify-center p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
               "aria-label": "Close card",
               data: { turbo_action: "advance", modal_exit: true } do %>
@@ -126,10 +133,19 @@
 
             <%# 1. Title + complete-toggle (Trello position: left of the title) %>
             <div class="flex items-start gap-4">
+              <%
+                # Carries the modal's own return_to/sort forward through the
+                # toggle's re-render (CardsController#toggle_complete calls
+                # resolve_return_to! again from these same params) — without
+                # this, toggling complete while viewing the modal over
+                # /account/cards would silently lose that context and the
+                # close button would fall back to the board on the next render.
+                toggle_params = { from_modal: true, return_to: (@return_to_account ? "account" : nil), sort: @return_to_sort }
+              %>
               <% if @card.completed? %>
                 <%= button_to toggle_complete_card_path(@card),
                     method: :patch,
-                    params: { from_modal: true },
+                    params: toggle_params,
                     form: { class: "m-0 shrink-0 mt-1" },
                     class: "h-6 w-6 rounded-full bg-success-600/90 hover:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1#{" animate-complete-pop" if local_assigns.fetch(:just_completed, false)}",
                     title: "Mark incomplete",
@@ -139,7 +155,7 @@
               <% else %>
                 <%= button_to toggle_complete_card_path(@card),
                     method: :patch,
-                    params: { from_modal: true },
+                    params: toggle_params,
                     form: { class: "m-0 shrink-0 mt-1" },
                     class: "h-6 w-6 rounded-full bg-white border-2 border-line hover:border-success-600 hover:bg-success-100 flex items-center justify-center transition-colors cursor-pointer group/complete focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
                     title: "Mark complete",

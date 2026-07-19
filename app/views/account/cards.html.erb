@@ -1,3 +1,11 @@
+<%# Per-user stream: any card assigned to me gets its row refreshed live
+    here — e.g. toggling complete from the card modal while this page is
+    open behind it, or another tab/session of mine doing the same. Scoped
+    to current_user (not the board), since a card's members can span
+    boards this session isn't otherwise subscribed to. See
+    CardsController#toggle_complete for the matching broadcast. %>
+<%= turbo_stream_from current_user, :cards %>
+
 <%= render "account/shell", active: :cards, title: "Cards" do %>
 
   <% if @cards.any? %>

@@ -37,7 +37,10 @@
       </div>
     <% end %>
 
-    <%= link_to card_path(card), data: { turbo_frame: "modal" }, class: "flex-1 min-w-0 no-underline text-inherit" do %>
+    <%# return_to/sort let the modal's close (X) button land back here
+        (sort preserved) instead of the card's board — see
+        CardsController#resolve_return_to! and cards/show.html.erb. %>
+    <%= link_to card_path(card, return_to: "account", sort: sort), data: { turbo_frame: "modal" }, class: "flex-1 min-w-0 no-underline text-inherit" do %>
       <%# `block` is load-bearing: `truncate` (overflow:hidden + ellipsis) is a
           no-op on a plain inline `<span>` per spec — needs a block box to
           actually clip against the column's constrained width. %>

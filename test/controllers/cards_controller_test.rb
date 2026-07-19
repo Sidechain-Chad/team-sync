@@ -2,6 +2,7 @@ require "test_helper"
 
 class CardsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   setup do
     @user = users(:one)
@@ -404,6 +405,46 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#conversation_column form[action=?]", archive_card_path(@card), count: 0
   end
 
+  test "modal close button defaults to the card's board with no return_to param" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "a[aria-label=?][href=?]", "Close card", board_path(@card.list.board)
+  end
+
+  test "modal close button returns to account cards, sort preserved, when opened with return_to=account" do
+    get card_url(@card, return_to: "account", sort: "updated")
+
+    assert_response :success
+    assert_select "a[aria-label=?][href=?]", "Close card", account_cards_path(sort: "updated")
+  end
+
+  test "modal close button defaults sort to due for an unrecognized sort value" do
+    get card_url(@card, return_to: "account", sort: "totally-not-a-real-sort")
+
+    assert_response :success
+    assert_select "a[aria-label=?][href=?]", "Close card", account_cards_path(sort: "due")
+  end
+
+  test "return_to is a strict whitelist — any value other than the literal 'account' falls back to the board" do
+    get card_url(@card, return_to: "https://evil.example.com/phish")
+
+    assert_response :success
+    assert_select "a[aria-label=?][href=?]", "Close card", board_path(@card.list.board)
+  end
+
+  test "toggling complete from the modal opened over account cards preserves return_to across the re-render" do
+    get card_url(@card, return_to: "account", sort: "updated")
+    assert_response :success
+
+    patch toggle_complete_card_url(@card),
+      params: { from_modal: true, return_to: "account", sort: "updated" },
+      as: :turbo_stream
+
+    assert_response :success
+    assert_select "a[aria-label=?][href=?]", "Close card", account_cards_path(sort: "updated")
+  end
+
   test "a plain GET of a completed card's modal never carries the one-shot completion pop" do
     @card.update!(completed: true)
 
@@ -444,29 +485,73 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert @card.reload.completed?
   end
 
-  test "toggling complete from the account page replaces just that row and marks it just-completed" do
+  test "toggling complete from the modal also broadcasts the row update to the member's own cards stream" do
+    # This is the real-time-sync scenario: the modal is open (e.g. over
+    # /account/cards), so the modal's own response only refreshes the
+    # "modal" frame — the account row behind it can only update via this
+    # per-member broadcast, not the response.
+    assert_not @card.completed?
+    row_id = ActionView::RecordIdentifier.dom_id(@card, :account_row)
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, [@user, :cards])
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch toggle_complete_card_url(@card), params: { from_modal: true }, as: :turbo_stream
+    end
+
+    assert_equal 1, broadcasts.size
+    assert_match(/turbo-stream action="replace" target="#{row_id}"/, broadcasts.first)
+    assert_match "animate-complete-pop", broadcasts.first
+  end
+
+  test "toggling complete from the board tile also broadcasts to the member's own cards stream" do
+    assert_not @card.completed?
+    row_id = ActionView::RecordIdentifier.dom_id(@card, :account_row)
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, [@user, :cards])
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch toggle_complete_card_url(@card), as: :turbo_stream
+    end
+
+    assert_equal 1, broadcasts.size
+    assert_match(/turbo-stream action="replace" target="#{row_id}"/, broadcasts.first)
+  end
+
+  test "toggling complete from the account page returns an empty response and marks it just-completed via broadcast" do
     assert_not @card.completed?
     row_id = ActionView::RecordIdentifier.dom_id(@card, :account_row)
 
-    patch toggle_complete_card_url(@card), params: { from_account: true, sort: "due" }, as: :turbo_stream
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, [@user, :cards])
+    broadcasts = capture_broadcasts(stream_name) do
+      patch toggle_complete_card_url(@card), params: { from_account: true, sort: "due" }, as: :turbo_stream
+    end
 
+    # The response itself renders nothing now — the per-member broadcast
+    # above is the only thing that updates the row, otherwise the actor
+    # (who is one of @card.members, i.e. subscribed to that same stream)
+    # would get the row replaced twice and the pop would double-play.
     assert_response :success
-    assert_match(/turbo-stream action="replace" target="#{row_id}"/, response.body)
-    assert_match "Mark incomplete", response.body
-    # The one-shot pop only fires on the transition that lands on complete.
-    assert_match "animate-complete-pop", response.body
+    assert_empty response.body
+    assert_equal 1, broadcasts.size
+    assert_match(/turbo-stream action="replace" target="#{row_id}"/, broadcasts.first)
+    assert_match "Mark incomplete", broadcasts.first
+    assert_match "animate-complete-pop", broadcasts.first
     assert @card.reload.completed?
   end
 
-  test "un-completing from the account page never carries the pop animation" do
+  test "un-completing from the account page never carries the pop animation, even in the broadcast" do
     @card.update!(completed: true)
     row_id = ActionView::RecordIdentifier.dom_id(@card, :account_row)
 
-    patch toggle_complete_card_url(@card), params: { from_account: true, sort: "due" }, as: :turbo_stream
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, [@user, :cards])
+    broadcasts = capture_broadcasts(stream_name) do
+      patch toggle_complete_card_url(@card), params: { from_account: true, sort: "due" }, as: :turbo_stream
+    end
 
     assert_response :success
-    assert_match(/turbo-stream action="replace" target="#{row_id}"/, response.body)
-    assert_no_match(/animate-complete-pop/, response.body)
+    assert_empty response.body
+    assert_equal 1, broadcasts.size
+    assert_match(/turbo-stream action="replace" target="#{row_id}"/, broadcasts.first)
+    assert_no_match(/animate-complete-pop/, broadcasts.first)
     assert_not @card.reload.completed?
   end
 

@@ -231,6 +231,15 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     assert_match "not assigned to any cards", response.body
   end
 
+  test "cards page subscribes to the signed-in user's own per-user cards stream" do
+    sign_in @user
+    get account_cards_url
+
+    assert_response :success
+    expected_signed_name = Turbo::StreamsChannel.signed_stream_name([@user, :cards])
+    assert_select "turbo-cable-stream-source[signed-stream-name=?]", expected_signed_name
+  end
+
   test "cards sort flips between due date and recently updated" do
     sign_in @user
 
