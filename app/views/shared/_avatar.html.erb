@@ -1,0 +1,31 @@
+<%#
+  locals:
+    user:          User (or nil — comment/activity authors can be a
+                    deleted, nullified user)
+    size:          Tailwind h-*/w-* string, e.g. "h-8 w-8"
+    text_size:     font-size class for the initials fallback (default "text-xs")
+    variant:       :chip (default) or :thumb — named Active Storage variant
+    css_class:     extra classes applied to both the photo and the fallback
+                    (borders, rings, hover states, margins…)
+    fallback_class: classes for the initials fallback only, defaults to
+                    avatar_soft_classes(user) (pass avatar_solid_classes(user)
+                    or a static swatch to match a specific call site)
+    title:         optional title attribute (tooltip)
+%>
+<%
+  text_size = local_assigns.fetch(:text_size, "text-xs")
+  variant = local_assigns.fetch(:variant, :chip)
+  css_class = local_assigns.fetch(:css_class, "")
+  fallback_class = local_assigns.fetch(:fallback_class, nil) || avatar_soft_classes(user)
+  title = local_assigns.fetch(:title, nil)
+%>
+<% if user&.avatar&.attached? %>
+  <%= image_tag avatar_image_url(user, variant: variant),
+      class: "#{size} rounded-full object-cover #{css_class}",
+      alt: user.display_name,
+      title: title %>
+<% else %>
+  <%= content_tag :div, (user&.initials || "?"),
+      class: "#{size} rounded-full #{fallback_class} flex items-center justify-center #{text_size} font-bold #{css_class}",
+      title: title %>
+<% end %>

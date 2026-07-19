@@ -5,9 +5,8 @@
       <div class="flex items-center p-2 hover:bg-danger-50 rounded-md cursor-pointer group transition-colors" title="Remove from card">
 
         <%# Avatar %>
-        <div class="h-7 w-7 rounded-full <%= avatar_soft_classes(user) %> flex items-center justify-center text-[10px] font-bold border mr-2 group-hover:border-danger-600/25 group-hover:bg-danger-50 group-hover:text-danger-600 transition-colors">
-          <%= user.initials %>
-        </div>
+        <%= render "shared/avatar", user: user, size: "h-7 w-7", text_size: "text-[10px]",
+            css_class: "border mr-2 group-hover:border-danger-600/25 group-hover:bg-danger-50 group-hover:text-danger-600 transition-colors" %>
 
         <%# Name info %>
         <div class="flex flex-col">
@@ -25,9 +24,9 @@
       <div class="flex items-center p-2 hover:bg-surface-200 rounded-md cursor-pointer group transition-colors" title="Add to card">
 
         <%# Avatar %>
-        <div class="h-7 w-7 rounded-full bg-surface-200 flex items-center justify-center text-[10px] font-bold text-ink-500 mr-2 border border-line group-hover:bg-white group-hover:border-line">
-          <%= user.initials %>
-        </div>
+        <%= render "shared/avatar", user: user, size: "h-7 w-7", text_size: "text-[10px]",
+            css_class: "mr-2 border border-line group-hover:bg-white group-hover:border-line",
+            fallback_class: "bg-surface-200 text-ink-500" %>
 
         <%# Name info %>
         <div class="flex flex-col">

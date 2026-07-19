@@ -11,9 +11,7 @@
       <% @activities.each do |activity| %>
         <% card = activity.card %>
         <div class="flex items-start gap-3 p-4">
-          <div class="h-8 w-8 rounded-full <%= avatar_soft_classes(current_user) %> flex items-center justify-center text-[11px] font-bold flex-shrink-0">
-            <%= current_user.initials %>
-          </div>
+          <%= render "shared/avatar", user: current_user, size: "h-8 w-8", text_size: "text-[11px]", css_class: "flex-shrink-0" %>
           <div class="min-w-0 flex-1">
             <p class="text-sm text-ink-700">
               You <%= activity.message %> —

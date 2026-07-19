@@ -146,17 +146,17 @@
   </div>
 
   <%# Profile avatar — real dropdown. Account header (name/email) + log out.
-      Reuses avatar_soft_classes for the same per-user color shown elsewhere. %>
+      Photo when attached, falls back to the shared initials chip. %>
   <div class="relative ml-1"
        data-controller="dropdown"
        data-action="click@document->dropdown#hide">
 
     <button type="button"
             data-action="click->dropdown#toggle"
-            class="h-8 w-8 rounded-full <%= avatar_soft_classes(current_user) %> flex items-center justify-center text-[11px] font-bold ring-2 ring-white/20 hover:ring-white/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
+            class="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-white/20 hover:ring-white/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
             title="<%= current_user.display_name %>"
             aria-label="Account menu for <%= current_user.display_name %>">
-      <%= current_user.initials %>
+      <%= render "shared/avatar", user: current_user, size: "h-8 w-8", text_size: "text-[11px]" %>
     </button>
 
     <div data-dropdown-target="menu"
@@ -167,9 +167,7 @@
       <div class="px-4 py-3 border-b border-line">
         <p class="text-[10px] font-bold text-ink-500 uppercase tracking-wider mb-2">Account</p>
         <div class="flex items-center gap-3">
-          <div class="h-10 w-10 rounded-full <%= avatar_soft_classes(current_user) %> flex items-center justify-center text-xs font-bold flex-shrink-0">
-            <%= current_user.initials %>
-          </div>
+          <%= render "shared/avatar", user: current_user, size: "h-10 w-10", text_size: "text-xs", css_class: "flex-shrink-0" %>
           <div class="min-w-0">
             <div class="text-sm font-semibold truncate"><%= current_user.display_name %></div>
             <div class="text-xs text-ink-500 truncate"><%= current_user.email %></div>

@@ -7,11 +7,11 @@ class CardsController < ApplicationController
     @card = current_user.all_cards
                         .includes(
                           :labels,
-                          :members,
-                          { list: { board: [:labels, :members, :user] } },
+                          { members: { avatar_attachment: :blob } },
+                          { list: { board: [:labels, { members: { avatar_attachment: :blob } }, { user: { avatar_attachment: :blob } }] } },
                           { checklists: :checklist_items },
-                          { comments: :user },
-                          { activities: :user }
+                          { comments: { user: { avatar_attachment: :blob } } },
+                          { activities: { user: { avatar_attachment: :blob } } }
                         )
                         .find(params[:id])
 
@@ -410,11 +410,11 @@ class CardsController < ApplicationController
     @card = current_user.all_cards
                         .includes(
                           :labels,
-                          :members,
-                          { list: { board: [:labels, :members, :user] } },
+                          { members: { avatar_attachment: :blob } },
+                          { list: { board: [:labels, { members: { avatar_attachment: :blob } }, { user: { avatar_attachment: :blob } }] } },
                           { checklists: :checklist_items },
-                          { comments: :user },
-                          { activities: :user }
+                          { comments: { user: { avatar_attachment: :blob } } },
+                          { activities: { user: { avatar_attachment: :blob } } }
                         )
                         .find(@card.id)
     @feed = (@card.comments + @card.activities).sort_by(&:created_at).reverse

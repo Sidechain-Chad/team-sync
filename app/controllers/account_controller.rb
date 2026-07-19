@@ -27,6 +27,9 @@ class AccountController < ApplicationController
   # card read in the app uses) keeps this feed from linking a card the
   # user would 404 on if they clicked through.
   def activity
+    # Every row renders current_user's own avatar — the same in-memory
+    # object each time, so Rails' association caching already makes this
+    # a single query total regardless of activity count; no includes needed.
     @activities = current_user.activities
                                .where(card_id: current_user.all_cards.select(:id))
                                .includes(card: { list: :board })
@@ -59,6 +62,30 @@ class AccountController < ApplicationController
   def settings
   end
 
+  # Deliberately a plain `save` (no :profile_update context) — that context
+  # requires a non-blank name, which the demo user (and anyone else who's
+  # never set one) doesn't have. Riding that context here would make an
+  # avatar-only upload fail for them on an unrelated validation.
+  def update_avatar
+    current_user.avatar.attach(avatar_params[:avatar])
+
+    if current_user.save
+      redirect_to account_profile_path, notice: "Photo updated."
+    else
+      current_user.avatar.purge
+      redirect_to account_profile_path, alert: current_user.errors[:avatar].first
+    end
+  end
+
+  def destroy_avatar
+    if current_user.avatar.attached?
+      current_user.avatar.purge_later
+      redirect_to account_profile_path, notice: "Photo removed."
+    else
+      redirect_to account_profile_path
+    end
+  end
+
   def deactivate
     current_user.deactivate!
     flash[:alert] = "Your account has been deactivated. You won't be able to sign back in."
@@ -70,6 +97,10 @@ class AccountController < ApplicationController
 
   def profile_params
     params.require(:user).permit(:name)
+  end
+
+  def avatar_params
+    params.require(:user).permit(:avatar)
   end
 
   # Remembers where to send the ✕ button. Only stashes on entry: a referer

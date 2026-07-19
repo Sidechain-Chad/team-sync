@@ -4,9 +4,22 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
 
   setup do
+    # Real avatar/cover attaches in this file trigger Active Storage's
+    # analyze/transform jobs via after_commit (Rails' transactional test
+    # fixtures fire commit callbacks even though the transaction rolls
+    # back). This app's default :async adapter would actually run those
+    # jobs in background threads that can't see the not-really-committed
+    # row, retrying/blocking — the :test adapter just queues them instead.
+    @old_queue_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
+
     @user = User.create!(email: "board_test@example.com", password: "password")
     @board = @user.boards.create!(name: "Test Board")
     sign_in @user
+  end
+
+  teardown do
+    ActiveJob::Base.queue_adapter = @old_queue_adapter
   end
 
   test "should toggle favorite via patch" do
@@ -237,7 +250,13 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     # Bumped 13 -> 14 for the filter popover's board.labels read (a single
     # fixed-cost query, independent of card count — board.user/.members
     # were already loaded for the header avatar row and aren't duplicated).
-    assert_operator small, :<=, 14
+    # Bumped 14 -> 19 for avatar support: board.user/.members avatar_attachment
+    # + blob (preloaded via Preloader in BoardsController#show) plus the
+    # BOARD_PAGE_INCLUDES member-chip avatar_attachment + blob preload. All
+    # are fixed-cost — one lookup per distinct owner/member regardless of
+    # how many cards or lists exist — which the equality assertion below
+    # proves by holding flat at 5 vs 10 cards_per_list.
+    assert_operator small, :<=, 19
 
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end
@@ -246,15 +265,25 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
 
   def count_queries_for_board_show(cards_per_list:)
     user = User.create!(email: "perf#{cards_per_list}@example.com", password: "password")
+    attach_test_avatar(user)
     sign_in user
 
     board = user.boards.create!(name: "Perf Board #{cards_per_list}")
     board.lists.destroy_all # drop the seeded defaults for a controlled count
 
+    # A second, avatar-attached member — exercises the board header's
+    # member-strip avatar AND the BOARD_PAGE_INCLUDES member-chip avatar
+    # path, not just the (already-loaded) board owner.
+    member = User.create!(email: "perfmember#{cards_per_list}@example.com", password: "password")
+    attach_test_avatar(member)
+    board.board_users.create!(user: member)
+
+    first_card = nil
     3.times do |i|
       list = board.lists.create!(name: "List #{i}", position: i + 1)
       cards_per_list.times do |j|
         card = list.cards.create!(title: "Card #{i}-#{j}")
+        first_card ||= card
         2.times do |k|
           checklist = card.checklists.create!(title: "Checklist #{k}", position: k + 1)
           3.times { |m| checklist.checklist_items.create!(content: "Item #{m}", position: m + 1) }
@@ -262,10 +291,20 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
         2.times { |c| card.comments.create!(content: "Comment #{c}", user: user) }
       end
     end
+    # Fixed at one card regardless of cards_per_list — this proves the
+    # member-chip avatar preload doesn't scale with card count either.
+    CardMember.create!(card: first_card, user: member)
 
     result = count_queries { get board_url(board) }
     assert_response :success
     sign_out user
     result
+  end
+
+  def attach_test_avatar(user)
+    user.avatar.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "avatar.png", content_type: "image/png"
+    )
   end
 end

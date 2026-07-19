@@ -16,6 +16,17 @@ class User < ApplicationRecord
   has_many :favorited_boards, through: :board_favorites, source: :board
   has_many :assigned_cards,   through: :card_members, source: :card
 
+  # :chip is 2x a h-8 chip (comment/activity/nav rows); :thumb is for the
+  # h-16 profile identity block. NOT preprocessed — on Cloudinary these
+  # named variants are only a fallback (see AvatarsHelper#avatar_image_url,
+  # which builds Cloudinary's own transformation URLs instead), and
+  # preprocessing would just enqueue the exact background processing that
+  # path exists to avoid.
+  has_one_attached :avatar do |attachable|
+    attachable.variant :chip, resize_to_fill: [64, 64]
+    attachable.variant :thumb, resize_to_fill: [160, 160]
+  end
+
   # Only enforced on the Account > Profile name form (AccountController
   # passes context: :profile_update). Can't use `validates :name,
   # presence: true` unscoped — that would call the #name reader below,
@@ -26,6 +37,13 @@ class User < ApplicationRecord
   # other save path (deactivate!, Devise's own updates, fixtures) — none
   # of which ever set a name — from suddenly failing validation.
   validate :name_present_for_profile_update, on: :profile_update
+
+  # Deliberately NOT scoped to :profile_update (or any context) — avatar
+  # upload is its own action using a plain save (see AccountController),
+  # specifically so it never rides the name-presence check above. Scoped
+  # to attachment_changes so an unrelated save (deactivate!, Devise) never
+  # re-validates an already-valid, already-attached avatar.
+  validate :avatar_must_be_valid, if: -> { attachment_changes["avatar"].present? }
 
   # ---- Soft delete ----
 
@@ -97,5 +115,19 @@ class User < ApplicationRecord
 
   def name_present_for_profile_update
     errors.add(:name, "can't be blank") if self[:name].blank?
+  end
+
+  ALLOWED_AVATAR_TYPES = %w[image/png image/jpeg image/webp].freeze
+
+  def avatar_must_be_valid
+    return unless avatar.attached?
+
+    unless avatar.blob.content_type.in?(ALLOWED_AVATAR_TYPES)
+      errors.add(:avatar, "must be a PNG, JPEG, or WebP")
+    end
+
+    if avatar.blob.byte_size > 5.megabytes
+      errors.add(:avatar, "must be smaller than 5 MB")
+    end
   end
 end

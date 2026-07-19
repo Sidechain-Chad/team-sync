@@ -27,6 +27,14 @@ class BoardsController < ApplicationController
   end
 
   def show
+    # Preload the header's member-strip avatars onto the already-loaded
+    # @board — a fixed cost (owner + members, independent of card count),
+    # not a per-card N+1 like the includes below.
+    ActiveRecord::Associations::Preloader.new(
+      records: [@board],
+      associations: { user: { avatar_attachment: :blob }, members: { avatar_attachment: :blob } }
+    ).call
+
     # Eager-load everything the board view needs so each card on the page
     # doesn't fire its own queries for labels, members, checklist items, etc.
     # Comments aren't loaded here — the card partial only needs the count,

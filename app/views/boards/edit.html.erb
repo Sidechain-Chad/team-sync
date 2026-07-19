@@ -51,15 +51,15 @@
     <% end %>
 
     <div class="space-y-3">
-      <% @board.board_users.includes(:user).each do |membership| %>
+      <% @board.board_users.includes(user: { avatar_attachment: :blob }).each do |membership| %>
         <% member = membership.user %>
 
         <div class="flex justify-between items-center bg-white p-3 border rounded shadow-sm">
           <div class="flex items-center space-x-3">
 
-            <div class="h-10 w-10 shrink-0 rounded-full bg-brand-600 flex items-center justify-center text-white text-sm font-bold border-2 border-white shadow-sm ring-2 ring-surface-200">
-              <%= member.initials %>
-            </div>
+            <%= render "shared/avatar", user: member, size: "h-10 w-10", text_size: "text-sm",
+                css_class: "shrink-0 border-2 border-white shadow-sm ring-2 ring-surface-200",
+                fallback_class: "bg-brand-600 text-white" %>
 
             <div class="flex flex-col">
               <span class="text-sm font-bold text-ink-900 leading-none"><%= member.display_name %></span>

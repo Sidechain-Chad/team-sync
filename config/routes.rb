@@ -19,6 +19,8 @@ Rails.application.routes.draw do
   get   "account/cards",      to: "account#cards",          as: :account_cards
   get   "account/settings",   to: "account#settings",       as: :account_settings
   patch "account/deactivate", to: "account#deactivate",     as: :account_deactivate
+  patch  "account/avatar",    to: "account#update_avatar",  as: :account_avatar
+  delete "account/avatar",    to: "account#destroy_avatar"
 
   # 3. Health check (Standard Rails 7.1+)
   get "up" => "rails/health#show", as: :rails_health_check

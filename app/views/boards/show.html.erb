@@ -101,10 +101,7 @@
       <div class="flex items-center -space-x-1.5 ml-2">
         <% members = ([@board.user] + @board.members.to_a).uniq %>
         <% members.first(3).each do |user| %>
-          <div class="h-7 w-7 rounded-full <%= avatar_soft_classes(user) %> flex items-center justify-center text-[10px] font-bold ring-2 ring-white/30"
-               title="<%= user.display_name %>">
-            <%= user.initials %>
-          </div>
+          <%= render "shared/avatar", user: user, size: "h-7 w-7", text_size: "text-[10px]", css_class: "ring-2 ring-white/30", title: user.display_name %>
         <% end %>
         <% if members.size > 3 %>
           <div class="h-7 w-7 rounded-full bg-white/20 text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-white/30"

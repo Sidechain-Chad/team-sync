@@ -7,9 +7,8 @@
       title: "Remove #{user.display_name}",
       aria: { label: "Remove #{user.display_name} from card" } do %>
 
-    <div class="h-6 w-6 rounded-full <%= avatar_soft_classes(user) %> flex items-center justify-center text-[10px] font-bold border ring-1 ring-white cursor-pointer hover:bg-danger-50 hover:text-danger-600 hover:ring-danger-600/25 transition-all">
-      <%= user.initials %>
-    </div>
+    <%= render "shared/avatar", user: user, size: "h-6 w-6", text_size: "text-[10px]",
+        css_class: "border ring-1 ring-white cursor-pointer hover:bg-danger-50 hover:text-danger-600 hover:ring-danger-600/25 transition-all" %>
 
     <div class="absolute -top-1 -right-1 bg-danger-500 text-white rounded-full h-3 w-3 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity">
       <i class="fa-solid fa-xmark" aria-hidden="true"></i>

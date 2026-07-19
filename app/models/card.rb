@@ -75,7 +75,7 @@ class Card < ApplicationRecord
   # labels turbo-stream broadcasts.
   BOARD_PAGE_INCLUDES = [
     :labels,
-    :members,
+    { members: { avatar_attachment: :blob } },
     { checklists: :checklist_items },
     { attachments_attachments: :blob }
   ].freeze

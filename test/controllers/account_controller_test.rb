@@ -2,8 +2,18 @@ require "test_helper"
 
 class AccountControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  include ActiveJob::TestHelper
 
   setup do
+    # Real avatar attaches here trigger Active Storage's analyze/transform
+    # jobs via after_commit (Rails' transactional test fixtures fire commit
+    # callbacks even though the transaction rolls back). This app's default
+    # :async adapter would actually run those jobs in background threads
+    # that can't see the not-really-committed row, retrying/blocking — the
+    # :test adapter just queues them (perform_enqueued_jobs still works).
+    @old_queue_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
+
     @user = users(:one)
     @board_one = boards(:one)
     @list_one = lists(:one)
@@ -13,6 +23,10 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     # text. Rename this one card so its title is unambiguous.
     @card_one = cards(:one)
     @card_one.update!(title: "Card One Accessible")
+  end
+
+  teardown do
+    ActiveJob::Base.queue_adapter = @old_queue_adapter
   end
 
   # --- auth ---
@@ -62,6 +76,34 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", account_profile_path
   end
 
+  test "profile shows initials and an Add photo control when no avatar is attached" do
+    sign_in @user
+    assert_not @user.avatar.attached?
+
+    get account_profile_url
+
+    assert_response :success
+    assert_select "img[alt=?]", @user.display_name, count: 0
+    assert_select "div", text: @user.initials
+    assert_select "label", text: "Add photo"
+    assert_select "button", text: "Remove", count: 0
+  end
+
+  test "profile shows the photo and Change/Remove controls when an avatar is attached" do
+    sign_in @user
+    @user.avatar.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "avatar.png", content_type: "image/png"
+    )
+
+    get account_profile_url
+
+    assert_response :success
+    assert_select "img[alt=?]", @user.display_name
+    assert_select "label", text: "Change photo"
+    assert_select "button", text: "Remove"
+  end
+
   test "profile updates the name" do
     sign_in @user
     patch account_profile_url, params: { user: { name: "New Name" } }
@@ -103,6 +145,129 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to account_profile_url
     assert_equal original_email, @user.reload.email
     assert_equal "New Name", @user.name
+  end
+
+  # --- avatar ---
+
+  test "update_avatar redirects unauthenticated users" do
+    patch account_avatar_url, params: { user: { avatar: fixture_file_upload("test.png", "image/png") } }
+    assert_redirected_to new_user_session_url
+  end
+
+  test "destroy_avatar redirects unauthenticated users" do
+    delete account_avatar_url
+    assert_redirected_to new_user_session_url
+  end
+
+  test "update_avatar attaches a valid png and redirects with a notice" do
+    sign_in @user
+    file = fixture_file_upload("test.png", "image/png")
+
+    patch account_avatar_url, params: { user: { avatar: file } }
+
+    assert_redirected_to account_profile_url
+    assert @user.reload.avatar.attached?
+    follow_redirect!
+    assert_match "Photo updated.", response.body
+  end
+
+  test "update_avatar rejects the wrong content type and does not attach" do
+    sign_in @user
+    # Genuinely non-image bytes — the model validation checks Active
+    # Storage's sniffed blob.content_type (post-attach), not the client's
+    # declared header, so relabeling real image bytes wouldn't fool it.
+    text_file = Tempfile.new(["not_an_image", ".txt"])
+    begin
+      text_file.write("just plain text, not an image")
+      text_file.rewind
+      file = Rack::Test::UploadedFile.new(text_file.path, "text/plain")
+
+      patch account_avatar_url, params: { user: { avatar: file } }
+
+      assert_redirected_to account_profile_url
+      assert_not @user.reload.avatar.attached?
+      follow_redirect!
+      assert_match "PNG, JPEG, or WebP", response.body
+    ensure
+      text_file.close
+      text_file.unlink
+    end
+  end
+
+  test "update_avatar rejects a file over 5 MB and does not attach" do
+    sign_in @user
+
+    oversized = Tempfile.new(["oversized", ".png"])
+    begin
+      oversized.write("a" * 6.megabytes)
+      oversized.rewind
+
+      patch account_avatar_url, params: { user: { avatar: Rack::Test::UploadedFile.new(oversized.path, "image/png") } }
+
+      assert_redirected_to account_profile_url
+      assert_not @user.reload.avatar.attached?
+      follow_redirect!
+      assert_match "smaller than 5 MB", response.body
+    ensure
+      oversized.close
+      oversized.unlink
+    end
+  end
+
+  # The mandatory demo trap: update_profile's context: :profile_update
+  # requires a non-blank name, which a demo/nameless user doesn't have.
+  # update_avatar must use a plain save so an avatar-only upload never
+  # trips that unrelated validation.
+  test "update_avatar succeeds for a user with a nil name" do
+    demo = User.create!(email: "demo-trap@example.com", password: "password")
+    assert_nil demo[:name]
+    sign_in demo
+
+    file = fixture_file_upload("test.png", "image/png")
+    patch account_avatar_url, params: { user: { avatar: file } }
+
+    assert_redirected_to account_profile_url
+    assert demo.reload.avatar.attached?
+  end
+
+  test "update_avatar cannot mass-assign name or email" do
+    sign_in @user
+    original_name = @user.name
+    original_email = @user.email
+    file = fixture_file_upload("test.png", "image/png")
+
+    patch account_avatar_url, params: { user: { avatar: file, name: "Hacked", email: "hacked@example.com" } }
+
+    assert_redirected_to account_profile_url
+    assert @user.reload.avatar.attached?
+    assert_equal original_name, @user.name
+    assert_equal original_email, @user.email
+  end
+
+  test "destroy_avatar purges an attached photo" do
+    sign_in @user
+    @user.avatar.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "avatar.png", content_type: "image/png"
+    )
+
+    perform_enqueued_jobs do
+      delete account_avatar_url
+    end
+
+    assert_redirected_to account_profile_url
+    assert_not @user.reload.avatar.attached?
+    follow_redirect!
+    assert_match "Photo removed.", response.body
+  end
+
+  test "destroy_avatar is a no-op when nothing is attached" do
+    sign_in @user
+    assert_not @user.avatar.attached?
+
+    delete account_avatar_url
+
+    assert_redirected_to account_profile_url
   end
 
   # --- activity ---
@@ -318,6 +483,10 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
 
   def count_queries_for_account_activity(activity_count:)
     user = User.create!(email: "activityperf#{activity_count}@example.com", password: "password")
+    user.avatar.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "avatar.png", content_type: "image/png"
+    )
     sign_in user
 
     board = user.boards.create!(name: "Activity Perf Board")

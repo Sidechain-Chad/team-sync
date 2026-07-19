@@ -24,4 +24,41 @@ module AvatarsHelper
     return "bg-gray-400 text-white" if user.nil?
     "#{AVATAR_PALETTE[user.id % AVATAR_PALETTE.size][:solid]} text-white"
   end
+
+  AVATAR_VARIANT_PX = { chip: 64, thumb: 160 }.freeze
+
+  # URL for a user's avatar at the given named variant size.
+  #
+  # Active Storage variant processing round-trips the original through
+  # Cloudinary (download, transform, re-upload) on first access — Cloudinary
+  # normalizes/re-encodes the bytes, so the re-downloaded file fails Active
+  # Storage's checksum (ActiveStorage::IntegrityError), 500-ing the redirect
+  # endpoint. Cloudinary's own on-the-fly transformation URLs sidestep
+  # Active Storage processing entirely, so we build those directly when the
+  # blob lives on Cloudinary. Any other service (test adapter, local disk)
+  # falls back to the named Active Storage variant as before.
+  #
+  # Checked via blob.service_name (the storage.yml service key, e.g.
+  # "cloudinary" — a plain string column on the blob) rather than the
+  # service instance's class: ActiveStorage::Service::CloudinaryService is
+  # only autoloaded when a "cloudinary" service is actually configured
+  # (not in the test environment), so referencing that constant directly
+  # would raise NameError there.
+  def avatar_image_url(user, variant: :chip)
+    return nil unless user&.avatar&.attached?
+
+    blob = user.avatar.blob
+
+    if blob.service_name == "cloudinary"
+      px = AVATAR_VARIANT_PX.fetch(variant)
+      Cloudinary::Utils.cloudinary_url(
+        blob.service.public_id(blob.key),
+        resource_type: "image",
+        width: px, height: px, crop: :fill, gravity: :face,
+        fetch_format: :auto, quality: :auto
+      )
+    else
+      url_for(user.avatar.variant(variant))
+    end
+  end
 end

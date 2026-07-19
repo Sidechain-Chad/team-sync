@@ -194,9 +194,7 @@
             <% if has_members %>
               <div class="flex items-center gap-1">
                 <% card.members.first(3).each do |member| %>
-                  <div class="h-6 w-6 rounded-full <%= avatar_soft_classes(member) %> flex items-center justify-center text-[10px] font-bold border" title="<%= member.display_name %>">
-                    <%= member.initials %>
-                  </div>
+                  <%= render "shared/avatar", user: member, size: "h-6 w-6", text_size: "text-[10px]", css_class: "border", title: member.display_name %>
                 <% end %>
                 <% if card.members.size > 3 %>
                   <div class="h-6 w-6 rounded-full bg-surface-200 flex items-center justify-center text-ink-500 text-[10px] font-bold border border-line" title="<%= card.members.size %> members">
