@@ -3,6 +3,6 @@
     board-switcher modal so their covers can't drift apart. %>
 <div class="<%= height_class %> <%= board.avatar.attached? ? "bg-surface-200" : "bg-gradient-to-br #{board_cover_gradient_classes(board)}" %>">
   <% if board.avatar.attached? %>
-    <%= image_tag board.avatar.variant(:tile), class: "w-full h-full object-cover" %>
+    <%= image_tag board_tile_url(board), class: "w-full h-full object-cover" %>
   <% end %>
 </div>

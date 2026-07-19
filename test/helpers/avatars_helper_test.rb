@@ -1,6 +1,17 @@
 require "test_helper"
 
 class AvatarsHelperTest < ActionView::TestCase
+  # See MediaHelperTest — real attaches here need the :test adapter to
+  # avoid a background-job pileup under this app's default :async adapter.
+  setup do
+    @old_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
+  end
+
+  teardown do
+    ActiveJob::Base.queue_adapter = @old_adapter
+  end
+
   test "avatar_image_url returns nil when nothing is attached" do
     assert_nil avatar_image_url(users(:one))
   end

@@ -1,4 +1,6 @@
 module BoardsHelper
+  include MediaHelper
+
   # Deterministic cover gradient for boards without an avatar — same board
   # always gets the same palette entry, so tiles look distinct from each
   # other but stable across page loads.
@@ -19,5 +21,13 @@ module BoardsHelper
 
   def board_cover_gradient_classes(board)
     BOARD_COVER_GRADIENTS[board.id % BOARD_COVER_GRADIENTS.size]
+  end
+
+  # Tile thumbnail for board cards/switcher. :tile is a named variant (see
+  # Board) — no `.processed` here; see MediaHelper#media_transform_url for
+  # why Cloudinary needs its own transformation URL instead.
+  def board_tile_url(board)
+    return nil unless board.avatar.attached?
+    media_transform_url(board.avatar, variant: :tile, width: 400, height: 160)
   end
 end

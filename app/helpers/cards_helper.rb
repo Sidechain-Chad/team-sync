@@ -1,4 +1,6 @@
 module CardsHelper
+  include MediaHelper
+
   # Tailwind classes for the due-date pill, by status.
   DUE_PILL_CLASSES = {
     complete: "bg-success-600 text-white",
@@ -39,12 +41,12 @@ module CardsHelper
     card.due_date&.strftime("%Y-%m-%dT%H:%M")
   end
 
-  # Cover thumbnail for the board view. :cover is a named, preprocessed
-  # variant (see Card) — no `.processed` here, so a variant that isn't
-  # ready yet is generated lazily on the image request, not on this render.
+  # Cover thumbnail for the board view. :cover is a named variant (see
+  # Card) — no `.processed` here; see MediaHelper#media_transform_url for
+  # why Cloudinary needs its own transformation URL instead.
   def card_cover_url(card)
     image = card.cover_image
     return nil unless image
-    url_for(image.variant(:cover))
+    media_transform_url(image, variant: :cover, width: 560, height: 200)
   end
 end
