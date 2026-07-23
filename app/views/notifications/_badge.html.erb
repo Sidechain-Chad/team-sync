@@ -1,0 +1,14 @@
+<%# Always-present unread indicator — rendered inline on every page (the
+    one notifications query every page load pays for) and replaced live via
+    Notification#after_create_commit / NotificationsController#read_all.
+    The dot itself is decorative (aria-hidden); the count is announced via
+    an sr-only string instead of relying on the dot's color alone. %>
+<span id="notifications_badge">
+  <% if count > 0 %>
+    <span class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-danger-600 text-white text-[10px] font-bold leading-none pointer-events-none"
+          aria-hidden="true">
+      <%= count > 99 ? "99+" : count %>
+    </span>
+    <span class="sr-only"><%= pluralize(count, "unread notification") %></span>
+  <% end %>
+</span>

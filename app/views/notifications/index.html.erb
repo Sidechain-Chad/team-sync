@@ -1,0 +1,26 @@
+<%# Rendered into the lazy turbo-frame declared in shared/_top_nav.html.erb
+    (id must match so Turbo swaps the fetched content into place). %>
+<%= turbo_frame_tag "notifications_list" do %>
+  <div class="px-4 py-3 border-b border-line flex items-center justify-between">
+    <h3 class="text-sm font-semibold">Notifications</h3>
+    <% if current_user.notifications.unread.exists? %>
+      <%= button_to "Mark all as read", read_all_notifications_path,
+          method: :patch,
+          form: { class: "inline-block" },
+          class: "text-xs text-brand-700 hover:text-brand-600 bg-transparent border-0 cursor-pointer font-semibold p-0" %>
+    <% end %>
+  </div>
+
+  <% if @notifications.any? %>
+    <div class="max-h-96 overflow-y-auto divide-y divide-line">
+      <% @notifications.each do |notification| %>
+        <%= render "notifications/notification", notification: notification %>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="px-4 py-12 text-center">
+      <i class="fa-regular fa-bell-slash text-3xl text-ink-300 mb-3" aria-hidden="true"></i>
+      <p class="text-sm text-ink-500">No notifications yet.</p>
+    </div>
+  <% end %>
+<% end %>

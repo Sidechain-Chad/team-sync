@@ -1,0 +1,27 @@
+<%# data-turbo-frame="modal" — same targeting every other "open a card"
+    link uses (see cards/_card.html.erb). The read action always redirects
+    to a card, and cards/show.html.erb renders its own "modal" turbo-frame
+    nested inside the standard layout (which also has its own empty "modal"
+    placeholder at the end of <body>). A plain top-level visit (`_top`)
+    replaces the whole <body> and leaves Turbo trying to reconcile two
+    elements with id="modal" at once, which renders blank until a hard
+    reload. Targeting the named "modal" frame instead swaps only the
+    layout's placeholder with the response's populated modal content — the
+    same mechanism that already works for every other card-open link — and
+    still updates the URL bar since it's a link-driven frame navigation. %>
+<%= link_to read_notification_path(notification),
+    data: { turbo_frame: "modal", turbo_prefetch: false },
+    class: "flex items-start gap-2 px-4 py-3 hover:bg-surface-200 transition-colors #{'bg-surface-50' unless notification.read?}" do %>
+  <% if notification.read? %>
+    <span class="w-2 shrink-0"></span>
+  <% else %>
+    <span class="mt-1.5 h-2 w-2 rounded-full bg-danger-600 shrink-0" aria-hidden="true"></span>
+  <% end %>
+  <div class="min-w-0 flex-1">
+    <p class="text-sm text-ink-700">
+      <span class="font-semibold"><%= notification.actor&.display_name || "Someone" %></span>
+      <%= notification.message %>
+    </p>
+    <p class="text-xs text-ink-500 mt-0.5"><%= time_ago_in_words(notification.created_at) %> ago</p>
+  </div>
+<% end %>

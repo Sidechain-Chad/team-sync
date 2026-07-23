@@ -10,6 +10,15 @@ Rails.application.routes.draw do
   get "switch_boards"  => "boards#switcher", as: :switch_boards
   get "search"         => "search#index",   as: :search
 
+  resources :notifications, only: [:index] do
+    member do
+      get :read
+    end
+    collection do
+      patch :read_all
+    end
+  end
+
   # Personal Settings (account dropdown). Root redirects to profile so
   # linking bare "/account" (e.g. from a bookmark) lands somewhere real.
   get   "account",            to: redirect("/account/profile")

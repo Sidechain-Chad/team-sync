@@ -8,6 +8,10 @@ class CardMembersController < ApplicationController
     # Create the relationship
     @card.members << @user unless @card.members.include?(@user)
 
+    # Notification.deliver no-ops when recipient == actor, so adding
+    # yourself is silently a no-op here too.
+    Notification.deliver(recipient: @user, actor: current_user, notifiable: @card, action: "added_to_card")
+
     # Render Turbo Stream to move the UI elements
     respond_to do |format|
       format.turbo_stream

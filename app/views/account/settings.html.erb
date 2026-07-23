@@ -14,10 +14,16 @@
       <% end %>
     </div>
 
-    <%# Notifications — explicitly absent, no fake toggle. %>
+    <%# Notifications — v1 is in-app only, always-on for these two triggers.
+        No toggle: nothing here is configurable yet. %>
     <div class="bg-white rounded-lg shadow-sm border border-line p-6">
       <h2 class="text-sm font-bold text-ink-700 uppercase tracking-wide mb-1">Notifications</h2>
-      <p class="text-sm text-ink-300">Notification preferences will appear here when notifications launch.</p>
+      <p class="text-sm text-ink-500 mb-1">You'll get an in-app notification when:</p>
+      <ul class="text-sm text-ink-500 list-disc list-inside mb-2 space-y-0.5">
+        <li>Someone adds you to a card.</li>
+        <li>Someone comments on a card you're a member of.</li>
+      </ul>
+      <p class="text-sm text-ink-300">Email notifications and per-type preferences are coming later.</p>
     </div>
 
     <%# Danger zone — the one real, working control on this page: soft
