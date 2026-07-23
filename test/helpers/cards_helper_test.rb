@@ -47,4 +47,39 @@ class CardsHelperTest < ActionView::TestCase
     # Card covers are center-fill, not face-gravity — unlike avatars.
     assert_no_match(/g_\w/, url)
   end
+
+  test "attachment_thumb_url falls back to the named :thumb variant on non-Cloudinary services" do
+    card = cards(:one)
+    card.attachments.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "doc.png", content_type: "image/png"
+    )
+    attachment = card.attachments.first
+
+    assert_equal "test", attachment.blob.service_name
+    assert_match %r{/rails/active_storage/}, attachment_thumb_url(attachment)
+  end
+
+  test "attachment_thumb_url builds a LIMIT-crop Cloudinary URL (not center-fill) when the blob lives on cloudinary" do
+    card = cards(:one)
+    card.attachments.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "doc.png", content_type: "image/png"
+    )
+    attachment = card.attachments.first
+    blob = attachment.blob
+    blob.define_singleton_method(:service_name) { "cloudinary" }
+    blob.service.define_singleton_method(:public_id) { |key| key.to_s }
+
+    url = attachment_thumb_url(attachment)
+
+    assert_match "w_112", url
+    assert_match "h_80",  url
+    assert_match "c_limit", url            # limit, NOT fill — fit-within, never upscale/crop
+    assert_no_match "c_fill", url
+    assert_match "f_auto", url
+    assert_match "q_auto", url
+    assert_match blob.key, url
+    assert_no_match(/g_\w/, url)           # attachment thumbs have no gravity
+  end
 end
