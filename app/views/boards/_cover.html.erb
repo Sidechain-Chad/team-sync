@@ -1,8 +1,10 @@
-<%# Board cover: avatar variant if attached, else a deterministic gradient
-    from board_cover_gradient_classes. Shared by _board_card and the
+<%# Board cover: background photo takes precedence over avatar (see
+    board_tile_url), else a deterministic gradient from
+    board_cover_gradient_classes. Shared by _board_card and the
     board-switcher modal so their covers can't drift apart. %>
-<div class="<%= height_class %> <%= board.avatar.attached? ? "bg-surface-200" : "bg-gradient-to-br #{board_cover_gradient_classes(board)}" %>">
-  <% if board.avatar.attached? %>
-    <%= image_tag board_tile_url(board), class: "w-full h-full object-cover" %>
+<% tile_url = board_tile_url(board) %>
+<div class="<%= height_class %> <%= tile_url ? "bg-surface-200" : "bg-gradient-to-br #{board_cover_gradient_classes(board)}" %>">
+  <% if tile_url %>
+    <%= image_tag tile_url, class: "w-full h-full object-cover" %>
   <% end %>
 </div>

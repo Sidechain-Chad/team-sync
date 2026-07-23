@@ -91,7 +91,11 @@ class BoardsController < ApplicationController
 
   def update
     if @board.update(board_params)
-      redirect_to root_path, notice: "Board updated successfully."
+      if params.dig(:board, :remove_background) == "1" && params.dig(:board, :background).blank?
+        @board.background.purge_later
+      end
+
+      redirect_to @board, notice: "Board updated successfully."
     else
       render :edit, status: :unprocessable_entity
     end
@@ -171,7 +175,8 @@ class BoardsController < ApplicationController
   end
 
   def board_params
-    # Allow name and avatar
-    params.require(:board).permit(:name, :avatar)
+    # Allow name, avatar, and background. remove_background is handled
+    # separately in #update — it's not a model attribute.
+    params.require(:board).permit(:name, :avatar, :background)
   end
 end

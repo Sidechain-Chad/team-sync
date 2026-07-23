@@ -25,9 +25,24 @@ module BoardsHelper
 
   # Tile thumbnail for board cards/switcher. :tile is a named variant (see
   # Board) — no `.processed` here; see MediaHelper#media_transform_url for
-  # why Cloudinary needs its own transformation URL instead.
+  # why Cloudinary needs its own transformation URL instead. An uploaded
+  # background takes precedence over the avatar, so the index tile matches
+  # what the board itself shows on open; falls back to the gradient (nil)
+  # when neither is attached.
   def board_tile_url(board)
-    return nil unless board.avatar.attached?
-    media_transform_url(board.avatar, variant: :tile, width: 400, height: 160)
+    if board.background.attached?
+      media_transform_url(board.background, variant: :tile, width: 400, height: 160)
+    elsif board.avatar.attached?
+      media_transform_url(board.avatar, variant: :tile, width: 400, height: 160)
+    end
+  end
+
+  # Full-bleed wallpaper for the board canvas. :canvas is a named variant
+  # (see Board); routed through MediaHelper#media_transform_url for the same
+  # reason as board_tile_url — fresh Cloudinary variant processing 500s on
+  # IntegrityError. gravity: :auto centers the fill on the salient region.
+  def board_background_url(board)
+    return nil unless board.background.attached?
+    media_transform_url(board.background, variant: :canvas, width: 2000, height: 1200, crop: :fill, gravity: :auto)
   end
 end

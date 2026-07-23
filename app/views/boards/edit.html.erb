@@ -23,6 +23,22 @@
         </div>
       </div>
 
+      <div>
+        <label class="block text-sm font-medium text-ink-700 mb-1">Board background</label>
+        <div class="flex items-center space-x-4">
+          <% if @board.background.attached? %>
+             <%= image_tag @board.background, class: "h-16 w-16 rounded object-cover border" %>
+          <% end %>
+          <%= f.file_field :background, class: "block w-full text-sm text-ink-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-100 file:text-brand-700 hover:file:bg-brand-100" %>
+        </div>
+        <% if @board.background.attached? %>
+          <label class="flex items-center gap-2 text-sm text-ink-500 mt-2">
+            <%= check_box_tag "board[remove_background]", "1", false %>
+            Remove current background
+          </label>
+        <% end %>
+      </div>
+
       <div class="pt-4 border-t border-line flex justify-between items-center mt-6">
         <% if @board.owner?(current_user) %>
           <%= link_to "Delete Board", board_path(@board), data: { turbo_method: :delete, turbo_confirm: "Delete this entire board and all cards?" }, class: "text-danger-600/80 text-sm hover:text-danger-600" %>
