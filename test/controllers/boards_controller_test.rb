@@ -301,7 +301,10 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     # Bumped 19 -> 20 for board_background_url's board.background.attached?
     # check in the canvas wallpaper branch — a single fixed-cost lookup on
     # the board's own attachment, once per page load, independent of cards.
-    assert_operator small, :<=, 20
+    # Bumped 20 -> 21 for the top-nav notifications bell's unread-count
+    # query (current_user.notifications.unread.count) — renders on every
+    # page, fixed-cost, independent of card count.
+    assert_operator small, :<=, 21
 
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end

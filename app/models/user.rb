@@ -11,6 +11,7 @@ class User < ApplicationRecord
   has_many :comments,      dependent: :nullify   # historical — preserve the comment text
   has_many :activities,    dependent: :nullify   # historical — preserve the audit trail
   has_many :board_favorites, dependent: :destroy
+  has_many :notifications, foreign_key: :recipient_id, dependent: :destroy
 
   has_many :shared_boards,    through: :board_users, source: :board
   has_many :favorited_boards, through: :board_favorites, source: :board

@@ -85,8 +85,10 @@
     </div>
   </div>
 
-  <%# Notifications bell — placeholder, matches the filter/bolt/plug
-      pattern on the board header (icon + dropdown with empty state).
+  <%# Notifications bell — matches the filter/bolt/plug pattern on the
+      board header (icon + dropdown). The badge is always rendered (one
+      unread-count query per page load); the feed itself is a lazy
+      turbo-frame so it's only fetched when the bell actually opens.
       Hidden below `sm`: the fixed-width logo/search/create/avatar cluster
       already fills a 375px viewport, so this and Help collapse first. %>
   <div class="relative hidden sm:block"
@@ -95,21 +97,23 @@
 
     <button type="button"
             data-action="click->dropdown#toggle"
-            class="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-ink-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
+            class="relative h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-ink-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
             title="Notifications"
             aria-label="Notifications">
       <i class="fa-regular fa-bell text-sm" aria-hidden="true"></i>
+      <%= render "notifications/badge", count: current_user.notifications.unread.count %>
     </button>
 
     <div data-dropdown-target="menu"
          class="hidden absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-2xl ring-1 ring-ink-900/5 z-50 overflow-hidden text-ink-700">
-      <div class="px-4 py-3 border-b border-line flex items-center justify-between">
-        <h3 class="text-sm font-semibold">Notifications</h3>
-      </div>
-      <div class="px-4 py-12 text-center">
-        <i class="fa-regular fa-bell-slash text-3xl text-ink-300 mb-3" aria-hidden="true"></i>
-        <p class="text-sm text-ink-500">No unread notifications.</p>
-      </div>
+      <turbo-frame id="notifications_list" src="<%= notifications_path %>" loading="lazy">
+        <div class="px-4 py-3 border-b border-line">
+          <h3 class="text-sm font-semibold">Notifications</h3>
+        </div>
+        <div class="px-4 py-12 text-center">
+          <i class="fa-solid fa-spinner fa-spin text-2xl text-ink-300" aria-hidden="true"></i>
+        </div>
+      </turbo-frame>
     </div>
   </div>
 
