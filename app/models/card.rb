@@ -18,6 +18,7 @@ class Card < ApplicationRecord
   # path exists to avoid.
   has_many_attached :attachments do |attachable|
     attachable.variant :cover, resize_to_fill: [560, 200]
+    attachable.variant :thumb, resize_to_limit: [112, 80]
   end
 
   # NEW: labels

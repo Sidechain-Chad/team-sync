@@ -49,4 +49,14 @@ module CardsHelper
     return nil unless image
     media_transform_url(image, variant: :cover, width: 560, height: 200)
   end
+
+  # Thumbnail for the card-detail attachments list. :thumb is a named
+  # variant (see Card) using limit-crop (fit-within, never upscale/crop) to
+  # match the previous inline resize_to_limit. Routed through
+  # MediaHelper#media_transform_url for the same reason as card_cover_url:
+  # fresh Cloudinary variant processing 500s on IntegrityError.
+  def attachment_thumb_url(attachment)
+    return nil unless attachment
+    media_transform_url(attachment, variant: :thumb, width: 112, height: 80, crop: :limit)
+  end
 end
