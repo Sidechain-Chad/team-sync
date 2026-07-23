@@ -5,7 +5,14 @@
   # whitelist (CardsController#resolve_return_to!), never a reflected path.
   close_path = @return_to_account ? account_cards_path(sort: @return_to_sort) : board_path(@card.list.board)
 %>
-<%= turbo_frame_tag "modal" do %>
+<%# This MUST mirror the canonical modal frame in
+    layouts/application.html.erb — CardsController#update replaces this whole
+    frame via turbo_stream.replace("modal", template: "cards/show"), so any
+    attribute missing here (notably target: "_top" and the modal close
+    controller) is silently dropped after an attach/move/location change,
+    breaking the next modal close ("Content missing"). Keep the two in sync. %>
+<%= turbo_frame_tag "modal", target: "_top",
+      data: { controller: "modal", action: "turbo:before-render@document->modal#close" } do %>
   <div class="fixed inset-0 z-[9999] flex items-center justify-center">
 
     <%# Overlay (clicking it closes the modal, same destination as ✕) %>

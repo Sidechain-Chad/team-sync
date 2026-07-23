@@ -205,6 +205,10 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
       io: File.open(Rails.root.join("test/fixtures/files/test.png")),
       filename: "avatar.png", content_type: "image/png"
     )
+    @board.background.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "background.png", content_type: "image/png"
+    )
 
     # Neither variant has been processed yet (no background job ran in this
     # test), so if the view still called .processed inline, this would both
@@ -214,6 +218,44 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
+    assert_match "/rails/active_storage/", response.body
+  end
+
+  test "updating a board with a background upload attaches it" do
+    patch board_url(@board), params: {
+      board: { background: fixture_file_upload("test.png", "image/png") }
+    }
+
+    assert_redirected_to board_url(@board)
+    assert @board.reload.background.attached?
+  end
+
+  test "removing a board background purges it asynchronously" do
+    @board.background.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "background.png", content_type: "image/png"
+    )
+
+    assert_enqueued_with job: ActiveStorage::PurgeJob do
+      patch board_url(@board), params: { board: { remove_background: "1" } }
+    end
+
+    assert_redirected_to board_url(@board)
+  end
+
+  test "boards index renders the photo tile for a board with only a background attached (no avatar)" do
+    @board.background.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "background.png", content_type: "image/png"
+    )
+
+    get boards_url
+
+    assert_response :success
+    # _cover.html.erb must branch on board_tile_url's presence, not on
+    # board.avatar.attached? directly — else a background-only board (no
+    # avatar) silently falls through to the gradient despite having a
+    # valid tile URL.
     assert_match "/rails/active_storage/", response.body
   end
 
@@ -256,7 +298,10 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     # are fixed-cost — one lookup per distinct owner/member regardless of
     # how many cards or lists exist — which the equality assertion below
     # proves by holding flat at 5 vs 10 cards_per_list.
-    assert_operator small, :<=, 19
+    # Bumped 19 -> 20 for board_background_url's board.background.attached?
+    # check in the canvas wallpaper branch — a single fixed-cost lookup on
+    # the board's own attachment, once per page load, independent of cards.
+    assert_operator small, :<=, 20
 
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end

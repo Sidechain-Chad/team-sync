@@ -132,6 +132,23 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "test.png", activity.description
   end
 
+  test "attach response replaces the modal frame WITH target=_top so the next close still breaks out" do
+    file = fixture_file_upload("test.png", "image/png")
+
+    patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+
+    assert_response :success
+    assert_match "turbo-stream", response.body
+
+    modal_frame_tag = response.body[/<turbo-frame[^>]*id="modal"[^>]*>/]
+    assert modal_frame_tag, "expected a <turbo-frame id=\"modal\"> tag in the response"
+    # The regression guard: the replaced modal frame must retain target="_top"...
+    assert_match 'target="_top"', modal_frame_tag
+    # ...and the self-close controller must survive the replace too.
+    assert_match 'data-controller="modal"', modal_frame_tag
+    assert_match "turbo:before-render@document-&gt;modal#close", modal_frame_tag
+  end
+
   test "should not update card with invalid attachment type" do
     # Use an extension that is NOT in ALLOWED_EXTENSIONS
     file = fixture_file_upload("test.png", "application/x-ghostscript")

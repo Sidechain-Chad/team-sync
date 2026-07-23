@@ -47,4 +47,56 @@ class BoardsHelperTest < ActionView::TestCase
     # Board tiles are center-fill, not face-gravity — unlike avatars.
     assert_no_match(/g_\w/, url)
   end
+
+  test "board_tile_url prefers an attached background over an attached avatar" do
+    board = boards(:one)
+    board.avatar.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "avatar.png", content_type: "image/png"
+    )
+    board.background.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "background.png", content_type: "image/png"
+    )
+
+    url = board_tile_url(board)
+
+    assert_match "background.png", url
+    assert_no_match "avatar.png", url
+  end
+
+  test "board_background_url returns nil when the board has no background attached" do
+    assert_nil board_background_url(boards(:one))
+  end
+
+  test "board_background_url falls back to the named :canvas variant on non-Cloudinary services" do
+    board = boards(:one)
+    board.background.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "background.png", content_type: "image/png"
+    )
+
+    assert_match %r{/rails/active_storage/}, board_background_url(board)
+  end
+
+  test "board_background_url builds a fill-crop Cloudinary URL with auto gravity when the blob lives on cloudinary" do
+    board = boards(:one)
+    board.background.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+      filename: "background.png", content_type: "image/png"
+    )
+    blob = board.background.blob
+    blob.define_singleton_method(:service_name) { "cloudinary" }
+    blob.service.define_singleton_method(:public_id) { |key| key.to_s }
+
+    url = board_background_url(board)
+
+    assert_match "w_2000", url
+    assert_match "h_1200", url
+    assert_match "c_fill", url
+    assert_match "g_auto", url
+    assert_match "f_auto", url
+    assert_match "q_auto", url
+    assert_match blob.key, url
+  end
 end

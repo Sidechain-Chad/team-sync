@@ -18,6 +18,16 @@ class Board < ApplicationRecord
     attachable.variant :tile, resize_to_fill: [400, 160]
   end
 
+  # :canvas/:tile are named variants, NOT preprocessed — on Cloudinary
+  # they're only a fallback (see BoardsHelper#board_background_url /
+  # MediaHelper#media_transform_url, which builds Cloudinary's own
+  # transformation URL instead), and preprocessing would just enqueue the
+  # exact background processing that path exists to avoid.
+  has_one_attached :background do |attachable|
+    attachable.variant :canvas, resize_to_fill: [2000, 1200]  # full-bleed wallpaper
+    attachable.variant :tile,   resize_to_fill: [400, 160]    # index-tile crop
+  end
+
   validates :name, presence: true
 
   # Single-field trigram search on board name. against: :name +
