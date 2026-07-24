@@ -29,6 +29,11 @@ gem "jbuilder"
 
 gem "acts_as_list"
 
+# Active Job backend for production — recurring DueSoonScanJob + any future
+# background work. Runs on the primary database (see config/queue.yml);
+# dev/test stay on the default :async adapter (see config/environments).
+gem "solid_queue"
+
 # Use Redis adapter to run Action Cable in production
 # gem "redis", ">= 4.0.1"
 

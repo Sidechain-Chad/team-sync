@@ -19,7 +19,7 @@
   <% end %>
   <div class="min-w-0 flex-1">
     <p class="text-sm text-ink-700">
-      <span class="font-semibold"><%= notification.actor&.display_name || "Someone" %></span>
+      <span class="font-semibold"><%= notification.actor&.display_name || notification.card.title %></span>
       <%= notification.message %>
     </p>
     <p class="text-xs text-ink-500 mt-0.5"><%= time_ago_in_words(notification.created_at) %> ago</p>

@@ -10,7 +10,8 @@ class Notification < ApplicationRecord
   PREFERENCE_TYPES = {
     "comment"       => { title: "Comments",        description: "New comments on cards you're a member of" },
     "mention"       => { title: "Mentions",        description: "When someone @mentions you in a comment" },
-    "added_to_card" => { title: "Added to a card", description: "When someone adds you to a card" }
+    "added_to_card" => { title: "Added to a card", description: "When someone adds you to a card" },
+    "due_soon"      => { title: "Due dates",       description: "When a card you're on is coming due" }
   }.freeze
 
   scope :unread, -> { where(read_at: nil) }
@@ -61,6 +62,7 @@ class Notification < ApplicationRecord
     when "added_to_card" then "added you to this card"
     when "comment"       then "commented on this card"
     when "mention"       then "mentioned you in a comment"
+    when "due_soon"      then "is due soon"
     else "sent you a notification"
     end
   end
