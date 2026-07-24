@@ -15,9 +15,17 @@ class NotificationsController < ApplicationController
   # meaningful side effect to protect against a stray re-fetch/crawl here
   # (an authenticated, same-user-scoped row flip, not a state change visible
   # to anyone else).
+  #
+  # The redirect lands on a data-turbo-frame="modal" link (see
+  # notifications/_notification.html.erb), so its response only ever
+  # replaces the modal frame — the badge in the top nav never sees it.
+  # Broadcasting the updated count directly is what actually decrements it.
   def read
     notification = current_user.notifications.find(params[:id])
-    notification.update!(read_at: Time.current) if notification.read_at.nil?
+    if notification.read_at.nil?
+      notification.update!(read_at: Time.current)
+      Notification.broadcast_badge_for(current_user)
+    end
     redirect_to card_path(notification.card)
   end
 

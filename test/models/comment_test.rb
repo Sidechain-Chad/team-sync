@@ -43,4 +43,120 @@ class CommentTest < ActiveSupport::TestCase
       card.comments.create!(content: "Hello", user: commenter)
     end
   end
+
+  # --- @mentions (Arc 2) ---
+
+  test "mentioning a board member creates a mention notification with the commenter as actor" do
+    card = cards(:one)
+    commenter = users(:one)
+    bob = User.create!(email: "bob@example.com", password: "password", name: "Bob")
+    card.list.board.board_users.create!(user: bob)
+
+    assert_difference "Notification.count", 1 do
+      card.comments.create!(content: "Hey @Bob take a look", user: commenter)
+    end
+
+    notification = Notification.last
+    assert_equal bob, notification.recipient
+    assert_equal commenter, notification.actor
+    assert_equal "mention", notification.action
+  end
+
+  test "a mentioned board member who is not a card member is still notified (pull-in)" do
+    card = cards(:one)
+    commenter = users(:one)
+    bob = User.create!(email: "bob@example.com", password: "password", name: "Bob")
+    card.list.board.board_users.create!(user: bob)
+    assert_not_includes card.members, bob
+
+    assert_difference "Notification.count", 1 do
+      card.comments.create!(content: "@Bob can you weigh in?", user: commenter)
+    end
+
+    assert_equal "mention", Notification.last.action
+  end
+
+  test "a card member who is also mentioned gets exactly one notification, the mention" do
+    card = cards(:one)
+    commenter = users(:one)
+    bob = User.create!(email: "bob@example.com", password: "password", name: "Bob")
+    card.list.board.board_users.create!(user: bob)
+    card.members << bob
+
+    assert_difference "Notification.count", 1 do
+      card.comments.create!(content: "@Bob you're on this card already", user: commenter)
+    end
+
+    assert_equal "mention", Notification.last.action
+  end
+
+  test "un-mentioned other card members still get the plain comment notification alongside a mention" do
+    card = cards(:one)
+    commenter = users(:one)
+    bob = User.create!(email: "bob@example.com", password: "password", name: "Bob")
+    other_member = users(:two)
+    card.list.board.board_users.create!(user: bob)
+    card.members << bob
+    card.members << other_member
+
+    assert_difference "Notification.count", 2 do
+      card.comments.create!(content: "@Bob take a look", user: commenter)
+    end
+
+    bob_notification = Notification.find_by(recipient: bob)
+    other_notification = Notification.find_by(recipient: other_member)
+    assert_equal "mention", bob_notification.action
+    assert_equal "comment", other_notification.action
+  end
+
+  test "mentioning yourself creates no notification" do
+    card = cards(:one)
+    commenter = users(:one)
+    card.members << commenter unless card.members.include?(commenter)
+
+    assert_no_difference "Notification.count" do
+      card.comments.create!(content: "@#{commenter.display_name} noted, doing it now", user: commenter)
+    end
+  end
+
+  test "a bogus mention with no matching board member creates no notification and does not raise" do
+    card = cards(:one)
+    commenter = users(:one)
+    card.members << commenter unless card.members.include?(commenter)
+
+    assert_no_difference "Notification.count" do
+      assert_nothing_raised do
+        card.comments.create!(content: "@Nobody is around to see this", user: commenter)
+      end
+    end
+  end
+
+  test "boundary: @Jo does not mention John, and @John does not mention Johnny" do
+    card = cards(:one)
+    commenter = users(:one)
+    john = User.create!(email: "john@example.com", password: "password", name: "John")
+    johnny = User.create!(email: "johnny@example.com", password: "password", name: "Johnny")
+    card.list.board.board_users.create!(user: john)
+    card.list.board.board_users.create!(user: johnny)
+
+    assert_no_difference "Notification.count" do
+      card.comments.create!(content: "@Jo where are you?", user: commenter)
+    end
+
+    assert_difference "Notification.count", 1 do
+      card.comments.create!(content: "@John can you check this?", user: commenter)
+    end
+    assert_equal john, Notification.last.recipient
+  end
+
+  test "an email address does not phantom-mention a member whose name matches the domain" do
+    card = cards(:one)
+    commenter = users(:one)
+    bob = User.create!(email: "bob@example.com", password: "password", name: "Bob")
+    card.list.board.board_users.create!(user: bob)
+
+    assert_no_difference "Notification.count" do
+      card.comments.create!(content: "ping john@Bob.com about this", user: commenter)
+    end
+  end
 end
