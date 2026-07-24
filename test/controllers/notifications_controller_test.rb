@@ -105,6 +105,15 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal small, large, "notifications#index query count must not grow with notification count (N+1 regression)"
   end
 
+  test "an actor-less due_soon notification renders the card title instead of a blank/Someone actor" do
+    Notification.create!(recipient: @user, actor: nil, notifiable: @card, action: "due_soon")
+
+    get notifications_url
+
+    assert_response :success
+    assert_select "p", text: "#{@card.title} is due soon"
+  end
+
   test "a normal page render fires only the unread-count query, not the feed query" do
     5.times do
       Notification.create!(recipient: @user, actor: users(:two), notifiable: @card, action: "added_to_card")

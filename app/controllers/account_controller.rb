@@ -62,6 +62,17 @@ class AccountController < ApplicationController
   def settings
   end
 
+  # Unchecked boxes don't submit, so each key is derived explicitly rather
+  # than trusting param presence — that's what makes "unchecked" reliably
+  # persist as `false` instead of silently leaving the previous value.
+  def update_settings
+    prefs = Notification::PREFERENCE_TYPES.keys.index_with do |type|
+      params.dig(:user, :notification_preferences, type) == "1"
+    end
+    current_user.update(notification_preferences: prefs)
+    redirect_to account_settings_path, notice: "Notification preferences updated."
+  end
+
   # Deliberately a plain `save` (no :profile_update context) — that context
   # requires a non-blank name, which the demo user (and anyone else who's
   # never set one) doesn't have. Riding that context here would make an

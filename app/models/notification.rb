@@ -5,6 +5,15 @@ class Notification < ApplicationRecord
 
   validates :action, presence: true
 
+  # action => { title:, description: } for the settings toggles. Only types with
+  # a live trigger appear here; add a row when a new trigger ships.
+  PREFERENCE_TYPES = {
+    "comment"       => { title: "Comments",        description: "New comments on cards you're a member of" },
+    "mention"       => { title: "Mentions",        description: "When someone @mentions you in a comment" },
+    "added_to_card" => { title: "Added to a card", description: "When someone adds you to a card" },
+    "due_soon"      => { title: "Due dates",       description: "When a card you're on is coming due" }
+  }.freeze
+
   scope :unread, -> { where(read_at: nil) }
   scope :recent, -> { order(created_at: :desc) }
 
@@ -12,6 +21,7 @@ class Notification < ApplicationRecord
   # so a self-notification (recipient == actor) is a no-op.
   def self.deliver(recipient:, actor:, notifiable:, action:)
     return if recipient.nil? || recipient == actor
+    return unless recipient.notifies?(action)
     create!(recipient: recipient, actor: actor, notifiable: notifiable, action: action)
   end
 
@@ -52,6 +62,7 @@ class Notification < ApplicationRecord
     when "added_to_card" then "added you to this card"
     when "comment"       then "commented on this card"
     when "mention"       then "mentioned you in a comment"
+    when "due_soon"      then "is due soon"
     else "sent you a notification"
     end
   end

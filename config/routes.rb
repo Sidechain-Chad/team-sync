@@ -27,6 +27,7 @@ Rails.application.routes.draw do
   get   "account/activity",   to: "account#activity",       as: :account_activity
   get   "account/cards",      to: "account#cards",          as: :account_cards
   get   "account/settings",   to: "account#settings",       as: :account_settings
+  patch "account/settings",   to: "account#update_settings"
   patch "account/deactivate", to: "account#deactivate",     as: :account_deactivate
   patch  "account/avatar",    to: "account#update_avatar",  as: :account_avatar
   delete "account/avatar",    to: "account#destroy_avatar"

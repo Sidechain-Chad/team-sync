@@ -14,16 +14,34 @@
       <% end %>
     </div>
 
-    <%# Notifications — v1 is in-app only, always-on for these two triggers.
-        No toggle: nothing here is configurable yet. %>
+    <%# Notifications — in-app only (no email/desktop yet). One toggle per
+        live trigger, sourced from Notification::PREFERENCE_TYPES so a new
+        trigger only needs a row added there. %>
     <div class="bg-white rounded-lg shadow-sm border border-line p-6">
       <h2 class="text-sm font-bold text-ink-700 uppercase tracking-wide mb-1">Notifications</h2>
-      <p class="text-sm text-ink-500 mb-1">You'll get an in-app notification when:</p>
-      <ul class="text-sm text-ink-500 list-disc list-inside mb-2 space-y-0.5">
-        <li>Someone adds you to a card.</li>
-        <li>Someone comments on a card you're a member of.</li>
-      </ul>
-      <p class="text-sm text-ink-300">Email notifications and per-type preferences are coming later.</p>
+      <p class="text-sm text-ink-500 mb-4">Choose which in-app notifications you receive.</p>
+
+      <%= form_with url: account_settings_path, method: :patch, class: "space-y-4" do %>
+        <% Notification::PREFERENCE_TYPES.each do |type, meta| %>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox"
+                   name="user[notification_preferences][<%= type %>]"
+                   value="1"
+                   <%= "checked" if current_user.notifies?(type) %>
+                   class="mt-0.5 rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+            <span>
+              <span class="block text-sm font-semibold text-ink-700"><%= meta[:title] %></span>
+              <span class="block text-sm text-ink-500"><%= meta[:description] %></span>
+            </span>
+          </label>
+        <% end %>
+
+        <div class="pt-2">
+          <button type="submit" class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer">
+            Save
+          </button>
+        </div>
+      <% end %>
     </div>
 
     <%# Danger zone — the one real, working control on this page: soft

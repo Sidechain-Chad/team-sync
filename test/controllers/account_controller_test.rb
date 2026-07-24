@@ -66,6 +66,42 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to account_profile_url
   end
 
+  # --- notification preferences ---
+
+  test "settings renders a toggle row for every preference type, checked by default" do
+    sign_in @user
+    get account_settings_url
+
+    assert_response :success
+    assert_select "form[action=?]", account_settings_path do
+      Notification::PREFERENCE_TYPES.each do |type, meta|
+        assert_select "input[type=checkbox][name=?][checked]", "user[notification_preferences][#{type}]"
+        assert_select "*", text: meta[:title]
+      end
+    end
+  end
+
+  test "update_settings redirects unauthenticated users" do
+    patch account_settings_url, params: { user: { notification_preferences: { "comment" => "0" } } }
+    assert_redirected_to new_user_session_url
+  end
+
+  test "update_settings persists an unchecked box as false and leaves the others true" do
+    sign_in @user
+
+    patch account_settings_url, params: {
+      user: { notification_preferences: { "mention" => "1", "added_to_card" => "1" } }
+    }
+
+    assert_redirected_to account_settings_url
+    @user.reload
+    assert_equal false, @user.notification_preferences["comment"]
+    assert_equal true, @user.notification_preferences["mention"]
+    assert_equal true, @user.notification_preferences["added_to_card"]
+    assert @user.notifies?(:mention)
+    assert_not @user.notifies?(:comment)
+  end
+
   # --- profile ---
 
   test "profile renders" do

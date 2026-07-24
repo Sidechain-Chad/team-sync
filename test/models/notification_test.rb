@@ -50,4 +50,39 @@ class NotificationTest < ActiveSupport::TestCase
       Notification.deliver(recipient: users(:one), actor: users(:two), notifiable: card, action: "added_to_card")
     end
   end
+
+  test "deliver does not create a notification when the recipient has that type turned off" do
+    recipient = users(:one)
+    recipient.update!(notification_preferences: { "comment" => false })
+    card = cards(:one)
+
+    assert_no_difference "Notification.count" do
+      result = Notification.deliver(recipient: recipient, actor: users(:two), notifiable: card, action: "comment")
+      assert_nil result
+    end
+  end
+
+  test "deliver still creates a notification for a different type the recipient left on (per-type independence)" do
+    recipient = users(:one)
+    recipient.update!(notification_preferences: { "comment" => false })
+    card = cards(:one)
+
+    assert_difference "Notification.count", 1 do
+      Notification.deliver(recipient: recipient, actor: users(:two), notifiable: card, action: "mention")
+    end
+  end
+
+  test "deliver accepts a nil actor (due_soon has no actor)" do
+    card = cards(:one)
+
+    assert_difference "Notification.count", 1 do
+      notification = Notification.deliver(recipient: users(:one), actor: nil, notifiable: card, action: "due_soon")
+      assert_nil notification.actor
+    end
+  end
+
+  test "message renders is due soon for due_soon" do
+    notification = Notification.create!(recipient: users(:one), actor: nil, notifiable: cards(:one), action: "due_soon")
+    assert_equal "is due soon", notification.message
+  end
 end

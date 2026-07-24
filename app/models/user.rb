@@ -112,6 +112,12 @@ class User < ApplicationRecord
     name.split.map(&:first).join.upcase.first(2)
   end
 
+  # Opt-out: unknown / unset types default to on. Stored values are real JSON
+  # booleans (see AccountController#update_settings).
+  def notifies?(action)
+    notification_preferences.fetch(action.to_s, true)
+  end
+
   private
 
   def name_present_for_profile_update

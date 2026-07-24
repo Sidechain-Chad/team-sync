@@ -73,8 +73,12 @@ Rails.application.configure do
   # Use a different cache store in production.
   # config.cache_store = :mem_cache_store
 
-  # Use a real queuing backend for Active Job (and separate queues per environment).
-  # config.active_job.queue_adapter = :resque
+  # Use a real queuing backend for Active Job — Solid Queue on the same
+  # (single) production database, no separate `:queue` database (see the
+  # "Single database configuration" section of the solid_queue README).
+  # Requires a Solid Queue worker process running in production (bin/jobs);
+  # dev/test stay on the default :async adapter.
+  config.active_job.queue_adapter = :solid_queue
   # config.active_job.queue_name_prefix = "team_sync_production"
 
   config.action_mailer.perform_caching = false

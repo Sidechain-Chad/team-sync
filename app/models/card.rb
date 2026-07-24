@@ -72,6 +72,21 @@ class Card < ApplicationRecord
     where.not(latitude: nil, longitude: nil)
   }
 
+  # Cards whose reminder is due to fire: approaching (within the window), not
+  # done, not archived, and not already reminded for this due date.
+  scope :due_reminder_pending, -> {
+    active.where(completed: false, due_reminder_sent_at: nil)
+          .where(due_date: Time.current..24.hours.from_now)
+  }
+
+  # When the due date changes, the card becomes eligible for a fresh reminder.
+  # update_column (used by the scan to stamp sent_at) skips callbacks, so this
+  # never fights the scan.
+  before_save :clear_due_reminder, if: :will_save_change_to_due_date?
+  def clear_due_reminder
+    self.due_reminder_sent_at = nil
+  end
+
   # Association tree the cards/_card partial needs to render without an
   # N+1: labels, members, checklist items, and attachment blobs (for the
   # cover image / attachment count). Shared by every place that re-renders
