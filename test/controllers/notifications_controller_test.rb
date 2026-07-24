@@ -2,6 +2,7 @@ require "test_helper"
 
 class NotificationsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   # Notification creation broadcasts via a Turbo Streams job — see
   # NotificationTest for why this needs the :test adapter under
@@ -40,6 +41,37 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     assert notification.reload.read_at.present?
   end
 
+  # The click-through link targets data-turbo-frame="modal" (see the test
+  # above), so its response only ever replaces the modal frame — the top
+  # nav's badge, which lives outside that frame, never sees the response.
+  # Without this broadcast, the badge would stay stuck at its pre-click
+  # count until the user happens to navigate elsewhere or reload.
+  test "read broadcasts the decremented badge to the recipient's own stream" do
+    notification = Notification.create!(recipient: @user, actor: users(:two), notifiable: @card, action: "added_to_card")
+    Notification.create!(recipient: @user, actor: users(:two), notifiable: @card, action: "added_to_card")
+    assert_equal 2, @user.notifications.unread.count
+
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @user)
+    broadcasts = capture_broadcasts(stream_name) do
+      get read_notification_url(notification)
+    end
+
+    assert_equal 1, broadcasts.size
+    assert_match(/turbo-stream action="replace" target="notifications_badge"/, broadcasts.first)
+    assert_match(/>\s*1\s*</, broadcasts.first)
+  end
+
+  test "read does not re-broadcast when the notification was already read" do
+    notification = Notification.create!(recipient: @user, actor: users(:two), notifiable: @card, action: "added_to_card", read_at: Time.current)
+
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @user)
+    broadcasts = capture_broadcasts(stream_name) do
+      get read_notification_url(notification)
+    end
+
+    assert_equal 0, broadcasts.size
+  end
+
   test "each notification row targets the modal frame, same as every other card-open link" do
     Notification.create!(recipient: @user, actor: users(:two), notifiable: @card, action: "added_to_card")
 
@@ -59,6 +91,10 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     row_link_tag = response.body[%r{<a[^>]*href="/notifications/\d+/read"[^>]*>}]
     assert row_link_tag, "expected a notification row <a href=\".../read\"> tag in the response"
     assert_match 'data-turbo-frame="modal"', row_link_tag
+    # data-turbo-prefetch="false" — without it, merely hovering a row
+    # prefetches (GETs) the read endpoint, marking it read and dropping the
+    # badge before the user actually clicks anything.
+    assert_match 'data-turbo-prefetch="false"', row_link_tag
   end
 
   test "index feed query count is fixed-cost and does not grow with notification count" do

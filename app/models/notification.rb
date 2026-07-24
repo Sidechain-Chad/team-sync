@@ -15,15 +15,26 @@ class Notification < ApplicationRecord
     create!(recipient: recipient, actor: actor, notifiable: notifiable, action: action)
   end
 
-  after_create_commit do
-    # Live per-user delivery. The layout subscribes each signed-in user to
-    # their own stream (turbo_stream_from current_user). Update the
-    # always-present badge live; the dropdown list is lazy-loaded on open
-    # (notifications#index) so we don't broadcast it.
-    broadcast_replace_to recipient,
+  after_create_commit { self.class.broadcast_badge_for(recipient) }
+
+  # Live per-user delivery. The layout subscribes each signed-in user to
+  # their own stream (turbo_stream_from current_user). Update the
+  # always-present badge live; the dropdown list is lazy-loaded on open
+  # (notifications#index) so we don't broadcast it.
+  #
+  # Also called directly from NotificationsController#read: that click-
+  # through link targets data-turbo-frame="modal" (same as every other
+  # card-open link), so its response only ever replaces the modal frame —
+  # the badge, living outside that frame in the top nav, never sees it.
+  # Re-broadcasting here is the same fix already used elsewhere in this app
+  # for a modal-scoped response needing to update something outside the
+  # frame (see CardsController#toggle_complete's per-member cards-row
+  # broadcast).
+  def self.broadcast_badge_for(user)
+    Turbo::StreamsChannel.broadcast_replace_to user,
       target: "notifications_badge",
       partial: "notifications/badge",
-      locals: { count: recipient.notifications.unread.count }
+      locals: { count: user.notifications.unread.count }
   end
 
   def read?
@@ -40,6 +51,7 @@ class Notification < ApplicationRecord
     case action
     when "added_to_card" then "added you to this card"
     when "comment"       then "commented on this card"
+    when "mention"       then "mentioned you in a comment"
     else "sent you a notification"
     end
   end
