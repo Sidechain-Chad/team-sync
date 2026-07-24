@@ -53,6 +53,29 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "#{name} (deactivated)", user.display_name
   end
 
+  test "notifies? defaults to true for an unset type" do
+    user = users(:one)
+    user.notification_preferences = { "comment" => false }
+
+    assert user.notifies?(:mention)
+  end
+
+  test "notifies? defaults to true for a fresh user with no preferences set" do
+    user = users(:one)
+    user.notification_preferences = {}
+
+    assert user.notifies?(:comment)
+    assert user.notifies?(:mention)
+    assert user.notifies?(:added_to_card)
+  end
+
+  test "notifies? returns the stored value when explicitly set to false" do
+    user = users(:one)
+    user.notification_preferences = { "comment" => false }
+
+    assert_not user.notifies?(:comment)
+  end
+
   test "accepts a valid png/jpeg/webp avatar under 5 MB" do
     user = users(:one)
     user.avatar.attach(
