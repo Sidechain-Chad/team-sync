@@ -2,7 +2,7 @@
   <%= button_to card_member_path(card, user),
       method: :delete,
       class: "group relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1 rounded-full",
-      form: { style: "display:inline-block" },
+      form: { class: "inline-block" },
       data: { turbo_confirm: "Remove #{user.display_name} from this card?" },
       title: "Remove #{user.display_name}",
       aria: { label: "Remove #{user.display_name} from card" } do %>

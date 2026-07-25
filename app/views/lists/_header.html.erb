@@ -3,7 +3,7 @@
 
     <%# 1. The Title (Clicking it activates Edit Mode) %>
     <div class="flex-1 flex items-center gap-2 min-w-0">
-      <%= link_to list.name, edit_list_path(list), class: "font-display font-semibold text-ink-700 truncate", style: "text-decoration: none;" %>
+      <%= link_to list.name, edit_list_path(list), class: "font-display font-semibold text-ink-700 truncate no-underline" %>
       <%# Filtered count ("3 of 7") — hidden until a filter is active;
           board_filter_controller.js fills it in and toggles visibility. %>
       <span data-board-filter-target="listCount"
@@ -13,7 +13,7 @@
 
     <%# 2. The Delete Button (Only visible on hover, or on keyboard focus) %>
     <div class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
-      <%= button_to list_path(list), method: :delete, class: "text-ink-300 hover:text-danger-600 bg-transparent border-0 cursor-pointer p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1", form: { style: "display:inline-block;" }, data: { turbo_confirm: "Delete this list?" }, title: "Delete list", aria: { label: "Delete list" } do %>
+      <%= button_to list_path(list), method: :delete, class: "text-ink-300 hover:text-danger-600 bg-transparent border-0 cursor-pointer p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1", form: { class: "inline-block" }, data: { turbo_confirm: "Delete this list?" }, title: "Delete list", aria: { label: "Delete list" } do %>
         <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
       <% end %>
     </div>
