@@ -2,10 +2,10 @@
   <div class="flex items-center gap-3 group">
     <%= form_with model: [checklist_item.checklist.card, checklist_item.checklist, checklist_item],
         method: :patch,
-        data: { turbo_frame: dom_id(checklist_item) },
+        data: { turbo_frame: dom_id(checklist_item), controller: "autosubmit" },
         class: "flex items-center gap-3 w-full" do |f| %>
       <%= f.check_box :completed,
-          onchange: "this.form.requestSubmit()",
+          data: { action: "change->autosubmit#submit" },
           class: "h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-700",
           aria: { label: "Mark \"#{checklist_item.content}\" as #{checklist_item.completed? ? 'incomplete' : 'complete'}" } %>
       <span class="text-sm <%= checklist_item.completed? ? 'line-through text-ink-300' : 'text-ink-700' %> flex-1">

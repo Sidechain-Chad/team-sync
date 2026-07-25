@@ -12,7 +12,8 @@
 <% bg_url = board_background_url(@board) %>
 <div class="board-canvas h-[calc(100vh-3.5rem)] <%= "bg-gradient-to-br #{board_cover_gradient_classes(@board)}" unless bg_url %> overflow-x-auto flex flex-col"
      <% if bg_url %>style="background-image: linear-gradient(rgba(0,0,0,.28), rgba(0,0,0,.28)), url('<%= bg_url %>'); background-size: cover; background-position: center; background-attachment: fixed;"<% end %>
-     data-controller="board-filter">
+     data-controller="board-filter keyboard"
+     data-action="shortcuts:open@window->keyboard#openHelp">
 
   <%# ===== BOARD HEADER ===== Trello-style title + action cluster.
       Title on the left (with dropdown), actions and members on the right. %>
@@ -140,4 +141,6 @@
     <%= render "boards/archived_link", board: @board %>
 
   </div>
+
+  <%= render "boards/shortcuts_overlay" %>
 </div>

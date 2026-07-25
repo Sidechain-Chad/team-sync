@@ -1,0 +1,74 @@
+<%# Keyboard shortcuts help overlay — toggled by `?` (keyboard_controller.js).
+    Static content only, same visual language as the card modal (fixed
+    backdrop + centered white panel). Hidden by default; the controller
+    toggles the "hidden" class rather than inserting/removing this from the
+    DOM, so there's nothing to fetch or render on open. %>
+<div data-keyboard-target="helpOverlay"
+     data-action="click->keyboard#helpBackdropClick"
+     class="hidden fixed inset-0 z-[9999] items-center justify-center bg-ink-900/60">
+  <div class="relative z-[10000] bg-surface-100 w-full max-w-md rounded-lg shadow-2xl text-ink-700 m-4"
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="shortcuts_overlay_title">
+
+    <div class="flex items-center justify-between px-6 py-4 border-b border-line">
+      <h2 id="shortcuts_overlay_title" class="font-display font-bold text-lg text-ink-700">Keyboard shortcuts</h2>
+      <button type="button"
+              data-action="click->keyboard#closeHelp"
+              class="text-ink-500 hover:text-ink-700 transition flex items-center justify-center p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
+              aria-label="Close shortcuts help">
+        <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <div class="px-6 py-5 space-y-5">
+      <div>
+        <h3 class="text-[10px] font-bold text-ink-500 uppercase tracking-wider mb-2">Board</h3>
+        <dl class="space-y-1.5 text-sm">
+          <div class="flex items-center justify-between">
+            <dt class="text-ink-700">Toggle this help</dt>
+            <dd><kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">?</kbd></dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-ink-700">Focus search</dt>
+            <dd><kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">/</kbd></dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-ink-700">Open filter</dt>
+            <dd><kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">f</kbd></dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-ink-700">Close help / filter / card</dt>
+            <dd><kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">Esc</kbd></dd>
+          </div>
+        </dl>
+      </div>
+
+      <div>
+        <h3 class="text-[10px] font-bold text-ink-500 uppercase tracking-wider mb-2">Focused card</h3>
+        <dl class="space-y-1.5 text-sm">
+          <div class="flex items-center justify-between">
+            <dt class="text-ink-700">Move focus within a list</dt>
+            <dd><kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">&uarr;</kbd> <kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">&darr;</kbd></dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-ink-700">Move focus to another list</dt>
+            <dd><kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">&larr;</kbd> <kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">&rarr;</kbd></dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-ink-700">Open card</dt>
+            <dd><kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">Enter</kbd></dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-ink-700">Add a card in this list</dt>
+            <dd><kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">n</kbd></dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-ink-700">Archive card</dt>
+            <dd><kbd class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 h-6 rounded border border-line bg-surface-200 text-ink-700 text-xs font-mono font-semibold">c</kbd></dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>

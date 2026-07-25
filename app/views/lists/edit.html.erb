@@ -1,12 +1,12 @@
 <%= turbo_frame_tag dom_id(@list, :header) do %>
   <div class="mb-2 p-1">
-    <%= form_with(model: @list, class: "flex items-center gap-1") do |f| %>
+    <%= form_with(model: @list, class: "flex items-center gap-1", data: { controller: "autosubmit" }) do |f| %>
 
       <%# The Input Field (Autofocus so you can type immediately) %>
       <%= f.text_field :name,
           class: "w-full border-2 border-brand-700 rounded p-1 text-sm font-bold text-ink-700 focus:outline-none focus:ring-0",
           autofocus: true,
-          onblur: "this.form.requestSubmit()" %>
+          data: { action: "blur->autosubmit#submit" } %>
 
       <%# Hidden submit button for Enter key %>
       <%= f.submit class: "hidden" %>
