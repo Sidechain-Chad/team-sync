@@ -74,6 +74,7 @@ Rails.application.routes.draw do
 
     member do
       patch :move
+      post  :copy
       get   :edit_description
       patch :update_description
       patch :archive

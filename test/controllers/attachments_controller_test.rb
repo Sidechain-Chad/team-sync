@@ -2,6 +2,7 @@ require "test_helper"
 
 class AttachmentsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  include ActiveJob::TestHelper
 
   setup do
     @user = users(:one)
@@ -66,5 +67,37 @@ class AttachmentsControllerTest < ActionDispatch::IntegrationTest
       delete card_attachment_url(@card, @active_storage_attachment)
     end
     assert_response :not_found
+  end
+
+  # --- copy-card-polish: shared-blob deletion safety ---
+  #
+  # Card#copy_to reuses the source's existing blobs (attach(blob), not a
+  # re-upload) rather than duplicating files. This test is the thing that
+  # decides whether that's safe: destroy's purge_later must NOT take the
+  # blob (and its Cloudinary/disk file) down with it while another card's
+  # attachment still references it. The DB-level foreign key on
+  # active_storage_attachments.blob_id is what's actually being exercised —
+  # ActiveStorage::Blob#purge rescues ActiveRecord::InvalidForeignKey when
+  # another attachment row still points at it.
+  test "destroying a copy's attachment does not purge a blob still attached to the original card" do
+    sign_in @user
+    original_blob = @active_storage_attachment.blob
+    copy = @card.copy_to(list: @list, title: "Copy", user: @user)
+    copy_attachment = copy.attachments.first
+
+    old_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
+    begin
+      perform_enqueued_jobs do
+        delete card_attachment_url(copy, copy_attachment)
+      end
+    ensure
+      ActiveJob::Base.queue_adapter = old_adapter
+    end
+
+    assert_response :redirect
+    assert ActiveStorage::Blob.exists?(original_blob.id),
+           "expected the shared blob to survive since the original card still references it"
+    assert @card.reload.attachments.first.blob.persisted?
   end
 end
