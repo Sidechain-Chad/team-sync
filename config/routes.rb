@@ -58,6 +58,8 @@ Rails.application.routes.draw do
   resources :lists do
     member do
       patch :move
+      patch :sort
+      patch :archive_all_cards
     end
     resources :cards, only: [:new, :create]
   end

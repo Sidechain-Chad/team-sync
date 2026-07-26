@@ -76,7 +76,62 @@ class ListsController < ApplicationController
     head :ok
   end
 
+  # "Archive all cards" (list ⋯ menu). Archives every ACTIVE card in the list
+  # and logs an archived activity per card — consistent with single-card
+  # archive, and honest history even though it can be many entries at once.
+  def archive_all_cards
+    @list = current_user.all_lists.find(params[:id])
+
+    @list.active_cards.each do |card|
+      card.archive!
+      card.log_activity(current_user, "archived")
+    end
+
+    # One full list replace rather than N individual removes: the header's
+    # card count changes too, and a single replace is the same thing
+    # CardsController#create's gap-insert branch broadcasts for a multi-card
+    # change. Broadcast-only — the actor is subscribed to this stream.
+    broadcast_list_replace(@list)
+
+    respond_to do |format|
+      format.turbo_stream { head :no_content }
+      format.html { redirect_to board_path(@list.board) }
+    end
+  end
+
+  # "Sort by" (list ⋯ menu). Persists the new order by renumbering positions
+  # (see List#sort_cards!) — a one-time reorder, not a sticky sort mode.
+  def sort
+    @list = current_user.all_lists.find(params[:id])
+
+    return head :unprocessable_entity unless @list.sort_cards!(params[:sort])
+
+    broadcast_list_replace(@list)
+
+    respond_to do |format|
+      format.turbo_stream { head :no_content }
+      format.html { redirect_to board_path(@list.board) }
+    end
+  end
+
   private
+
+  # Re-renders the whole list column for every viewer of the board. Needs the
+  # same eager-loading as boards#show — the partial renders every one of the
+  # list's cards (lists/list -> cards/card), so without it this is an N+1
+  # across the list. Same reasoning as #move's per-list broadcast.
+  def broadcast_list_replace(list)
+    list_for_broadcast = current_user.all_lists
+                                     .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
+                                     .find(list.id)
+
+    Turbo::StreamsChannel.broadcast_replace_to(
+      list.board,
+      target: helpers.dom_id(list),
+      partial: "lists/list",
+      locals: { list: list_for_broadcast }
+    )
+  end
 
   # Mirror of CardsController#broadcast_card_insert, one level up: a list
   # created by one member should appear live for everyone else on the board.
@@ -96,6 +151,6 @@ class ListsController < ApplicationController
   end
 
   def list_params
-    params.require(:list).permit(:name, :position)
+    params.require(:list).permit(:name, :position, :card_limit)
   end
 end
