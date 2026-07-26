@@ -6,15 +6,16 @@ class ListsController < ApplicationController
     @list = @board.lists.new(list_params)
 
     if @list.save
+      # Insertion is broadcast (see broadcast_list_insert), not rendered into
+      # this response — the actor is subscribed to the same board stream, so
+      # rendering it here too would double it up. Only the form reset below
+      # is actor-only. Same convention as CardsController#create.
+      broadcast_list_insert(@list)
+
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: [
-            # 1. Insert the new list before the button
-            turbo_stream.before("new_list_form", partial: "lists/list", locals: { list: @list }),
-
-            # 2. Replace the form with a fresh, empty copy (this clears the input)
-            turbo_stream.replace("new_list_form", partial: "boards/new_list_form", locals: { board: @board })
-          ]
+          # Replace the form with a fresh, empty copy (this clears the input)
+          render turbo_stream: turbo_stream.replace("new_list_form", partial: "boards/new_list_form", locals: { board: @board })
         end
 
         format.html { redirect_to board_path(@board) }
@@ -76,6 +77,23 @@ class ListsController < ApplicationController
   end
 
   private
+
+  # Mirror of CardsController#broadcast_card_insert, one level up: a list
+  # created by one member should appear live for everyone else on the board.
+  #
+  # Targets "new_list_form" (the "+ Add another list" column), not the
+  # #board_lists container: the add-list column and the "Archived items" link
+  # are both siblings of the list columns INSIDE #board_lists (see
+  # boards/show.html.erb), so appending to the container would land the new
+  # list after those affordances instead of before them.
+  def broadcast_list_insert(list)
+    Turbo::StreamsChannel.broadcast_before_to(
+      list.board,
+      target: "new_list_form",
+      partial: "lists/list",
+      locals: { list: list }
+    )
+  end
 
   def list_params
     params.require(:list).permit(:name, :position)
