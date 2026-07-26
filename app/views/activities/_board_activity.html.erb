@@ -1,0 +1,28 @@
+<%#
+  Board-feed variant of activities/_activity.
+
+  Not the shared partial: that one is card-modal-scoped (it carries
+  data-activity-toggle-target for the modal's "hide automated activity"
+  toggle, and its Activity#message text says "this card" with the card
+  itself as ambient context). A board feed spans many cards, so each row
+  has to name the card and its list. Same split the account activity page
+  already makes for the same reason.
+
+  locals: activity (Activity, with :user and card: :list preloaded)
+%>
+<% card = activity.card %>
+<div class="flex items-start gap-3 p-4" data-activity-row>
+  <%= render "shared/avatar", user: activity.user, size: "h-8 w-8", text_size: "text-[11px]", css_class: "flex-shrink-0" %>
+  <div class="min-w-0 flex-1">
+    <p class="text-sm text-ink-700">
+      <span class="font-semibold"><%= activity.user&.display_name || "Deleted User" %></span>
+      <%= activity.message %> &mdash;
+      <%= link_to card.title, card_path(card),
+          data: { turbo_frame: "_top" },
+          class: "font-medium text-brand-600 hover:underline" %>
+    </p>
+    <p class="text-xs text-ink-500 mt-0.5">
+      <%= card.list.name %> · <%= time_ago_in_words(activity.created_at) %> ago
+    </p>
+  </div>
+</div>

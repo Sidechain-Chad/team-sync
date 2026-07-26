@@ -1,6 +1,6 @@
 class BoardsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_board, only: [:show, :edit, :update, :archive, :map]
+  before_action :set_board, only: [:show, :edit, :update, :archive, :activity, :map]
   before_action :set_owned_board, only: [:destroy]
 
   def index
@@ -56,6 +56,24 @@ class BoardsController < ApplicationController
                           .where(list_id: @board.lists.select(:id))
                           .includes(:list, :labels, :members)
                           .order(updated_at: :desc)
+  end
+
+  # Board-level activity feed. Activity is card-scoped (it has card_id and no
+  # board_id), so this is every card event on this board, reached through
+  # cards -> lists -> board. Board/list-level events (board renamed, list
+  # created) aren't recorded as Activity at all and so aren't here — adding
+  # them would mean widening the Activity table, which is out of scope.
+  #
+  # No pagination yet: newest 50, same cap the account activity feed uses.
+  # The eager loads are what keep this fixed-cost — :user (+ its avatar blob,
+  # since actors differ row to row, unlike the account feed's single user)
+  # and card: :list for the "<card> in <list>" line.
+  def activity
+    @activities = Activity
+                    .where(card_id: Card.where(list_id: @board.lists.select(:id)).select(:id))
+                    .includes(:user, { user: { avatar_attachment: :blob } }, card: :list)
+                    .order(created_at: :desc)
+                    .limit(50)
   end
 
   def map

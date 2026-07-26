@@ -309,7 +309,122 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end
 
+  # --- board activity feed ---
+
+  test "activity feed lists activities for cards on this board" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Feed Card")
+    Activity.create!(user: @user, card: card, action: "created")
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_match "Feed Card", response.body
+    assert_match "created this card", response.body
+  end
+
+  test "activity feed excludes activities from another board" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    mine = list.cards.create!(title: "Mine Card")
+    Activity.create!(user: @user, card: mine, action: "created")
+
+    other_board = @user.boards.create!(name: "Other Board")
+    other_list = other_board.lists.create!(name: "Other List", position: 1)
+    other_card = other_list.cards.create!(title: "Elsewhere Card")
+    Activity.create!(user: @user, card: other_card, action: "created")
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_match "Mine Card", response.body
+    assert_no_match(/Elsewhere Card/, response.body)
+  end
+
+  test "activity feed orders newest first" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    older_card = list.cards.create!(title: "Older Card")
+    newer_card = list.cards.create!(title: "Newer Card")
+    Activity.create!(user: @user, card: older_card, action: "created", created_at: 2.days.ago)
+    Activity.create!(user: @user, card: newer_card, action: "created", created_at: 1.hour.ago)
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_operator response.body.index("Newer Card"), :<, response.body.index("Older Card")
+  end
+
+  test "activity feed caps at 50 entries" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Feed Card")
+    55.times { |i| Activity.create!(user: @user, card: card, action: "renamed", description: "Rename #{i}") }
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_equal 50, response.body.scan(/data-activity-row/).size
+  end
+
+  test "activity feed shows an empty state when the board has no activity" do
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_match "No activity yet.", response.body
+  end
+
+  test "activity feed on a board the user has no access to is not found" do
+    stranger = User.create!(email: "feed_stranger@example.com", password: "password")
+    other_board = stranger.boards.create!(name: "Private Board")
+
+    get activity_board_url(other_board)
+
+    assert_response :not_found
+  end
+
+  test "activity feed redirects unauthenticated users" do
+    sign_out @user
+
+    get activity_board_url(@board)
+
+    assert_redirected_to new_user_session_url
+  end
+
+  test "activity feed query count stays flat as activity count grows" do
+    small = count_queries_for_board_activity(activity_count: 5)
+    large = count_queries_for_board_activity(activity_count: 10)
+
+    assert_equal small, large, "query count must not grow with activity count (N+1 regression)"
+  end
+
   private
+
+  def count_queries_for_board_activity(activity_count:)
+    user = User.create!(email: "feedperf#{activity_count}@example.com", password: "password")
+    attach_test_avatar(user)
+    sign_in user
+
+    board = user.boards.create!(name: "Feed Perf Board #{activity_count}")
+    board.lists.destroy_all
+    list = board.lists.create!(name: "List", position: 1)
+
+    # A second actor with their own avatar, so the feed renders more than one
+    # distinct user's avatar — proving the per-user avatar preload is fixed
+    # cost (one lookup per distinct actor) rather than per activity row.
+    other = User.create!(email: "feedperfother#{activity_count}@example.com", password: "password")
+    attach_test_avatar(other)
+    board.board_users.create!(user: other)
+
+    # One card per activity, so a missing `card: :list` include shows up as
+    # growth too, not just a missing `:user` include.
+    activity_count.times do |i|
+      card = list.cards.create!(title: "Card #{i}")
+      Activity.create!(user: i.even? ? user : other, card: card, action: "created")
+    end
+
+    result = count_queries { get activity_board_url(board) }
+    assert_response :success
+    sign_out user
+    result
+  end
 
   def count_queries_for_board_show(cards_per_list:)
     user = User.create!(email: "perf#{cards_per_list}@example.com", password: "password")

@@ -44,6 +44,7 @@ Rails.application.routes.draw do
 
     member do
       get :archive
+      get :activity
       get :map
       patch :toggle_favorite
     end
