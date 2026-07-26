@@ -14,6 +14,16 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     @list_three = @board_one.lists.create!(name: "List Three")
     @card = cards(:one)
     sign_in @user
+
+    # Notification.deliver's after_create_commit broadcasts via a Turbo
+    # Streams job — see NotificationTest for why this needs the :test
+    # adapter under transactional fixtures + the app's default :async adapter.
+    @old_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
+  end
+
+  teardown do
+    ActiveJob::Base.queue_adapter = @old_adapter
   end
 
   # --- #create ---
@@ -630,5 +640,181 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
+  end
+
+  # --- #copy ---
+
+  test "copy: creates exactly one new card and redirects to it" do
+    assert_difference -> { Card.count }, 1 do
+      post copy_card_url(@card), params: { list_id: @list_three.id, title: "Copied Card" }
+    end
+
+    new_card = Card.find_by!(title: "Copied Card")
+    assert_redirected_to card_url(new_card)
+  end
+
+  test "copy: a card with members creates zero notifications (anti-spam guard)" do
+    member = users(:two)
+    @board_one.board_users.create!(user: member)
+    @card.members << member
+
+    assert_no_difference "Notification.count" do
+      post copy_card_url(@card), params: { list_id: @list_three.id, title: "Copied" }
+    end
+  end
+
+  test "copy: 404 for a target list on a board the user has no access to at all" do
+    assert_no_difference -> { Card.count } do
+      post copy_card_url(@card), params: { list_id: @list_two.id, title: "Nope" }
+    end
+
+    assert_response :not_found
+  end
+
+  test "copy: 422 for a target list on a different board the user owns" do
+    other_board = @user.boards.create!(name: "Another Board")
+    other_list = other_board.lists.create!(name: "Other List")
+
+    assert_no_difference -> { Card.count } do
+      post copy_card_url(@card), params: { list_id: other_list.id, title: "Nope" }
+    end
+
+    assert_response :unprocessable_entity
+  end
+
+  # --- #copy polish: turbo_stream response (keeps the board behind the modal) ---
+
+  test "copy: turbo_stream response replaces the modal with the new card" do
+    post copy_card_url(@card), params: { list_id: @list_three.id, title: "Copied Card" }, as: :turbo_stream
+
+    assert_response :success
+    new_card = Card.find_by!(title: "Copied Card")
+
+    modal_frame_tag = response.body[/<turbo-frame[^>]*id="modal"[^>]*>/]
+    assert modal_frame_tag, "expected a <turbo-frame id=\"modal\"> tag in the response"
+    # Same regression guard as the attach response: the replaced modal frame
+    # must retain target="_top" and the self-close controller, or the next
+    # Esc/close breaks ("Content missing").
+    assert_match 'target="_top"', modal_frame_tag
+    assert_match 'data-controller="modal"', modal_frame_tag
+    assert_match "turbo:before-render@document-&gt;modal#close", modal_frame_tag
+    assert_match new_card.title, response.body
+  end
+
+  test "copy: html fallback still redirects to the new card" do
+    assert_difference -> { Card.count }, 1 do
+      post copy_card_url(@card), params: { list_id: @list_three.id, title: "Copied Card HTML" }
+    end
+
+    new_card = Card.find_by!(title: "Copied Card HTML")
+    assert_redirected_to card_url(new_card)
+  end
+
+  # --- #copy polish: nested under the ⋯ menu, not a separate floating panel ---
+
+  test "copy form lives nested inside the card-actions (···) menu popover" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "#card_actions_menu form[action=?]", copy_card_path(@card), count: 1
+    assert_select "#card_actions_menu select[name='list_id']", count: 1
+  end
+
+  test "there is no separate floating Copy popover outside the card-actions menu" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "form[action=?]", copy_card_path(@card), count: 1
+  end
+
+  # --- #copy polish: graceful failure instead of a raw 500 ---
+
+  test "copy: a copy_to failure redirects back to the source card with a flash error instead of a 500" do
+    @card.update_column(:title, "")
+
+    assert_no_difference -> { Card.count } do
+      post copy_card_url(@card), params: { list_id: @list_three.id, title: "" }
+    end
+
+    assert_redirected_to card_url(@card)
+    assert flash[:alert].present?
+  end
+
+  # --- broadcast-card-create: create/copy insert live for every board viewer ---
+
+  test "create broadcasts the new card to the board's stream exactly once" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      post list_cards_url(@list_three), params: { card: { title: "Broadcast Card" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    new_card = Card.find_by!(title: "Broadcast Card")
+    assert_equal 1, broadcasts.size
+    assert_match(/turbo-stream action="before" target="list_#{@list_three.id}_new_card"/, broadcasts.first)
+    assert_match "id=\"#{ActionView::RecordIdentifier.dom_id(new_card)}\"", broadcasts.first
+    assert_match "Broadcast Card", broadcasts.first
+  end
+
+  test "create response resets the trigger but does not itself render the new card (anti double-render)" do
+    post list_cards_url(@list_three), params: { card: { title: "No Dup Card" } }, as: :turbo_stream
+
+    assert_response :success
+    new_card = Card.find_by!(title: "No Dup Card")
+    assert_no_match(/id="#{ActionView::RecordIdentifier.dom_id(new_card)}"/, response.body)
+    assert_match "list_#{@list_three.id}_new_card", response.body
+    assert_match "Add a card", response.body
+  end
+
+  test "copy broadcasts the new card to the board's stream exactly once" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      post copy_card_url(@card), params: { list_id: @list_three.id, title: "Broadcast Copy" }, as: :turbo_stream
+    end
+
+    assert_response :success
+    new_card = Card.find_by!(title: "Broadcast Copy")
+    assert_equal 1, broadcasts.size
+    assert_match(/turbo-stream action="before" target="list_#{@list_three.id}_new_card"/, broadcasts.first)
+    assert_match "id=\"#{ActionView::RecordIdentifier.dom_id(new_card)}\"", broadcasts.first
+  end
+
+  test "copy response contains the modal replace but not a second insertion of the new card" do
+    post copy_card_url(@card), params: { list_id: @list_three.id, title: "Copy No Dup" }, as: :turbo_stream
+
+    assert_response :success
+    new_card = Card.find_by!(title: "Copy No Dup")
+    assert_match(/turbo-stream action="replace" target="modal"/, response.body)
+    assert response.body[/<turbo-frame[^>]*id="modal"[^>]*>/], "expected a <turbo-frame id=\"modal\"> tag in the response"
+    # The mini board-card partial (cards/_card, wrapped in turbo_frame_tag
+    # card => id="card_#{id}") is never rendered by the modal template —
+    # its presence here would mean the response is STILL inserting the
+    # card itself, duplicating the broadcast.
+    assert_no_match(/turbo-stream action="before" target="list_#{@list_three.id}_new_card"/, response.body)
+    assert_no_match(/id="#{ActionView::RecordIdentifier.dom_id(new_card)}"/, response.body)
+  end
+
+  test "regression: archive still broadcasts a remove to the board's stream" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch archive_card_url(@card)
+    end
+
+    assert_equal 1, broadcasts.size
+    assert_match(/turbo-stream action="remove" target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, broadcasts.first)
+  end
+
+  test "regression: update still broadcasts a replace to the board's stream" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch card_url(@card), params: { card: { title: "Updated via broadcast test" } }
+    end
+
+    assert_equal 1, broadcasts.size
+    assert_match(/turbo-stream action="replace" target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, broadcasts.first)
   end
 end

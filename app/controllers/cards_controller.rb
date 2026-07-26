@@ -1,6 +1,6 @@
 class CardsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :edit_description, :update_description, :archive, :unarchive, :toggle_complete]
+  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :copy, :edit_description, :update_description, :archive, :unarchive, :toggle_complete]
 
   def show
     # Eager-load everything the card modal needs
@@ -66,6 +66,13 @@ class CardsController < ApplicationController
           format.html { redirect_to @list.board }
         end
       else
+        # Insertion is broadcast (see broadcast_card_insert), not rendered
+        # into this response — the actor is subscribed to the same board
+        # stream, so rendering it here too would double it up. The
+        # turbo_stream response (cards/create.turbo_stream.erb) only resets
+        # the "Add a card" trigger, which IS actor-only.
+        broadcast_card_insert(@card)
+
         respond_to do |format|
           format.turbo_stream
           format.html { redirect_to @list.board }
@@ -228,6 +235,45 @@ class CardsController < ApplicationController
       head :ok
     else
       head :unprocessable_entity
+    end
+  end
+
+  # "Copy card" (card modal ⋯ menu). Target list is resolved through the
+  # same board-scoped lookup #move uses, so a tampered list_id can't copy a
+  # card onto a board the user can't access. The actual duplication lives
+  # in Card#copy_to so it's unit-testable on its own.
+  def copy
+    target_list = board_scoped_list(params[:list_id])
+    return head :unprocessable_entity unless target_list
+
+    begin
+      new_card = @card.copy_to(list: target_list, title: params[:title], user: current_user)
+    rescue ActiveRecord::RecordInvalid => e
+      # copy_to's transaction already rolled back — nothing was persisted.
+      # Same shape as #create's validation-failure redirect: back to a
+      # real page with a flash, not a raw 500.
+      return redirect_to @card, alert: "Couldn't copy this card: #{e.record.errors.full_messages.to_sentence}"
+    end
+
+    # Land on the copy, board still visible behind it (same as opening any
+    # other card) — not a full-page redirect_to card_path, which leaves the
+    # board's canvas replaced by an empty page. The new card's insertion
+    # into its target list is broadcast (see broadcast_card_insert), not
+    # rendered here — the copier is subscribed to that same board stream,
+    # so rendering it in this response too would insert it twice. Only the
+    # modal replace belongs in this response: it's actor-only (only the
+    # copier should be looking at the new card's own modal).
+    broadcast_card_insert(new_card)
+
+    @card = new_card
+    reload_card_for_modal!
+    resolve_return_to!
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.replace("modal", template: "cards/show")
+      end
+      format.html { redirect_to card_path(@card) }
     end
   end
 
@@ -454,5 +500,25 @@ class CardsController < ApplicationController
 
   def broadcast_card_remove
     Turbo::StreamsChannel.broadcast_remove_to(@card.list.board, target: @card)
+  end
+
+  # Mirror of broadcast_card_remove. Insertion is broadcast (not rendered into
+  # the actor's response) so every viewer of the board — including the actor,
+  # who is subscribed to the same stream — gets exactly one copy. See
+  # #toggle_complete for the same actor-double-render reasoning.
+  #
+  # Targets "list_#{id}_new_card" (the "Add a card" trigger frame), not the
+  # list_#{id}_cards container itself: the trigger lives INSIDE that
+  # container (see lists/_list.html.erb), so appending to the container
+  # would land the new card after the trigger (and after the gap-inserter
+  # overlay), not before it. `before` is what create.turbo_stream.erb
+  # already used for the actor-only render this replaces.
+  def broadcast_card_insert(card)
+    Turbo::StreamsChannel.broadcast_before_to(
+      card.list.board,
+      target: "list_#{card.list_id}_new_card",
+      partial: "cards/card",
+      locals: { card: card }
+    )
   end
 end

@@ -36,6 +36,8 @@ class Activity < ApplicationRecord
       "archived this card"
     when "unarchived"
       "restored this card from the archive"
+    when "copied"
+      "copied this card from \"#{description}\""
     else
       # Defensive fallback so old rows from before the cleanup never render
       # as a blank row in the feed.

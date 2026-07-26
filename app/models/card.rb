@@ -125,6 +125,74 @@ class Card < ApplicationRecord
     activities.create(user: user, action: action, description: description)
   end
 
+  # Duplicates this card's content (not its history) into `list`. Copies
+  # labels/members as brand new join rows (never touching the source's own
+  # card_labels/card_members), checklists+items (each item's completed reset
+  # to false — the dominant use of copy-card is "run this task again," so a
+  # fresh checklist is the useful default), and attachments.
+  #
+  # Attachments are copied by attaching the SAME blobs (attach(blob), not
+  # attach(io:...)) — a new ActiveStorage::Attachment row per file, pointing
+  # at the already-uploaded blob. No re-upload, no Cloudinary round-trip.
+  # This is safe against the copy (or the original) later deleting one of
+  # its attachments: a DB foreign key on active_storage_attachments.blob_id
+  # means ActiveStorage::Blob#purge rescues ActiveRecord::InvalidForeignKey
+  # and leaves the blob (and its file) alone as long as another attachment
+  # row still references it — see AttachmentsControllerTest's shared-blob
+  # deletion-safety test, which is what this behavior is pinned by.
+  #
+  # Deliberately does NOT copy comments or activities (Trello doesn't
+  # either — they belong to the original card's own history).
+  # completed/archived_at/comments_count/due_reminder_sent_at are reset
+  # rather than copied: due_reminder_sent_at especially, since inheriting a
+  # non-nil stamp would make the copy look "already reminded" and it would
+  # never get a due-soon notification of its own.
+  #
+  # card_labels/card_members are built directly (mass-assigned via
+  # label_ids=/member_ids=) rather than through CardLabelsController /
+  # CardMembersController — that's why copying a card with members never
+  # sends added_to_card notifications; that trigger lives only in
+  # CardMembersController#create, not a model callback.
+  #
+  # No explicit position is set on the copy or its checklists/items —
+  # acts_as_list's create callback appends each to the bottom of its scope,
+  # which is exactly "land last in the target list" for the card itself.
+  def copy_to(list:, title:, user:)
+    new_title = title.presence || self.title
+    copy = nil
+
+    transaction do
+      copy = list.cards.create!(
+        title: new_title,
+        description: description,
+        due_date: due_date,
+        latitude: latitude,
+        longitude: longitude,
+        location_name: location_name,
+        location_address: location_address,
+        assignee_id: assignee_id,
+        completed: false,
+        archived_at: nil,
+        due_reminder_sent_at: nil
+      )
+
+      copy.label_ids = label_ids
+      copy.member_ids = member_ids
+      copy.attachments.attach(attachments.map(&:blob)) if attachments.attached?
+
+      checklists.each do |checklist|
+        copied_checklist = copy.checklists.create!(title: checklist.title)
+        checklist.checklist_items.each do |item|
+          copied_checklist.checklist_items.create!(content: item.content, completed: false)
+        end
+      end
+
+      copy.log_activity(user, "copied", self.title)
+    end
+
+    copy
+  end
+
   # Due-date status helpers — used by views to color the due-date pill.
   # :complete > :overdue > :due_soon > :upcoming > :none
   def due_status

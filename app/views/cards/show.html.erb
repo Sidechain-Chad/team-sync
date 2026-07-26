@@ -89,9 +89,16 @@
         <%# RIGHT: card-actions (⋯) menu, then Close %>
         <div class="flex items-center gap-1">
 
-          <%# Card actions — currently just Archive, restyled as a menu row. %>
-          <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
-            <button type="button" data-action="click->dropdown#toggle"
+          <%# Card actions — ONE anchored popover under the ⋯ button, with
+              two internal panels that are never both visible at once:
+              the menu items (Copy/Archive) and the Copy-card form. Toggled
+              by card_actions_menu_controller.js, not a separate floating
+              panel. #reset (fired alongside dropdown#toggle on every click
+              of the ⋯ button) snaps back to the menu panel whenever the
+              popover is freshly opened, so a previous "Copy card" session
+              never lingers into the next open. %>
+          <div class="relative" data-controller="dropdown card-actions-menu" data-action="click@window->dropdown#hide">
+            <button type="button" data-action="click->dropdown#toggle click->card-actions-menu#reset"
                     aria-haspopup="true"
                     aria-label="Card actions"
                     class="h-8 w-8 flex items-center justify-center rounded text-ink-500 hover:text-ink-700 hover:bg-surface-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
@@ -100,20 +107,67 @@
 
             <div id="card_actions_menu"
                  data-dropdown-target="menu"
-                 class="hidden absolute right-0 top-full mt-2 w-56 bg-white border border-line rounded-lg shadow-xl z-30 overflow-hidden">
-              <%# data-turbo-frame="_top" breaks this form out of the
-                  enclosing "modal" frame so the redirect performs a full
-                  top-level visit — same escape hatch already used for the
-                  Cancel link on cards/new.html.erb. Without it, Turbo
-                  scopes the response to the "modal" frame and logs a
-                  console warning when it can't find a matching (non-empty)
-                  frame in the redirected board page. %>
-              <%= button_to archive_card_path(@card),
-                  method: :patch,
-                  class: "w-full text-left bg-white hover:bg-warn-100 hover:text-warn-700 text-ink-700 px-4 py-2.5 text-sm font-medium transition flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-inset",
-                  form: { data: { turbo_confirm: "Archive this card? You can restore it later.", turbo_frame: "_top" } } do %>
-                <i class="fa-solid fa-box-archive w-4 text-center" aria-hidden="true"></i> Archive Card
-              <% end %>
+                 class="hidden absolute right-0 top-full mt-2 w-64 bg-white border border-line rounded-lg shadow-xl z-30 overflow-hidden">
+
+              <%# --- Menu panel --- %>
+              <div data-card-actions-menu-target="menu">
+                <button type="button" data-action="click->card-actions-menu#showCopyForm"
+                        class="w-full text-left bg-white hover:bg-surface-200 text-ink-700 px-4 py-2.5 text-sm font-medium transition flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-inset">
+                  <i class="fa-solid fa-copy w-4 text-center" aria-hidden="true"></i> Copy Card
+                </button>
+
+                <%# data-turbo-frame="_top" breaks this form out of the
+                    enclosing "modal" frame so the redirect performs a full
+                    top-level visit — same escape hatch already used for the
+                    Cancel link on cards/new.html.erb. Without it, Turbo
+                    scopes the response to the "modal" frame and logs a
+                    console warning when it can't find a matching (non-empty)
+                    frame in the redirected board page. %>
+                <%= button_to archive_card_path(@card),
+                    method: :patch,
+                    class: "w-full text-left bg-white hover:bg-warn-100 hover:text-warn-700 text-ink-700 px-4 py-2.5 text-sm font-medium transition flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-inset",
+                    form: { data: { turbo_confirm: "Archive this card? You can restore it later.", turbo_frame: "_top" } } do %>
+                  <i class="fa-solid fa-box-archive w-4 text-center" aria-hidden="true"></i> Archive Card
+                <% end %>
+              </div>
+
+              <%# --- Copy-card form panel — hidden until "Copy Card" is
+                  clicked; anchored in the exact same popover, never shown
+                  alongside the menu panel above. No data-turbo-frame here:
+                  the turbo_stream response applies document-wide regardless
+                  of which frame the request originated in, so the board
+                  stays visible behind the modal after copying (see
+                  CardsController#copy). %>
+              <div data-card-actions-menu-target="form" class="hidden p-3 flex flex-col gap-3">
+                <div class="flex items-center gap-2 border-b border-line pb-2">
+                  <button type="button" data-action="click->card-actions-menu#showMenu"
+                          aria-label="Back to card actions"
+                          class="text-ink-500 hover:text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1 rounded">
+                    <i class="fa-solid fa-arrow-left text-xs" aria-hidden="true"></i>
+                  </button>
+                  <div class="flex-1 text-center text-xs font-bold text-ink-500">Copy card</div>
+                </div>
+
+                <%= form_with url: copy_card_path(@card), method: :post, class: "space-y-3" do |f| %>
+                  <div>
+                    <%= f.label :title, "Title", class: "block text-xs font-medium text-ink-500 mb-1" %>
+                    <%= f.text_field :title, value: @card.title,
+                        class: "w-full text-sm border border-line rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-700" %>
+                  </div>
+
+                  <div>
+                    <%= f.label :list_id, "List", class: "block text-xs font-medium text-ink-500 mb-1" %>
+                    <%= f.collection_select :list_id,
+                        @card.list.board.lists.order(:position),
+                        :id, :name,
+                        { selected: @card.list_id },
+                        { class: "w-full text-sm border border-line rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-700" } %>
+                  </div>
+
+                  <%= f.submit "Copy card",
+                      class: "w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
+                <% end %>
+              </div>
             </div>
           </div>
 

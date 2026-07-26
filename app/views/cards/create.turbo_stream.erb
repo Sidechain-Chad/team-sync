@@ -1,10 +1,7 @@
-<%# Insert the new card BEFORE the "Add a card" trigger so the trigger
-    stays positioned right after the last card. %>
-<%= turbo_stream.before "list_#{@list.id}_new_card" do %>
-  <%= render @card %>
-<% end %>
-
-<%# Reset the trigger so it's the empty link again, ready for the next card %>
+<%# The new card itself is inserted via CardsController#broadcast_card_insert
+    (a board-stream broadcast, not rendered here) — the actor is subscribed
+    to that same stream, so rendering it in this response too would insert
+    it twice. This response only resets the trigger, which IS actor-only. %>
 <%= turbo_stream.replace "list_#{@list.id}_new_card" do %>
   <%= link_to new_list_card_path(@list),
       class: "flex items-center gap-2 w-full p-2 text-ink-500 hover:bg-surface-200 rounded text-sm font-medium transition-colors" do %>

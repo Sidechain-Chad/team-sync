@@ -15,9 +15,8 @@
 
     <%= f.text_area :content,
         rows: 1,
-        class: "w-full border border-line rounded-md py-2 px-3 text-sm bg-surface-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-700 shadow-sm transition-all placeholder-ink-300 resize-none",
+        class: "w-full border border-line rounded-md py-2 px-3 text-sm bg-surface-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-700 shadow-sm transition-all placeholder-ink-300 resize-none min-h-10",
         placeholder: "Write a comment...",
-        style: "min-height: 40px;",
         data: {
           comment_form_target: "input",
           mention_typeahead_target: "textarea",
