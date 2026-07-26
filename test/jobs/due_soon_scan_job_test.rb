@@ -41,6 +41,38 @@ class DueSoonScanJobTest < ActiveSupport::TestCase
     end
   end
 
+  # Reminders key off due_date ONLY — a start date must not change who gets
+  # reminded or when, no matter where it sits relative to the window.
+  test "a start date does not change due-soon eligibility" do
+    card = cards(:one)
+    card.update!(due_date: 12.hours.from_now, start_date: 5.days.ago)
+
+    assert_difference "Notification.count", 1 do
+      DueSoonScanJob.perform_now
+    end
+    assert_not_nil card.reload.due_reminder_sent_at
+  end
+
+  test "a start date inside the reminder window does not make an out-of-window card eligible" do
+    card = cards(:one)
+    # Due well beyond the 24h window, but starting right now.
+    card.update!(due_date: 10.days.from_now, start_date: Time.current)
+
+    assert_no_difference "Notification.count" do
+      DueSoonScanJob.perform_now
+    end
+    assert_nil card.reload.due_reminder_sent_at
+  end
+
+  test "a start-date-only card is never due-soon eligible" do
+    card = cards(:one)
+    card.update!(due_date: nil, start_date: 1.hour.from_now)
+
+    assert_no_difference "Notification.count" do
+      DueSoonScanJob.perform_now
+    end
+  end
+
   test "does not notify a member who has turned due_soon off" do
     card = cards(:one)
     card.update!(due_date: 12.hours.from_now)

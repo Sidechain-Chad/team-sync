@@ -283,6 +283,80 @@ class CardTest < ActiveSupport::TestCase
     assert_equal original_count, card.reload.attachments.count
   end
 
+  # --- start_date / due_date range validation ---
+
+  test "start_date on or before due_date is valid" do
+    card = cards(:one)
+    card.due_date   = 5.days.from_now
+    card.start_date = 2.days.from_now
+    assert card.valid?
+
+    card.start_date = card.due_date
+    assert card.valid?, "same instant should be allowed (start <= due)"
+  end
+
+  test "start_date after due_date is rejected and never silently swapped" do
+    card = cards(:one)
+    card.due_date   = 2.days.from_now
+    card.start_date = 5.days.from_now
+
+    assert_not card.valid?
+    assert_includes card.errors[:start_date].join, "on or before the due date"
+
+    # The values stay exactly as submitted — no reordering behind the user's back.
+    assert_operator card.start_date, :>, card.due_date
+  end
+
+  test "start_date alone is allowed" do
+    card = cards(:one)
+    card.update!(due_date: nil, start_date: 3.days.from_now)
+    assert_nil card.reload.due_date
+    assert_not_nil card.start_date
+  end
+
+  test "due_date alone is allowed" do
+    card = cards(:one)
+    card.update!(start_date: nil, due_date: 3.days.from_now)
+    assert_nil card.reload.start_date
+    assert_not_nil card.due_date
+  end
+
+  test "both dates nil is allowed" do
+    card = cards(:one)
+    card.update!(start_date: nil, due_date: nil)
+    assert card.reload.valid?
+  end
+
+  test "date_range? is true only when both dates are present" do
+    card = cards(:one)
+
+    card.assign_attributes(start_date: nil, due_date: nil)
+    assert_not card.date_range?
+
+    card.assign_attributes(start_date: 1.day.from_now, due_date: nil)
+    assert_not card.date_range?
+
+    card.assign_attributes(start_date: nil, due_date: 1.day.from_now)
+    assert_not card.date_range?
+
+    card.assign_attributes(start_date: 1.day.from_now, due_date: 2.days.from_now)
+    assert card.date_range?
+  end
+
+  test "planner_days covers every day from start to due, inclusive" do
+    card = cards(:one)
+    card.assign_attributes(start_date: Time.zone.parse("2026-05-04 09:00"), due_date: Time.zone.parse("2026-05-06 17:00"))
+
+    assert_equal [Date.new(2026, 5, 4), Date.new(2026, 5, 5), Date.new(2026, 5, 6)], card.planner_days
+  end
+
+  test "planner_days is just the due date when there is no start date" do
+    card = cards(:one)
+    card.assign_attributes(start_date: nil, due_date: Time.zone.parse("2026-05-06 17:00"))
+
+    assert_equal [Date.new(2026, 5, 6)], card.planner_days
+  end
+
   # --- #copy_to graceful failure ---
 
   test "copy_to raises RecordInvalid (inside its transaction) when the resulting title is blank" do

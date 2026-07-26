@@ -5,10 +5,25 @@ import flatpickr from "flatpickr"
 // due-date popover's Turbo Frame, which re-renders on every save — connect/
 // disconnect run on every open, so the instance must be torn down cleanly.
 export default class extends Controller {
-  static targets = ["input"]
+  static targets = ["input", "startInput"]
 
   connect() {
-    this.picker = flatpickr(this.inputTarget, {
+    this.picker = flatpickr(this.inputTarget, this.pickerOptions())
+
+    // Optional second field in the same popover (start date). Gets its own
+    // Flatpickr instance — sharing one would fight over altInput.
+    if (this.hasStartInputTarget) {
+      this.startPicker = flatpickr(this.startInputTarget, this.pickerOptions())
+    }
+  }
+
+  disconnect() {
+    if (this.picker) this.picker.destroy()
+    if (this.startPicker) this.startPicker.destroy()
+  }
+
+  pickerOptions() {
+    return {
       enableTime: true,
       time_24hr: false,
       dateFormat: "Y-m-d\\TH:i",
@@ -19,11 +34,7 @@ export default class extends Controller {
       defaultMinute: 0,
       minuteIncrement: 15,
       disableMobile: true,
-    })
-  }
-
-  disconnect() {
-    if (this.picker) this.picker.destroy()
+    }
   }
 
   preset(event) {
@@ -49,10 +60,22 @@ export default class extends Controller {
     this.picker.setDate(date, true)
   }
 
+  // "Remove" clears the card's dating entirely — both dates, plus the
+  // completed checkbox. Clearing only the due date would leave a start-only
+  // card, which the Planner (a due-date view) wouldn't show at all.
   remove() {
     this.picker.clear()
+    if (this.startPicker) this.startPicker.clear()
     const checkbox = this.element.querySelector("input[type=checkbox]")
     if (checkbox) checkbox.checked = false
+    this.element.requestSubmit()
+  }
+
+  // Clears just the start date, turning a range back into a single point on
+  // the due date. Same clear-then-submit shape as remove().
+  clearStart() {
+    if (!this.startPicker) return
+    this.startPicker.clear()
     this.element.requestSubmit()
   }
 }

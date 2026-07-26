@@ -197,7 +197,31 @@ class CardsController < ApplicationController
         end
       end
     else
-      render :edit, status: :unprocessable_entity
+      # Same shape as the attachment-rejection branch above: flash.now plus a
+      # modal re-render, which cards/show.html.erb's inline alert slot picks up.
+      # (There is no cards/edit template to render — this branch was previously
+      # unreachable, since title-presence was the only validation and no form
+      # can submit a blank title. The start_date/due_date check makes it real.)
+      error = @card.errors.full_messages.to_sentence
+
+      respond_to do |format|
+        format.turbo_stream do
+          flash.now[:alert] = error
+          # Re-reads from the DB, so the modal shows the card as it actually
+          # stands — the rejected values are discarded, never half-applied.
+          reload_card_for_modal!
+          resolve_return_to!
+          # Deliberately 200, not 422: the due-date form is frame-targeted
+          # (data-turbo-frame="card_due_pill_X"), and Turbo does NOT apply a
+          # turbo-stream response to a frame-scoped submission when the status
+          # is 4xx — the error would be silently swallowed in the browser even
+          # though the body is correct. Verified in-browser. Same 200 +
+          # flash.now + modal-replace shape the attachment-rejection branch
+          # above already uses for a rejected card update.
+          render turbo_stream: turbo_stream.replace("modal", template: "cards/show")
+        end
+        format.html { redirect_to @card.list.board, alert: error }
+      end
     end
   end
 
@@ -478,7 +502,7 @@ class CardsController < ApplicationController
 
   def card_params
     params.require(:card).permit(
-      :title, :description, :due_date, :completed, :list_id, :position,
+      :title, :description, :due_date, :start_date, :completed, :list_id, :position,
       :latitude, :longitude, :location_name, :location_address,
       attachments: []
     )

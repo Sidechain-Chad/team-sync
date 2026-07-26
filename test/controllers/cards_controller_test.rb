@@ -807,6 +807,50 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/turbo-stream action="remove" target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, broadcasts.first)
   end
 
+  # --- start_date via the due popover ---
+
+  test "update sets a start date alongside the due date" do
+    patch card_url(@card), params: { card: { start_date: "2026-05-04T09:00", due_date: "2026-05-06T17:00" } }, as: :turbo_stream
+
+    assert_response :success
+    @card.reload
+    assert_equal Time.zone.parse("2026-05-04T09:00"), @card.start_date
+    assert_equal Time.zone.parse("2026-05-06T17:00"), @card.due_date
+  end
+
+  test "update clears the start date with a blank value" do
+    @card.update!(start_date: 2.days.from_now, due_date: 5.days.from_now)
+
+    patch card_url(@card), params: { card: { start_date: "" } }, as: :turbo_stream
+
+    assert_response :success
+    assert_nil @card.reload.start_date
+  end
+
+  test "update rejects a start date after the due date and saves nothing" do
+    @card.update!(start_date: nil, due_date: Time.zone.parse("2026-05-06T17:00"))
+
+    patch card_url(@card), params: { card: { start_date: "2026-05-10T09:00", due_date: "2026-05-06T17:00" } }, as: :turbo_stream
+
+    # 200 rather than 422 on purpose — see CardsController#update's failure
+    # branch: Turbo drops a 4xx turbo-stream response for this frame-targeted
+    # form, so the inline error would never reach the user.
+    assert_response :success
+    @card.reload
+    assert_nil @card.start_date, "invalid start date must not persist"
+    assert_equal Time.zone.parse("2026-05-06T17:00"), @card.due_date
+    assert_match "on or before the due date", response.body
+    assert_match(/turbo-stream action="replace" target="modal"/, response.body)
+  end
+
+  test "the due popover offers a start date field" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_match(/name="card\[start_date\]"/, response.body)
+    assert_match "Start date", response.body
+  end
+
   test "unarchive broadcasts the restored card above the add-card trigger, not appended to the container" do
     @card.archive!
     stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)

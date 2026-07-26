@@ -41,6 +41,11 @@ module CardsHelper
     card.due_date&.strftime("%Y-%m-%dT%H:%M")
   end
 
+  # Same format, for the optional start-date field in the same popover.
+  def start_date_for_input(card)
+    card.start_date&.strftime("%Y-%m-%dT%H:%M")
+  end
+
   # Cover thumbnail for the board view. :cover is a named variant (see
   # Card) — no `.processed` here; see MediaHelper#media_transform_url for
   # why Cloudinary needs its own transformation URL instead.
