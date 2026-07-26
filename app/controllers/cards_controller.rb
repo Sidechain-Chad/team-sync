@@ -387,12 +387,10 @@ class CardsController < ApplicationController
     @card.log_activity(current_user, "unarchived")
 
     # Tell the board's stream to reinsert the card at the bottom of its list.
-    Turbo::StreamsChannel.broadcast_append_to(
-      @card.list.board,
-      target: "list_#{@card.list_id}_cards",
-      partial: "cards/card",
-      locals: { card: @card }
-    )
+    # Uses the same helper as create/copy: appending to list_X_cards landed the
+    # restored card BELOW the "Add a card" trigger and the gap-inserter overlay,
+    # both of which live inside that container.
+    broadcast_card_insert(@card)
 
     # If the request came from the archive page, return there so the
     # user can keep restoring cards. Otherwise back to the board.

@@ -807,6 +807,22 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/turbo-stream action="remove" target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, broadcasts.first)
   end
 
+  test "unarchive broadcasts the restored card above the add-card trigger, not appended to the container" do
+    @card.archive!
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch unarchive_card_url(@card)
+    end
+
+    assert_equal 1, broadcasts.size
+    # The "Add a card" trigger and the gap-inserter overlay both live INSIDE
+    # list_X_cards, so an append landed the restored card below them.
+    assert_match(/turbo-stream action="before" target="list_#{@card.list_id}_new_card"/, broadcasts.first)
+    assert_no_match(/action="append" target="list_#{@card.list_id}_cards"/, broadcasts.first)
+    assert_match "id=\"#{ActionView::RecordIdentifier.dom_id(@card)}\"", broadcasts.first
+  end
+
   test "regression: update still broadcasts a replace to the board's stream" do
     stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
 
