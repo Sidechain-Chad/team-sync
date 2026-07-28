@@ -742,7 +742,7 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
 
   # --- broadcast-card-create: create/copy insert live for every board viewer ---
 
-  test "create broadcasts the new card to the board's stream exactly once" do
+  test "create broadcasts the new card insert plus the list's card-count pill" do
     stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
 
     broadcasts = capture_broadcasts(stream_name) do
@@ -751,10 +751,16 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     new_card = Card.find_by!(title: "Broadcast Card")
-    assert_equal 1, broadcasts.size
-    assert_match(/turbo-stream action="before" target="list_#{@list_three.id}_new_card"/, broadcasts.first)
-    assert_match "id=\"#{ActionView::RecordIdentifier.dom_id(new_card)}\"", broadcasts.first
-    assert_match "Broadcast Card", broadcasts.first
+    # Asserted by target, not by count: a bare count can't tell a correct
+    # second broadcast from a duplicate of the first.
+    assert_equal [
+      ["before",  "list_#{@list_three.id}_new_card"],
+      ["replace", "list_#{@list_three.id}_card_count"]
+    ].sort, broadcast_targets(broadcasts).sort
+
+    insert = broadcast_for(broadcasts, "list_#{@list_three.id}_new_card")
+    assert_match "id=\"#{ActionView::RecordIdentifier.dom_id(new_card)}\"", insert
+    assert_match "Broadcast Card", insert
   end
 
   test "create response resets the trigger but does not itself render the new card (anti double-render)" do
@@ -767,7 +773,7 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_match "Add a card", response.body
   end
 
-  test "copy broadcasts the new card to the board's stream exactly once" do
+  test "copy broadcasts the new card insert plus the target list's card-count pill" do
     stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
 
     broadcasts = capture_broadcasts(stream_name) do
@@ -776,9 +782,13 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     new_card = Card.find_by!(title: "Broadcast Copy")
-    assert_equal 1, broadcasts.size
-    assert_match(/turbo-stream action="before" target="list_#{@list_three.id}_new_card"/, broadcasts.first)
-    assert_match "id=\"#{ActionView::RecordIdentifier.dom_id(new_card)}\"", broadcasts.first
+    assert_equal [
+      ["before",  "list_#{@list_three.id}_new_card"],
+      ["replace", "list_#{@list_three.id}_card_count"]
+    ].sort, broadcast_targets(broadcasts).sort
+
+    assert_match "id=\"#{ActionView::RecordIdentifier.dom_id(new_card)}\"",
+                 broadcast_for(broadcasts, "list_#{@list_three.id}_new_card")
   end
 
   test "copy response contains the modal replace but not a second insertion of the new card" do
@@ -796,15 +806,17 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/id="#{ActionView::RecordIdentifier.dom_id(new_card)}"/, response.body)
   end
 
-  test "regression: archive still broadcasts a remove to the board's stream" do
+  test "regression: archive still broadcasts a remove, now alongside the card-count pill" do
     stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
 
     broadcasts = capture_broadcasts(stream_name) do
       patch archive_card_url(@card)
     end
 
-    assert_equal 1, broadcasts.size
-    assert_match(/turbo-stream action="remove" target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, broadcasts.first)
+    assert_equal [
+      ["remove",  ActionView::RecordIdentifier.dom_id(@card)],
+      ["replace", "list_#{@card.list_id}_card_count"]
+    ].sort, broadcast_targets(broadcasts).sort
   end
 
   # --- start_date via the due popover ---
@@ -859,12 +871,16 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
       patch unarchive_card_url(@card)
     end
 
-    assert_equal 1, broadcasts.size
+    assert_equal [
+      ["before",  "list_#{@card.list_id}_new_card"],
+      ["replace", "list_#{@card.list_id}_card_count"]
+    ].sort, broadcast_targets(broadcasts).sort
+
     # The "Add a card" trigger and the gap-inserter overlay both live INSIDE
     # list_X_cards, so an append landed the restored card below them.
-    assert_match(/turbo-stream action="before" target="list_#{@card.list_id}_new_card"/, broadcasts.first)
-    assert_no_match(/action="append" target="list_#{@card.list_id}_cards"/, broadcasts.first)
-    assert_match "id=\"#{ActionView::RecordIdentifier.dom_id(@card)}\"", broadcasts.first
+    insert = broadcast_for(broadcasts, "list_#{@card.list_id}_new_card")
+    assert_no_match(/action="append" target="list_#{@card.list_id}_cards"/, insert)
+    assert_match "id=\"#{ActionView::RecordIdentifier.dom_id(@card)}\"", insert
   end
 
   test "regression: update still broadcasts a replace to the board's stream" do
@@ -874,7 +890,150 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
       patch card_url(@card), params: { card: { title: "Updated via broadcast test" } }
     end
 
-    assert_equal 1, broadcasts.size
-    assert_match(/turbo-stream action="replace" target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, broadcasts.first)
+    # An update that doesn't move the card leaves both lists' counts alone, so
+    # there's still exactly one broadcast here.
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]],
+                 broadcast_targets(broadcasts)
+  end
+
+  # --- card-count pill: WIP limits update live on every count change ---
+
+  test "archiving broadcasts a card-count pill showing the count going down" do
+    @list_three.update!(card_limit: 2)
+    @list_three.cards.create!(title: "Keeper")
+    doomed = @list_three.cards.create!(title: "Doomed")
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch archive_card_url(doomed)
+    end
+
+    pill = broadcast_for(broadcasts, "list_#{@list_three.id}_card_count")
+    assert pill, "expected a card-count pill broadcast"
+    assert_match(/1\s*\/\s*2/, pill)
+    assert_match(/data-card-limit-state="ok"/, pill)
+  end
+
+  test "creating a card past the limit broadcasts a pill in the over-limit state" do
+    @list_three.update!(card_limit: 2)
+    2.times { |i| @list_three.cards.create!(title: "C#{i}") }
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      post list_cards_url(@list_three), params: { card: { title: "Tips It Over" } }, as: :turbo_stream
+    end
+
+    pill = broadcast_for(broadcasts, "list_#{@list_three.id}_card_count")
+    assert pill, "expected a card-count pill broadcast"
+    # The whole point of the fix: 2/2 -> 3/2 with no reload.
+    assert_match(/3\s*\/\s*2/, pill)
+    assert_match(/data-card-limit-state="over"/, pill)
+  end
+
+  test "unarchiving broadcasts a card-count pill showing the count going up" do
+    @list_three.update!(card_limit: 2)
+    restored = @list_three.cards.create!(title: "Restored")
+    restored.archive!
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch unarchive_card_url(restored)
+    end
+
+    pill = broadcast_for(broadcasts, "list_#{@list_three.id}_card_count")
+    assert pill, "expected a card-count pill broadcast"
+    assert_match(/1\s*\/\s*2/, pill)
+  end
+
+  test "moving a card between lists broadcasts a card-count pill for both lists" do
+    source = @list_one
+    destination = @list_three
+    mover = source.cards.create!(title: "Mover")
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch move_card_url(mover), params: { card: { list_id: destination.id, position: 1 } }, as: :json
+    end
+
+    targets = broadcast_targets(broadcasts)
+    assert_includes targets, ["replace", "list_#{source.id}_card_count"]
+    assert_includes targets, ["replace", "list_#{destination.id}_card_count"]
+  end
+
+  test "moving a card within one list broadcasts its card-count pill only once" do
+    a = @list_three.cards.create!(title: "A")
+    @list_three.cards.create!(title: "B")
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch move_card_url(a), params: { card: { list_id: @list_three.id, position: 2 } }, as: :json
+    end
+
+    count_broadcasts = broadcast_targets(broadcasts).count { |_action, target| target == "list_#{@list_three.id}_card_count" }
+    assert_equal 1, count_broadcasts, "a same-list move must not broadcast the same pill twice"
+  end
+
+  test "moving a card via the modal's Move to list control broadcasts both lists' pills" do
+    source = @list_one
+    destination = @list_three
+    mover = source.cards.create!(title: "Modal Mover")
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch card_url(mover), params: { card: { list_id: destination.id, position: "bottom" } }, as: :turbo_stream
+    end
+
+    targets = broadcast_targets(broadcasts)
+    assert_includes targets, ["replace", "list_#{source.id}_card_count"]
+    assert_includes targets, ["replace", "list_#{destination.id}_card_count"]
+  end
+
+  test "destroying a card broadcasts its list's card-count pill" do
+    doomed = @list_three.cards.create!(title: "Hard Deleted")
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      delete card_url(doomed)
+    end
+
+    assert_includes broadcast_targets(broadcasts), ["replace", "list_#{@list_three.id}_card_count"]
+  end
+
+  test "the card-count pill element renders even when no limit is set, so the broadcast has a target" do
+    @list_three.update!(card_limit: nil)
+
+    get board_url(@board_one)
+
+    assert_response :success
+    # The element must always exist — a turbo_stream replace against a missing
+    # target is silently dropped.
+    assert_match(/id="list_#{@list_three.id}_card_count"/, response.body)
+    # ...but it carries no limit state and no visible count.
+    assert_no_match(/data-card-limit-state/, response.body)
+  end
+
+  test "the actor's own create response does not contain the pill markup (anti double-render)" do
+    @list_three.update!(card_limit: 2)
+
+    post list_cards_url(@list_three), params: { card: { title: "No Dup Pill" } }, as: :turbo_stream
+
+    assert_response :success
+    assert_no_match(/list_#{@list_three.id}_card_count/, response.body)
+  end
+
+  private
+
+  # [[action, target], ...] for a captured broadcast list, one pair per
+  # broadcast. Asserting on targets (rather than just counting) is what lets a
+  # test distinguish a legitimate extra broadcast from a duplicated one.
+  def broadcast_targets(broadcasts)
+    broadcasts.map do |payload|
+      payload.match(/<turbo-stream action="([^"]+)" target="([^"]+)"/).captures
+    end
+  end
+
+  # The single captured broadcast aimed at `target`, or nil.
+  def broadcast_for(broadcasts, target)
+    broadcasts.find { |payload| payload.include?(%(target="#{target}")) }
   end
 end

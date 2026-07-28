@@ -10,16 +10,12 @@
             data-list-id="<%= list.id %>"
             class="hidden text-xs text-ink-500 flex-shrink-0"></span>
 
-      <%# Soft WIP limit — count/limit, tinted danger when over. Only rendered
-          when a limit is actually set (nil = no limit). active_cards is
-          already loaded on the board page and in the list broadcasts, so
-          .size reads the loaded array rather than firing a COUNT. %>
-      <% if list.card_limit? %>
-        <% over_limit = list.over_card_limit? %>
-        <span data-card-limit-state="<%= over_limit ? "over" : "ok" %>"
-              class="flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded <%= over_limit ? "bg-danger-50 text-danger-600" : "text-ink-500" %>"
-              title="<%= over_limit ? "Over the work-in-progress limit" : "Work-in-progress limit" %>"><%= list.active_cards.size %>/<%= list.card_limit %></span>
-      <% end %>
+      <%# Soft WIP limit pill. Its own partial + stable id so single-card
+          operations can broadcast just this number (see
+          CardsController#broadcast_list_card_count) instead of replacing the
+          whole header, which owns the rename/delete controls and the ...
+          dropdown's Stimulus state. %>
+      <%= render "lists/card_count", list: list %>
     </div>
 
     <div class="flex items-center gap-0.5 flex-shrink-0">

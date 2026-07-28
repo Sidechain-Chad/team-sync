@@ -72,6 +72,9 @@ class CardsController < ApplicationController
         # turbo_stream response (cards/create.turbo_stream.erb) only resets
         # the "Add a card" trigger, which IS actor-only.
         broadcast_card_insert(@card)
+        # The gap-insert branch above doesn't need this — its full list replace
+        # already re-renders the pill.
+        broadcast_list_card_count(@list)
 
         respond_to do |format|
           format.turbo_stream
@@ -150,6 +153,12 @@ class CardsController < ApplicationController
         locals: { card: @card }
       )
 
+      # The modal's "Move to list" control moves a card through #update, not
+      # #move — so this path changes two lists' counts too.
+      if @card.list_id != old_list.id
+        broadcast_card_count_for(old_list, @card.list)
+      end
+
       if result.success?
         # Decide what to send back. Modal-wide refresh is needed when
         # something *visible inside the modal body* changed — attachments,
@@ -227,7 +236,12 @@ class CardsController < ApplicationController
 
   def destroy
     @board = @card.list.board
+    list = @card.list
     @card.destroy
+
+    # Hard delete drops the list's active-card count too. (The card's own
+    # removal still isn't broadcast from here — a pre-existing gap, unchanged.)
+    broadcast_list_card_count(list)
 
     # If the request came from the archive page, return there.
     # Otherwise back to the board.
@@ -256,6 +270,11 @@ class CardsController < ApplicationController
       if @card.saved_change_to_list_id?
         @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
       end
+
+      # Both lists' counts change on a cross-list drag; a reorder within one
+      # list dedupes down to a single pill broadcast.
+      broadcast_card_count_for(old_list, @card.list)
+
       head :ok
     else
       head :unprocessable_entity
@@ -288,6 +307,7 @@ class CardsController < ApplicationController
     # modal replace belongs in this response: it's actor-only (only the
     # copier should be looking at the new card's own modal).
     broadcast_card_insert(new_card)
+    broadcast_list_card_count(target_list)
 
     @card = new_card
     reload_card_for_modal!
@@ -320,6 +340,7 @@ class CardsController < ApplicationController
     @card.archive!
     @card.log_activity(current_user, "archived")
     broadcast_card_remove
+    broadcast_list_card_count(@card.list)
 
     respond_to do |format|
       format.html { redirect_to board_path(@card.list.board) }
@@ -415,6 +436,7 @@ class CardsController < ApplicationController
     # restored card BELOW the "Add a card" trigger and the gap-inserter overlay,
     # both of which live inside that container.
     broadcast_card_insert(@card)
+    broadcast_list_card_count(@card.list)
 
     # If the request came from the archive page, return there so the
     # user can keep restoring cards. Otherwise back to the board.
@@ -542,5 +564,33 @@ class CardsController < ApplicationController
       partial: "cards/card",
       locals: { card: card }
     )
+  end
+
+  # Card-count pill only — NOT the whole list header, which owns the rename
+  # control, the delete button, and the ... dropdown's Stimulus state (replacing
+  # it would tear those down and could slam an open menu shut mid-interaction).
+  #
+  # Called from every path that changes a list's active-card count, EXCEPT the
+  # ones that already broadcast a full list replace (ListsController#sort,
+  # #archive_all_cards, and #create's gap-insert branch) — those re-render the
+  # pill as part of the list partial, so adding this would double up.
+  #
+  # The list is reloaded so active_cards.size reflects the change that just
+  # happened rather than an association cached before it.
+  def broadcast_list_card_count(list)
+    list = list.reload
+
+    Turbo::StreamsChannel.broadcast_replace_to(
+      list.board,
+      target: "list_#{list.id}_card_count",
+      partial: "lists/card_count",
+      locals: { list: list }
+    )
+  end
+
+  # A move touches two lists — or one, when the card stayed put. Dedupes so a
+  # same-list reorder doesn't broadcast the same pill twice.
+  def broadcast_card_count_for(*lists)
+    lists.compact.uniq(&:id).each { |list| broadcast_list_card_count(list) }
   end
 end
