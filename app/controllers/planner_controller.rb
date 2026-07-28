@@ -68,13 +68,36 @@ class PlannerController < ApplicationController
     range_start = Date.current.beginning_of_day
     range_end   = (Date.current + 21.days).end_of_day
 
+    # Same window predicate the calendar grid uses, so a range whose span
+    # overlaps the next three weeks is picked up even when its due date sits
+    # outside them. Grouping by due_date alone used to put a multi-day card on
+    # its due day only, which disagreed with the grid's bars.
     cards = Card.active
                 .where(list_id: current_user.all_lists.select(:id))
-                .where(due_date: range_start..range_end)
+                .where(planner_window_sql, range_start: range_start, range_end: range_end)
                 .order(:due_date)
                 .includes(:labels, list: :board)
 
-    @cards_by_day = cards.group_by { |c| c.due_date.to_date }
+    # A range card belongs on every day it spans — the agenda answers "what's on
+    # my plate on day X", and in-progress work is on your plate. Reuses
+    # Card#planner_days (the grid's own day expansion) rather than a second
+    # implementation, so the two views can't drift. A card with no start_date
+    # yields exactly one day: the pre-range behaviour, unchanged.
+    window_start = range_start.to_date
+    window_end   = range_end.to_date
+
+    @cards_by_day = {}
+    cards.each do |card|
+      card.planner_days.each do |day|
+        next unless day >= window_start && day <= window_end
+        (@cards_by_day[day] ||= []) << card
+      end
+    end
+
+    # Keys are inserted in due_date order, which is NOT day order once ranges
+    # are involved (a card due later can start earlier). The agenda has to read
+    # soonest-first, so sort by day.
+    @cards_by_day = @cards_by_day.sort.to_h
 
     # Render without the application layout — the panel sits inside an
     # already-rendered page, so we don't want the full chrome.

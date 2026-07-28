@@ -24,7 +24,9 @@
         </div>
       <% else %>
         <% @cards_by_day.each do |day, cards| %>
-          <div class="mb-5">
+          <%# data-agenda-day is the stable hook for "which day group is this" —
+              the visible label is "Today"/"Tomorrow" for the first two days. %>
+          <div class="mb-5" data-agenda-day="<%= day.iso8601 %>">
             <%# Day header — highlights today in blue %>
             <%
               is_today    = day == Date.current
