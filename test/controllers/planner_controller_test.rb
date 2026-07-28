@@ -144,18 +144,20 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
   # on every day it spans. Reuses Card#planner_days rather than a second
   # day-expansion, so the panel and the calendar grid can't drift apart.
 
-  test "panel: a card spanning three in-window days appears in all three day groups" do
+  # Repointed when the agenda began collapsing long ranges. Original intent — a
+  # range card appears on more than one day, keyed to the right days — is kept; the
+  # days are now its start and due rather than every day between.
+  test "panel: a range card appears on its start and due day groups" do
     card = cards(:one)
     card.update!(title: "Panel Range Card 61",
-                 start_date: (Date.current + 2.days).to_time.change(hour: 9),
-                 due_date:   (Date.current + 4.days).to_time.change(hour: 17))
+                 start_date: Date.current.to_time.change(hour: 9),
+                 due_date:   (Date.current + 2.days).to_time.change(hour: 17))
 
     get planner_panel_url
 
     assert_response :success
-    assert_equal 3, chip_count_for(card), "expected the range card once per spanned day"
-    assert_equal [Date.current + 2.days, Date.current + 3.days, Date.current + 4.days],
-                 panel_days_for(card)
+    assert_equal 2, chip_count_for(card)
+    assert_equal [Date.current, Date.current + 2.days], panel_days_for(card)
   end
 
   test "panel: a card with only a due date appears once, on its due day" do
@@ -181,9 +183,11 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
     get planner_panel_url
 
     assert_response :success
-    # Window is today..today+21, so only days 19, 20 and 21 are in it.
-    assert_equal [Date.current + 19.days, Date.current + 20.days, Date.current + 21.days],
-                 panel_days_for(card)
+    # The window is today..today+21, so the due day (today+30) is outside it and
+    # drops — which is what this test pins. Collapsing removes the intervening
+    # days as well, and today isn't inside the span, so the start day is all that
+    # remains.
+    assert_equal [Date.current + 19.days], panel_days_for(card)
   end
 
   test "panel: a range that began before today shows only from today onward" do
@@ -240,9 +244,11 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
       get planner_panel_url
 
       assert_response :success
-      assert_equal 3, chip_count_for(card)
-      # Every one of the three rows carries the span...
-      assert_equal 3, response.body.scan("Aug 3–5").size
+      # Two rows now, not three: today (Aug 1) is outside this span, so the agenda
+      # shows only its start and due days. The point of this test is unchanged —
+      # every range row carries the span rather than a bare time.
+      assert_equal 2, chip_count_for(card)
+      assert_equal 2, response.body.scan("Aug 3–5").size
       # ...and none of them shows the bare due time any more.
       assert_no_match(/3:00 PM/, response.body)
     end
@@ -322,6 +328,220 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # --- long ranges collapse to start / today / due ---
+  #
+  # Showing a range card on every spanned day meant one long card filled the whole
+  # agenda (the window is today..today+21 = 22 days, so a quarter-long epic took
+  # every row). It now appears on at most three days: its start, today, and its
+  # due day — each only when that day is both inside the window AND inside the
+  # span. Today is always inside the window (it's day one), so the "today" row
+  # applies whenever today falls within the span.
+  #
+  # All times are explicit Time.utc: the app runs UTC and these assert on which
+  # calendar day a row lands, which local-midnight arithmetic silently shifts.
+
+  # A span already underway: 19 spanned days previously meant 19 agenda rows.
+  #
+  # Note it collapses to TWO rows, not three. The window begins today, so a start
+  # day earlier than today is always outside it and clipped — and today can only
+  # sit mid-span when start < today. Those two facts together cap a range card at
+  # two agenda rows; "start + today + due" is only ever three distinct days if the
+  # window reached into the past, which it doesn't.
+  test "panel: a span already underway collapses to today and its due day" do
+    card = cards(:one)
+    card.update!(title: "Long Span 81",
+                 start_date: Time.utc(2026, 8, 2, 9, 0),
+                 due_date:   Time.utc(2026, 8, 20, 17, 0))
+
+    travel_to Time.utc(2026, 8, 10, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_equal [Date.new(2026, 8, 10), Date.new(2026, 8, 20)],
+                   panel_days_for(card), "today and due; the Aug 2 start precedes the window"
+      assert_equal 2, chip_count_for(card)
+      assert_equal ["in_progress", "due"], panel_roles_for(card)
+    end
+  end
+
+  test "panel: no range card ever exceeds two agenda rows" do
+    card = cards(:one)
+    # A full quarter — the worst case that motivated collapsing at all.
+    card.update!(title: "Quarter Span 92",
+                 start_date: Time.utc(2026, 6, 1, 9, 0),
+                 due_date:   Time.utc(2026, 8, 20, 17, 0))
+
+    travel_to Time.utc(2026, 8, 10, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_operator chip_count_for(card), :<=, 2, "was 22 rows before collapsing"
+      assert_equal ["in_progress", "due"], panel_roles_for(card)
+    end
+  end
+
+  test "panel: a month-long span whose ends fall outside the window shows only today" do
+    card = cards(:one)
+    card.update!(title: "Month Span 82",
+                 start_date: Time.utc(2026, 7, 20, 9, 0),
+                 due_date:   Time.utc(2026, 8, 30, 17, 0))
+
+    travel_to Time.utc(2026, 8, 1, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      # Start and due are both out of window, so only the in-progress row remains
+      # — down from 22 rows, which is the whole point of collapsing.
+      assert_equal [Date.new(2026, 8, 1)], panel_days_for(card)
+      assert_equal ["in_progress"], panel_roles_for(card)
+    end
+  end
+
+  # A short span starting today — the reachable analogue of "today mid-span", since
+  # a start before today is always clipped by the window.
+  test "panel: a three-day span starting today shows its start and due days" do
+    card = cards(:one)
+    card.update!(title: "Short Span 83",
+                 start_date: Time.utc(2026, 8, 10, 9, 0),
+                 due_date:   Time.utc(2026, 8, 12, 17, 0))
+
+    travel_to Time.utc(2026, 8, 10, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      # The middle day (Aug 11) is the one collapsing drops for a short span.
+      assert_equal [Date.new(2026, 8, 10), Date.new(2026, 8, 12)], panel_days_for(card)
+      assert_equal ["starts", "due"], panel_roles_for(card)
+    end
+  end
+
+  test "panel: a span starting before the window has no starts row" do
+    card = cards(:one)
+    card.update!(title: "Pre Window Span 84",
+                 start_date: Time.utc(2026, 7, 25, 9, 0),
+                 due_date:   Time.utc(2026, 8, 10, 17, 0))
+
+    travel_to Time.utc(2026, 8, 1, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_equal [Date.new(2026, 8, 1), Date.new(2026, 8, 10)], panel_days_for(card)
+      assert_equal ["in_progress", "due"], panel_roles_for(card)
+    end
+  end
+
+  test "panel: a span ending after the window has no due row" do
+    card = cards(:one)
+    card.update!(title: "Post Window Span 85",
+                 start_date: Time.utc(2026, 8, 12, 9, 0),
+                 due_date:   Time.utc(2026, 9, 30, 17, 0))
+
+    travel_to Time.utc(2026, 8, 10, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      # Due (Sep 30) is past the window edge and drops; only the start row is left.
+      assert_equal [Date.new(2026, 8, 12)], panel_days_for(card)
+      assert_equal ["starts"], panel_roles_for(card)
+    end
+  end
+
+  test "panel: a span not containing today shows just start and due" do
+    card = cards(:one)
+    card.update!(title: "Future Span 86",
+                 start_date: Time.utc(2026, 8, 5, 9, 0),
+                 due_date:   Time.utc(2026, 8, 12, 17, 0))
+
+    travel_to Time.utc(2026, 8, 1, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_equal [Date.new(2026, 8, 5), Date.new(2026, 8, 12)], panel_days_for(card)
+      assert_equal ["starts", "due"], panel_roles_for(card)
+    end
+  end
+
+  test "panel: when today is the due day the row reads due, not in progress" do
+    card = cards(:one)
+    card.update!(title: "Today Is Due 87",
+                 start_date: Time.utc(2026, 8, 5, 9, 0),
+                 due_date:   Time.utc(2026, 8, 10, 17, 0))
+
+    travel_to Time.utc(2026, 8, 10, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      # due > starts > in_progress: today is inside the span AND is the due day, so
+      # the row must read "due" rather than "in_progress". (The Aug 5 start is
+      # before the window and drops, leaving exactly the row under test.)
+      assert_equal [Date.new(2026, 8, 10)], panel_days_for(card)
+      assert_equal ["due"], panel_roles_for(card)
+    end
+  end
+
+  test "panel: when today is the start day the row reads starts, not in progress" do
+    card = cards(:one)
+    card.update!(title: "Today Is Start 88",
+                 start_date: Time.utc(2026, 8, 10, 9, 0),
+                 due_date:   Time.utc(2026, 8, 18, 17, 0))
+
+    travel_to Time.utc(2026, 8, 10, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_equal [Date.new(2026, 8, 10), Date.new(2026, 8, 18)], panel_days_for(card)
+      assert_equal ["starts", "due"], panel_roles_for(card)
+    end
+  end
+
+  test "panel: a due-only card is one row with no role marker" do
+    card = cards(:one)
+    card.update!(title: "Due Only 89", start_date: nil, due_date: Time.utc(2026, 8, 5, 14, 0))
+
+    travel_to Time.utc(2026, 8, 1, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_equal [Date.new(2026, 8, 5)], panel_days_for(card)
+      assert_empty panel_roles_for(card), "a point needs no explanation"
+      assert_match(/2:00 PM/, response.body)
+    end
+  end
+
+  test "panel: a same-day start and due is one point row with no role marker" do
+    card = cards(:one)
+    card.update!(title: "Same Day 90",
+                 start_date: Time.utc(2026, 8, 5, 9, 0),
+                 due_date:   Time.utc(2026, 8, 5, 16, 0))
+
+    travel_to Time.utc(2026, 8, 1, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_equal [Date.new(2026, 8, 5)], panel_days_for(card)
+      assert_empty panel_roles_for(card)
+      assert_match(/4:00 PM/, response.body)
+    end
+  end
+
+  # The easiest thing to break by accident: only the AGENDA collapses. The
+  # calendar grid must still draw a bar segment on every single spanned day.
+  test "grid regression: a spanning card still renders a segment on every spanned day" do
+    card = cards(:one)
+    card.update!(title: "Grid Bar Card 91",
+                 start_date: Time.utc(2026, 5, 4, 9, 0),
+                 due_date:   Time.utc(2026, 5, 12, 17, 0))
+
+    get planner_url(year: 2026, month: 5)
+
+    assert_response :success
+    # May 4..12 inclusive = 9 days, every one of them a bar cell.
+    assert_equal 9, chip_count_for(card), "the grid must not collapse — only the agenda does"
+    assert_match(/data-planner-segment="start"/, response.body)
+    assert_match(/data-planner-segment="middle"/, response.body)
+    assert_match(/data-planner-segment="end"/, response.body)
+  end
+
   test "panel query count stays flat as the number of range cards grows" do
     small = count_queries_for_panel(range_cards: 3)
     large = count_queries_for_panel(range_cards: 6)
@@ -359,6 +579,21 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
               day, rest = chunk.split('"', 2)
               Date.parse(day) if rest.to_s.include?(href)
             end
+  end
+
+  # Role markers ("starts" / "in_progress" / "due") for a card's agenda rows, in
+  # document order. Keyed off the data-agenda-role attribute rather than the
+  # visible text so the assertion doesn't depend on wording or markup.
+  def panel_roles_for(card)
+    href = %(href="#{card_path(card)}")
+    response.body
+            .split(/<div class="mb-5" data-agenda-day="/)
+            .drop(1)
+            .filter_map do |chunk|
+              next unless chunk.include?(href)
+              chunk[/data-agenda-role="([^"]*)"/, 1]
+            end
+            .reject { |r| r.to_s.empty? }
   end
 
   # The panel renders a chip per spanned day per card, so a missing preload

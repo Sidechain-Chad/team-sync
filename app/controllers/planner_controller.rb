@@ -78,17 +78,20 @@ class PlannerController < ApplicationController
                 .order(:due_date)
                 .includes(:labels, list: :board)
 
-    # A range card belongs on every day it spans — the agenda answers "what's on
-    # my plate on day X", and in-progress work is on your plate. Reuses
-    # Card#planner_days (the grid's own day expansion) rather than a second
-    # implementation, so the two views can't drift. A card with no start_date
-    # yields exactly one day: the pre-range behaviour, unchanged.
+    # A range card belongs on the agenda for the days it's actually informative
+    # on — its start, today, and its due day (Card#agenda_days) — not every day it
+    # spans. Spanning every day meant a quarter-long card filled all 22 rows and
+    # crowded out everything else. The GRID still uses planner_days and still
+    # draws a bar on every spanned day; only this side panel collapses.
+    #
+    # A card with no start_date (or a start==due point) still yields exactly one
+    # day, so those rows are unchanged.
     window_start = range_start.to_date
     window_end   = range_end.to_date
 
     @cards_by_day = {}
     cards.each do |card|
-      card.planner_days.each do |day|
+      card.agenda_days.each do |day|
         next unless day >= window_start && day <= window_end
         (@cards_by_day[day] ||= []) << card
       end

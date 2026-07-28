@@ -66,6 +66,40 @@ module PlannerHelper
     end
   end
 
+  # Which part a given agenda row plays for a range card: :starts, :due or
+  # :in_progress. nil for anything that isn't a real span — a point occupies one
+  # row and needs no explanation.
+  #
+  # This exists because collapsing raised a question the old every-day listing
+  # didn't: why does this card appear on Aug 2 and Aug 20 but not Aug 11? At three
+  # rows a one-word marker answers that cheaply; at twenty-two it would have been
+  # noise, which is why it wasn't worth adding before.
+  #
+  # Precedence is due > starts > in_progress: when today IS the due day the row
+  # reads "due" (the more actionable fact), and when today is the start day it
+  # reads "starts".
+  def planner_agenda_role(card, day)
+    return nil unless card.date_range?
+
+    first_day = card.start_date.to_date
+    last_day  = card.due_date.to_date
+    return nil if first_day == last_day
+
+    return :due    if day == last_day
+    return :starts if day == first_day
+    :in_progress
+  end
+
+  AGENDA_ROLE_LABELS = {
+    starts:      "starts",
+    in_progress: "in progress",
+    due:         "due"
+  }.freeze
+
+  def planner_agenda_role_label(card, day)
+    AGENDA_ROLE_LABELS[planner_agenda_role(card, day)]
+  end
+
   # The title is only worth repeating where a viewer would otherwise lose it:
   # the day the range starts, and again at the start of each new week row
   # (Sunday) that the bar continues into.
