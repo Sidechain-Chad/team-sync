@@ -1,0 +1,22 @@
+<%#
+  Inline validation message for a single attribute — the first error only.
+
+  Lifted verbatim from account/profile, which was the only form in the app that
+  actually told the user what went wrong. boards/new and boards/edit relied on
+  Rails' field_with_errors wrapper instead, and this app has no CSS for that
+  wrapper at all, so a rejected board name produced no visible feedback of any
+  kind. Three call sites is enough to share rather than triplicate.
+
+  Deliberately scoped to ONE attribute rather than dumping full_messages: every
+  call site renders this directly beneath the field it belongs to, so the
+  attribute name would be redundant in the text ("can't be blank" sits under the
+  Name label).
+
+  Renders nothing at all when the attribute has no errors, so it's safe to place
+  unconditionally.
+
+  locals: record (an ActiveModel), attribute (Symbol)
+%>
+<% if record.errors[attribute].any? %>
+  <p class="text-xs text-danger-600"><%= record.errors[attribute].first %></p>
+<% end %>

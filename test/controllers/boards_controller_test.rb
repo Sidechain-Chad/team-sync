@@ -324,10 +324,8 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :unprocessable_entity
-    # boards/new conveys the failure through Rails' field_with_errors wrapper
-    # rather than printed message text — that's the form's existing design, and
-    # what matters here is that the user gets the form back instead of a 500.
-    assert_match(/field_with_errors/, response.body, "the error must reach the user")
+    assert_match(/can&#39;t be blank/, response.body,
+                 "the failure must be conveyed as readable text, not just a wrapper class")
   end
 
   test "create with a blank name re-renders the form with 422 for an HTML request" do
@@ -337,6 +335,7 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_select "form"
+    assert_select "p.text-danger-600", text: "can't be blank"
   end
 
   test "update with a blank name does not raise for a turbo-stream-only request" do
@@ -353,6 +352,44 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_select "form"
+    assert_select "p.text-danger-600", text: "can't be blank"
+  end
+
+  # --- validation messages on the board forms ---
+  #
+  # Both forms previously conveyed a failed save ONLY through Rails'
+  # field_with_errors wrapper, which this app has no CSS for at all — so a blank
+  # name produced no visible feedback whatsoever. These assert the message text,
+  # deliberately: asserting the wrapper class is what let the gap hide.
+
+  test "create with a blank name shows the error message next to the name field" do
+    post boards_url, params: { board: { name: "" } }
+
+    assert_response :unprocessable_entity
+    assert_select "p.text-danger-600", text: "can't be blank"
+    # The field itself is flagged too, mirroring account/profile.
+    assert_select "input#board_name.border-danger-600"
+  end
+
+  test "update with a blank name shows the error message next to the name field" do
+    patch board_url(@board), params: { board: { name: "" } }
+
+    assert_response :unprocessable_entity
+    assert_select "p.text-danger-600", text: "can't be blank"
+    assert_select "input#board_name.border-danger-600"
+  end
+
+  test "a successful board create renders no error message" do
+    post boards_url, params: { board: { name: "Valid Board Name" } }
+
+    assert_redirected_to board_url(Board.find_by!(name: "Valid Board Name"))
+  end
+
+  test "the board form shows no error message before submission" do
+    get new_board_url
+
+    assert_response :success
+    assert_select "p.text-danger-600", false, "a pristine form must not show errors"
   end
 
   # --- board activity feed ---

@@ -45,9 +45,7 @@
       <%= f.text_field :name,
           value: current_user[:name],
           class: "w-full max-w-xs px-3 py-2.5 bg-surface-50 focus:bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition #{current_user.errors[:name].any? ? "border-danger-600" : "border-line"}" %>
-      <% if current_user.errors[:name].any? %>
-        <p class="text-xs text-danger-600"><%= current_user.errors[:name].first %></p>
-      <% end %>
+      <%= render "shared/form_errors", record: current_user, attribute: :name %>
       <div class="pt-2">
         <%= f.submit "Save name", class: "bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors" %>
       </div>
