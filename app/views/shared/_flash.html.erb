@@ -7,7 +7,15 @@
     render with this styling too now — that's intentional, not a leak;
     if they ever prove noisy, blank those specific keys in
     config/locales/devise.en.yml rather than special-casing here. %>
-<div id="flash" class="fixed top-20 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4 pointer-events-none">
+<%# z-[10002] rather than the original z-[100]: the card modal is z-[9999]
+    (overlay) / z-[10000] (panel) and the mention typeahead sits at z-[10001] for
+    the same reason, so at z-[100] this toast painted BEHIND the modal. That made
+    it invisible for exactly the branches that need it most — the comment form and
+    the description editor both live inside the modal (CommentsController#create,
+    CardsController#update_description). Verified with elementFromPoint, not by
+    eye. A toast belongs on top of everything by definition, so this is the right
+    layer, not a special case. %>
+<div id="flash" class="fixed top-20 left-1/2 -translate-x-1/2 z-[10002] w-full max-w-md px-4 pointer-events-none">
   <% if flash[:alert].present? %>
     <div class="bg-danger-600 text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg ring-1 ring-white/10 mb-2 pointer-events-auto flex items-start gap-2"
          data-controller="flash"
