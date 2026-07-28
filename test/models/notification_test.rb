@@ -85,4 +85,85 @@ class NotificationTest < ActiveSupport::TestCase
     notification = Notification.create!(recipient: users(:one), actor: nil, notifiable: cards(:one), action: "due_soon")
     assert_equal "is due soon", notification.message
   end
+
+  # --- notifiable cascade ---
+  #
+  # notifiable is polymorphic, so unlike recipient_id/actor_id it can't have a
+  # real foreign key — nothing at the DB level stops a destroyed Card or Comment
+  # from leaving its notifications behind. The cascade has to be declared on the
+  # model side or orphans accumulate.
+
+  test "destroying a card destroys its added_to_card notifications" do
+    card = cards(:one)
+    Notification.create!(recipient: users(:one), actor: users(:two), notifiable: card, action: "added_to_card")
+
+    assert_difference "Notification.count", -1 do
+      card.destroy
+    end
+  end
+
+  test "destroying a card destroys its actor-less due_soon notifications" do
+    card = cards(:one)
+    Notification.create!(recipient: users(:one), actor: nil, notifiable: card, action: "due_soon")
+
+    assert_difference "Notification.count", -1 do
+      card.destroy
+    end
+  end
+
+  # These assert on the specific rows rather than a count difference: creating a
+  # comment ALSO auto-delivers a "comment" notification to each card member (see
+  # Comment's after_create_commit), so a count-based assertion here would be
+  # measuring that side effect as much as the cascade.
+
+  test "destroying a comment destroys its comment notifications" do
+    card = cards(:one)
+    comment = card.comments.create!(user: users(:two), content: "Plain comment")
+    explicit = Notification.create!(recipient: users(:one), actor: users(:two), notifiable: comment, action: "comment")
+
+    comment.destroy
+
+    assert_not Notification.exists?(explicit.id)
+    assert_equal 0, Notification.where(notifiable_type: "Comment", notifiable_id: comment.id).count,
+                 "no notification may outlive the comment it points at"
+  end
+
+  test "destroying a comment destroys its mention notifications" do
+    card = cards(:one)
+    comment = card.comments.create!(user: users(:two), content: "Hey @One")
+    mention = Notification.create!(recipient: users(:one), actor: users(:two), notifiable: comment, action: "mention")
+
+    comment.destroy
+
+    assert_not Notification.exists?(mention.id)
+    assert_equal 0, Notification.where(notifiable_type: "Comment", notifiable_id: comment.id).count
+  end
+
+  test "destroying a card takes its comments' notifications with it" do
+    card = cards(:one)
+    comment = card.comments.create!(user: users(:two), content: "Comment on a doomed card")
+    on_comment = Notification.create!(recipient: users(:one), actor: users(:two), notifiable: comment, action: "comment")
+    on_card    = Notification.create!(recipient: users(:one), actor: users(:two), notifiable: card, action: "added_to_card")
+
+    card.destroy
+
+    # The comment cascade has to fire as part of the card cascade, or destroying
+    # a card leaves its comments' notifications orphaned even once Comment
+    # declares its own.
+    assert_not Notification.exists?(on_comment.id), "a comment's notification must not outlive the card"
+    assert_not Notification.exists?(on_card.id)
+    assert_equal 0, Notification.where(notifiable_type: "Comment", notifiable_id: comment.id).count
+    assert_equal 0, Notification.where(notifiable_type: "Card", notifiable_id: card.id).count
+  end
+
+  test "destroying a card leaves another card's notifications alone" do
+    card = cards(:one)
+    other = cards(:two)
+    Notification.create!(recipient: users(:one), actor: users(:two), notifiable: card, action: "added_to_card")
+    keeper = Notification.create!(recipient: users(:two), actor: users(:one), notifiable: other, action: "added_to_card")
+
+    card.destroy
+
+    assert Notification.exists?(keeper.id), "an unrelated card's notification must survive"
+  end
 end

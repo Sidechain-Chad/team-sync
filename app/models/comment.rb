@@ -2,6 +2,12 @@ class Comment < ApplicationRecord
   belongs_to :card, counter_cache: true
   belongs_to :user, optional: true
 
+  # "comment" and "mention" notifications point at the Comment, not the Card, so
+  # the cascade is needed here too — a card destroy reaches these through
+  # `has_many :comments, dependent: :destroy`. Polymorphic, so no FK can enforce
+  # it; see Card#notifications for the same reasoning.
+  has_many :notifications, as: :notifiable, dependent: :destroy
+
   validates :content, presence: true
 
   # This makes the comment appear instantly on everyone's screen when created

@@ -11,6 +11,13 @@ class Card < ApplicationRecord
   has_many :activities, dependent: :destroy
   has_many :checklists, -> { order(position: :asc) }, dependent: :destroy
 
+  # Polymorphic, so unlike recipient_id/actor_id this can't be backed by a real
+  # foreign key — nothing at the DB level stops a destroyed card from leaving its
+  # notifications behind. Without this cascade an orphan's `notification.card` is
+  # nil, which used to take the whole bell dropdown down (see
+  # notifications/_notification, which is now also defensive about it).
+  has_many :notifications, as: :notifiable, dependent: :destroy
+
   # :cover is a named variant. NOT preprocessed — on Cloudinary it's only
   # a fallback (see CardsHelper#card_cover_url / MediaHelper#media_transform_url,
   # which builds Cloudinary's own transformation URL instead), and
