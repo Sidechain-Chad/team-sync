@@ -159,7 +159,12 @@ class BoardsController < ApplicationController
       @board.invite_users(params[:emails], current_user)
       redirect_to @board, notice: "Board created successfully!"
     else
-      render :new, status: :unprocessable_entity
+      # formats: [:html] — boards/new exists only as HTML, and a bare `render
+      # :new` resolves the template against the REQUEST's formats, so a
+      # turbo-stream-only Accept raised MissingTemplate (a 500 on a blank name).
+      # Plain full-page form, success is a redirect, so HTML + 422 is right —
+      # Turbo needs a 4xx to re-render a form.
+      render :new, formats: [:html], status: :unprocessable_entity
     end
   end
 
@@ -175,7 +180,8 @@ class BoardsController < ApplicationController
 
       redirect_to @board, notice: "Board updated successfully."
     else
-      render :edit, status: :unprocessable_entity
+      # Same fix and same reasoning as #create above.
+      render :edit, formats: [:html], status: :unprocessable_entity
     end
   end
 

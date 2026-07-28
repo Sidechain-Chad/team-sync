@@ -1117,6 +1117,40 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/list_#{@list_three.id}_card_count/, response.body)
   end
 
+  # cards/edit_description exists only as HTML, so `render :edit_description` in
+  # update_description's failure branch raised MissingTemplate for a
+  # turbo-stream-only Accept. Reaching that branch at all takes a card whose
+  # PERSISTED row is already invalid — description itself has no validation, so
+  # the only way to fail is a pre-existing start_date > due_date, which
+  # update_column can produce (raw SQL, a data import, an older row). Rare, but a
+  # 500 either way, and the success path here is a frame replace.
+  test "update_description on an already-invalid card does not raise for a turbo-stream-only request" do
+    # Bypass validation to persist the invalid state a normal write can't create.
+    @card.update_column(:start_date, Time.utc(2026, 9, 1, 9, 0))
+    @card.update_column(:due_date,   Time.utc(2026, 8, 1, 9, 0))
+    assert_not Card.find(@card.id).valid?, "setup must leave the row invalid"
+
+    patch update_description_card_url(@card), params: { card: { description: "New body" } },
+          headers: { "Accept" => "text/vnd.turbo-stream.html" }
+
+    # 200, not 422: the form is frame-targeted (the card's description frame), and
+    # Turbo drops a 4xx turbo-stream response for a frame-targeted submission.
+    assert_response :success
+    assert_match(/turbo-stream/, response.body)
+    assert_match(/must be on or before the due date/, response.body,
+                 "the validation error must actually reach the user")
+  end
+
+  test "update_description on an already-invalid card re-renders the form with 422 for HTML" do
+    @card.update_column(:start_date, Time.utc(2026, 9, 1, 9, 0))
+    @card.update_column(:due_date,   Time.utc(2026, 8, 1, 9, 0))
+
+    patch update_description_card_url(@card), params: { card: { description: "New body" } },
+          headers: { "Accept" => "text/html" }
+
+    assert_response :unprocessable_entity
+  end
+
   private
 
   # broadcast_targets / broadcast_for now live in test_helper — ListsController's

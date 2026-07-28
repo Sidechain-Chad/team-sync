@@ -55,8 +55,42 @@ class ListsController < ApplicationController
         format.turbo_stream { render turbo_stream: turbo_stream.replace(helpers.dom_id(@list, :header), partial: "lists/header", locals: { list: @list }) }
       end
     else
-      # If validation fails, re-render the edit form (inline)
-      render :edit, status: :unprocessable_entity
+      # `render :edit` on its own resolved the template against the REQUEST's
+      # formats, and lists/edit exists only as HTML — so a turbo-stream-only
+      # Accept raised MissingTemplate: a 500 on an ordinary validation failure
+      # (blank rename, or a WIP limit of 0). Both formats are explicit now.
+      error = @list.errors.full_messages.to_sentence
+
+      respond_to do |format|
+        # Re-render the inline rename form so the user can correct it. 422 —
+        # Turbo needs a 4xx to re-render a form.
+        format.html { render :edit, formats: [:html], status: :unprocessable_entity }
+
+        # Deliberately 200, not 422: both entry points (the inline rename form
+        # and the WIP-limit form in the ⋯ menu) submit from INSIDE the list
+        # header frame, and Turbo does not apply a turbo-stream response to a
+        # frame-targeted submission when the status is 4xx — the body would be
+        # correct and the user would see nothing at all. Same 200 + flash.now
+        # shape CardsController#update already uses for its rejected update.
+        format.turbo_stream do
+          flash.now[:alert] = error
+          # Re-read so the header renders the list as it actually stands: the
+          # rejected value is discarded, never left half-applied on screen.
+          @list.reload
+
+          render turbo_stream: [
+            turbo_stream.replace(
+              helpers.dom_id(@list, :header),
+              partial: "lists/header",
+              locals: { list: @list }
+            ),
+            # The header frame doesn't contain the flash slot, so without this
+            # the alert would never be seen. shared/_flash exists for exactly
+            # this (see its own comment) — this is its first caller.
+            turbo_stream.replace("flash", partial: "shared/flash")
+          ]
+        end
+      end
     end
   end
 

@@ -172,6 +172,20 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Existing Name", @user.reload.name
   end
 
+  # account/profile exists only as HTML, so `render :profile` raised
+  # MissingTemplate for a turbo-stream-only Accept. Plain full-page form whose
+  # success path is a redirect, so the render is pinned to HTML and keeps 422.
+  test "profile with a blank name does not raise for a turbo-stream-only request" do
+    sign_in @user
+    @user.update_column(:name, "Existing Name")
+
+    patch account_profile_url, params: { user: { name: "" } },
+          headers: { "Accept" => "text/vnd.turbo-stream.html" }
+
+    assert_response :unprocessable_entity
+    assert_equal "Existing Name", @user.reload.name
+  end
+
   test "profile form cannot mass-assign email" do
     sign_in @user
     original_email = @user.email

@@ -309,6 +309,52 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end
 
+  # --- failure branches must not 500 on a turbo-stream-only request ---
+  #
+  # boards/new and boards/edit exist only as HTML, and `render :new/:edit` looks
+  # the template up in the REQUEST's formats — so a turbo-stream-only Accept found
+  # nothing and raised MissingTemplate. These are plain full-page forms whose
+  # success path is a redirect, so the fix pins the render to HTML and keeps 422
+  # (Turbo needs a 4xx to re-render a form).
+  TURBO_STREAM_ONLY = { "Accept" => "text/vnd.turbo-stream.html" }.freeze
+
+  test "create with a blank name does not raise for a turbo-stream-only request" do
+    assert_no_difference "Board.count" do
+      post boards_url, params: { board: { name: "" } }, headers: TURBO_STREAM_ONLY
+    end
+
+    assert_response :unprocessable_entity
+    # boards/new conveys the failure through Rails' field_with_errors wrapper
+    # rather than printed message text — that's the form's existing design, and
+    # what matters here is that the user gets the form back instead of a 500.
+    assert_match(/field_with_errors/, response.body, "the error must reach the user")
+  end
+
+  test "create with a blank name re-renders the form with 422 for an HTML request" do
+    assert_no_difference "Board.count" do
+      post boards_url, params: { board: { name: "" } }, headers: { "Accept" => "text/html" }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select "form"
+  end
+
+  test "update with a blank name does not raise for a turbo-stream-only request" do
+    original = @board.name
+
+    patch board_url(@board), params: { board: { name: "" } }, headers: TURBO_STREAM_ONLY
+
+    assert_response :unprocessable_entity
+    assert_equal original, @board.reload.name
+  end
+
+  test "update with a blank name re-renders the form with 422 for an HTML request" do
+    patch board_url(@board), params: { board: { name: "" } }, headers: { "Accept" => "text/html" }
+
+    assert_response :unprocessable_entity
+    assert_select "form"
+  end
+
   # --- board activity feed ---
 
   test "activity feed lists activities for cards on this board" do
