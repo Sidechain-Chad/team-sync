@@ -1,0 +1,17 @@
+<%#
+  One page of merged feed rows. Shared by activity.html.erb (first page) and
+  activity.turbo_stream.erb (each "Load more" page appends the same markup), so
+  a paged row can never render differently from a first-page one.
+
+  Deliberately just the rows — no wrapper element. The html page supplies the
+  bordered container, and the turbo_stream appends into that same container.
+
+  locals: feed (Array of Activity/Comment, newest first)
+%>
+<% feed.each do |entry| %>
+  <% if entry.is_a?(Comment) %>
+    <%= render "activities/board_comment", comment: entry %>
+  <% else %>
+    <%= render "activities/board_activity", activity: entry %>
+  <% end %>
+<% end %>

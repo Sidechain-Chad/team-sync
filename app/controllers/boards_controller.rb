@@ -74,33 +74,66 @@ class BoardsController < ApplicationController
   # list created) aren't recorded at all and so aren't here — adding them would
   # mean widening the Activity table, which is out of scope.
   #
-  # Each side is fetched FEED_LIMIT deep before merging: that's what guarantees
-  # the merged newest-50 is correct no matter how the two interleave (if one
-  # side supplied all 50, taking fewer from it could drop a row that belongs).
-  # No pagination yet.
+  # Each side is fetched `offset + FEED_LIMIT` deep before merging: that's what
+  # guarantees the merged page is correct no matter how the two interleave (if
+  # one side supplied every row, taking fewer from it could drop a row that
+  # belongs).
+  #
+  # Pagination is offset/page-based, deliberately NOT a created_at cursor.
+  # #archive_all_cards writes one Activity per card inside the same second, so
+  # timestamp ties are routine rather than theoretical, and a `created_at <`
+  # cursor would skip or repeat tied rows. A composite (created_at, id) cursor
+  # doesn't rescue it either: the feed merges two tables with independent id
+  # spaces, so there's no single id sequence to tie-break against.
+  #
+  # The cost of offset paging is that the fetch grows with depth — page 5 reads
+  # 250 rows per side to render 50. Fine at this scale; if this feed ever gets
+  # genuinely large, the fix is a real keyset cursor over a unified feed view,
+  # not a deeper offset.
   #
   # The eager loads are what keep this fixed-cost — :user (+ its avatar blob,
   # since actors differ row to row, unlike the account feed's single user) and
   # card: :list for the "<card> in <list>" line. Two base queries instead of
   # one is a fixed cost, independent of row count.
   def activity
+    @page  = feed_page
+    offset = (@page - 1) * FEED_LIMIT
+    depth  = offset + FEED_LIMIT
+
     card_ids = Card.where(list_id: @board.lists.select(:id)).select(:id)
 
+    # `id: :desc` as a secondary sort is load-bearing, not cosmetic: without it
+    # the DB's order among rows sharing a created_at is unspecified, so the
+    # LIMIT could cut a tied group differently on two requests and page 2 would
+    # repeat or skip a row. Within one table (created_at, id) is a total order.
     activities = Activity
                    .where(card_id: card_ids)
                    .includes(:user, { user: { avatar_attachment: :blob } }, card: :list)
-                   .order(created_at: :desc)
-                   .limit(FEED_LIMIT)
+                   .order(created_at: :desc, id: :desc)
+                   .limit(depth)
 
     comments = Comment
                  .where(card_id: card_ids)
                  .includes(:user, { user: { avatar_attachment: :blob } }, card: :list)
-                 .order(created_at: :desc)
-                 .limit(FEED_LIMIT)
+                 .order(created_at: :desc, id: :desc)
+                 .limit(depth)
 
-    # Same shape the card modal's @feed uses: merge, sort desc, cap. The view
+    # Same shape the card modal's @feed uses: merge, sort desc, slice. The view
     # switches partial on the row's class.
-    @feed = (activities.to_a + comments.to_a).sort_by(&:created_at).reverse.first(FEED_LIMIT)
+    merged = (activities.to_a + comments.to_a).sort_by { |row| feed_sort_key(row) }.reverse
+
+    @feed = merged.drop(offset).first(FEED_LIMIT)
+
+    # A short page means there's nothing after it. A full page might be the last
+    # one, in which case "Load more" fetches an empty page and then disappears —
+    # cheap, and it avoids a count query on every request.
+    @has_more  = @feed.size == FEED_LIMIT
+    @next_page = @page + 1
+
+    respond_to do |format|
+      format.html
+      format.turbo_stream
+    end
   end
 
   def map
@@ -181,6 +214,23 @@ class BoardsController < ApplicationController
   end
 
   private
+
+  # 1-based page for the activity feed. Anything junk, zero or negative reads as
+  # page 1 — `to_i` turns "abc" and "" into 0, so one guard covers all of them.
+  def feed_page
+    page = params[:page].to_i
+    page < 1 ? 1 : page
+  end
+
+  # Total ordering for the merged feed. created_at alone is NOT enough: rows can
+  # share a timestamp (see #archive_all_cards), and Ruby's sort_by is not stable,
+  # so tied rows could land in a different order on the page-1 and page-2
+  # requests — which under offset paging shows up as a duplicated or missing row.
+  # Adding the class name and id makes the key unique for every row, so the order
+  # is fully determined and identical across requests.
+  def feed_sort_key(row)
+    [row.created_at, row.class.name, row.id]
+  end
 
   RECENT_BOARDS_LIMIT = 6
 

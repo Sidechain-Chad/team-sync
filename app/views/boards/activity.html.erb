@@ -27,20 +27,15 @@
       </div>
     <% else %>
       <%# Mixed feed of Activity and Comment rows (merged in BoardsController
-          #activity), each with its own board-flavoured partial. %>
-      <div class="bg-white rounded-lg shadow-sm border border-line divide-y divide-line">
-        <% @feed.each do |entry| %>
-          <% if entry.is_a?(Comment) %>
-            <%= render "activities/board_comment", comment: entry %>
-          <% else %>
-            <%= render "activities/board_activity", activity: entry %>
-          <% end %>
-        <% end %>
+          #activity), each with its own board-flavoured partial. The id is the
+          append target for each "Load more" page — see activity.turbo_stream.erb. %>
+      <div id="activity_feed_rows" class="bg-white rounded-lg shadow-sm border border-line divide-y divide-line">
+        <%= render "boards/activity_rows", feed: @feed %>
       </div>
 
-      <% if @feed.size >= BoardsController::FEED_LIMIT %>
-        <p class="text-xs text-ink-500 mt-3">Showing the <%= BoardsController::FEED_LIMIT %> most recent actions on this board.</p>
-      <% end %>
+      <%# Replaced (not appended) on each page, so it updates itself and
+          disappears once the history runs out. %>
+      <%= render "boards/activity_load_more", board: @board, has_more: @has_more, next_page: @next_page %>
     <% end %>
 
   </div>

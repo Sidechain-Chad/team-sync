@@ -1,0 +1,15 @@
+<%#
+  A "Load more" page. Two effects, deliberately separate:
+
+    1. APPEND the new rows to the existing feed container — not a replace, so
+       the rows already on screen (and the user's scroll position) survive.
+    2. REPLACE the Load more control with the next page's version of itself,
+       which renders empty once there's no more history.
+%>
+<%= turbo_stream.append "activity_feed_rows" do %>
+  <%= render "boards/activity_rows", feed: @feed %>
+<% end %>
+
+<%= turbo_stream.replace "activity_load_more_frame" do %>
+  <%= render "boards/activity_load_more", board: @board, has_more: @has_more, next_page: @next_page %>
+<% end %>
