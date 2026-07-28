@@ -51,15 +51,7 @@ class CardsController < ApplicationController
         # refreshes every viewer, including this client, since boards/show
         # subscribes to the board's stream too — so the HTTP response
         # itself has nothing left to render.
-        list_for_broadcast = current_user.all_lists
-                                          .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
-                                          .find(@list.id)
-        Turbo::StreamsChannel.broadcast_replace_to(
-          @list.board,
-          target: helpers.dom_id(@list),
-          partial: "lists/list",
-          locals: { list: list_for_broadcast }
-        )
+        broadcast_list_replace(@list)
 
         respond_to do |format|
           format.turbo_stream { head :ok }
@@ -143,20 +135,25 @@ class CardsController < ApplicationController
       # and logs one activity entry per file.
       result = CardAttachmentService.new(card: @card, user: current_user, files: new_attachments).call
 
-      # Broadcast the freshly-rendered card to anyone viewing this board so
-      # the preview reflects changes (location pin, attachment count, due
-      # pill, title) in real time. Same pattern as toggle_complete.
-      Turbo::StreamsChannel.broadcast_replace_to(
-        @card.list.board,
-        target: @card,
-        partial: "cards/card",
-        locals: { card: @card }
-      )
-
-      # The modal's "Move to list" control moves a card through #update, not
-      # #move — so this path changes two lists' counts too.
       if @card.list_id != old_list.id
-        broadcast_card_count_for(old_list, @card.list)
+        # The modal's "Move to list" control moves a card through #update, not
+        # #move. A bare card replace is actively wrong here, not merely
+        # incomplete: it targets the card's own dom_id, so other viewers
+        # re-render it in place in the OLD list and it never appears to move.
+        # Two full list replaces relocate it properly and refresh both headers
+        # (count pills included), so no separate pill broadcast is needed.
+        broadcast_list_replace_for(old_list, @card.list)
+      else
+        # Broadcast the freshly-rendered card to anyone viewing this board so
+        # the preview reflects changes (location pin, attachment count, due
+        # pill, title) in real time. Same pattern as toggle_complete. This is
+        # the common edit path — one card replace, exactly as before.
+        Turbo::StreamsChannel.broadcast_replace_to(
+          @card.list.board,
+          target: @card,
+          partial: "cards/card",
+          locals: { card: @card }
+        )
       end
 
       if result.success?
@@ -271,9 +268,18 @@ class CardsController < ApplicationController
         @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
       end
 
-      # Both lists' counts change on a cross-list drag; a reorder within one
-      # list dedupes down to a single pill broadcast.
-      broadcast_card_count_for(old_list, @card.list)
+      # Make the drag live for everyone else. Before this, #move broadcast
+      # nothing at all, so another viewer saw neither the card leaving its old
+      # list nor arriving in the new one until they reloaded — and once the
+      # count pill started broadcasting, a destination could read "3/3" over
+      # only 2 visible cards. A full replace of both lists keeps the cards and
+      # the count in agreement, and fixes within-list reordering (also
+      # previously invisible) via the single deduped replace.
+      #
+      # The actor still just gets head :ok — their own DOM is already correct
+      # from SortableJS's optimistic move, and they receive these same
+      # broadcasts anyway as a subscriber to the board's stream.
+      broadcast_list_replace_for(old_list, @card.list)
 
       head :ok
     else
@@ -588,9 +594,40 @@ class CardsController < ApplicationController
     )
   end
 
-  # A move touches two lists — or one, when the card stayed put. Dedupes so a
-  # same-list reorder doesn't broadcast the same pill twice.
-  def broadcast_card_count_for(*lists)
-    lists.compact.uniq(&:id).each { |list| broadcast_list_card_count(list) }
+  # Full replace of a list column for everyone viewing its board.
+  #
+  # This is what makes moves live. Deliberately NOT broadcast_card_remove +
+  # broadcast_card_insert: the insert targets `before` the "Add a card" trigger,
+  # so it always lands at the BOTTOM, while a drag can drop a card anywhere
+  # mid-list. lists/_list renders active_cards in position order, so a full
+  # replace gets arbitrary drop positions right for free — and re-renders the
+  # header, which carries list_X_card_count, so the count pill comes along.
+  #
+  # Keyed off `list.board` rather than one assumed board so each list is
+  # published to its own board's stream. (Today source and destination always
+  # share a board — board_scoped_list confines the target to
+  # @card.list.board_id — so this is equivalent, not load-bearing. It stays
+  # per-list so it can't silently become wrong if that guard ever loosens.)
+  #
+  # The includes are mandatory: rendering a whole list means rendering every
+  # cards/_card in it, which without the preload is an N+1 across the list.
+  # Same preload ListsController#broadcast_list_replace uses.
+  def broadcast_list_replace(list)
+    list_for_broadcast = current_user.all_lists
+                                     .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
+                                     .find(list.id)
+
+    Turbo::StreamsChannel.broadcast_replace_to(
+      list.board,
+      target: helpers.dom_id(list),
+      partial: "lists/list",
+      locals: { list: list_for_broadcast }
+    )
+  end
+
+  # A move touches two lists — or one, when the card never left its list.
+  # Dedupes so a same-list reorder broadcasts a single replace.
+  def broadcast_list_replace_for(*lists)
+    lists.compact.uniq(&:id).each { |list| broadcast_list_replace(list) }
   end
 end
