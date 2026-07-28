@@ -1,0 +1,26 @@
+<%#
+  Soft WIP limit pill — "count/limit", tinted danger when over.
+
+  The element ALWAYS renders, even with no limit set (hidden and empty in that
+  case): CardsController#broadcast_list_card_count replaces it by id on every
+  operation that changes the list's active-card count, and a turbo_stream
+  replace against a missing target is silently dropped. `hidden` is
+  display:none, so an empty pill is not a flex item and adds no gap to the
+  header row.
+
+  Deliberately its own element rather than part of lists/_header: the header
+  also owns the rename link, the delete button_to, and the ... dropdown's
+  Stimulus state, none of which should be torn down just to update a number.
+
+  active_cards.size — on the board page the association is already preloaded so
+  this reads the loaded array; in a broadcast the list is reloaded first, so it
+  runs one fresh COUNT.
+
+  locals: list (List)
+%>
+<% has_limit = list.card_limit? %>
+<% over_limit = has_limit && list.over_card_limit? %>
+<span id="list_<%= list.id %>_card_count"
+      <%= tag.attributes(data: { card_limit_state: over_limit ? "over" : "ok" }) if has_limit %>
+      class="<%= has_limit ? "flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded #{over_limit ? "bg-danger-50 text-danger-600" : "text-ink-500"}" : "hidden" %>"
+      <% if has_limit %>title="<%= over_limit ? "Over the work-in-progress limit" : "Work-in-progress limit" %>"<% end %>><% if has_limit %><%= list.active_cards.size %>/<%= list.card_limit %><% end %></span>

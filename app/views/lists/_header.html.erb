@@ -9,13 +9,97 @@
       <span data-board-filter-target="listCount"
             data-list-id="<%= list.id %>"
             class="hidden text-xs text-ink-500 flex-shrink-0"></span>
+
+      <%# Soft WIP limit pill. Its own partial + stable id so single-card
+          operations can broadcast just this number (see
+          CardsController#broadcast_list_card_count) instead of replacing the
+          whole header, which owns the rename/delete controls and the ...
+          dropdown's Stimulus state. %>
+      <%= render "lists/card_count", list: list %>
     </div>
 
-    <%# 2. The Delete Button (Only visible on hover, or on keyboard focus) %>
-    <div class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
-      <%= button_to list_path(list), method: :delete, class: "text-ink-300 hover:text-danger-600 bg-transparent border-0 cursor-pointer p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1", form: { class: "inline-block" }, data: { turbo_confirm: "Delete this list?" }, title: "Delete list", aria: { label: "Delete list" } do %>
-        <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
-      <% end %>
+    <div class="flex items-center gap-0.5 flex-shrink-0">
+
+      <%# 2. The Delete Button (Only visible on hover, or on keyboard focus) %>
+      <div class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
+        <%= button_to list_path(list), method: :delete, class: "text-ink-300 hover:text-danger-600 bg-transparent border-0 cursor-pointer p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1", form: { class: "inline-block" }, data: { turbo_confirm: "Delete this list?" }, title: "Delete list", aria: { label: "Delete list" } do %>
+          <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+        <% end %>
+      </div>
+
+      <%# 3. The ⋯ actions menu. Always visible (unlike delete) — same
+          discoverability as Trello's, and a hover-revealed trigger would
+          fight the dropdown staying open once the pointer leaves the header.
+          Rename and delete deliberately stay where they are above; this menu
+          only carries the new bulk/ordering actions. %>
+      <div class="relative" data-controller="dropdown" data-action="click@document->dropdown#hide">
+        <button type="button"
+                data-action="click->dropdown#toggle"
+                class="text-ink-300 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
+                title="List actions"
+                aria-label="List actions">
+          <i class="fa-solid fa-ellipsis text-xs" aria-hidden="true"></i>
+        </button>
+
+        <%# Menu — hidden until toggle. Anchored to the button's lower-right
+            so it doesn't clip the right edge of the list column. %>
+        <div data-dropdown-target="menu"
+             class="hidden absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-2xl ring-1 ring-ink-900/5 z-40 overflow-hidden cursor-auto text-left">
+
+          <div class="px-4 py-3 border-b border-line">
+            <h3 class="text-sm font-semibold text-ink-700">List actions</h3>
+          </div>
+
+          <%# --- Sort by --- one-time reorder that persists (positions are
+              renumbered server-side), not a sticky sort mode. %>
+          <div class="py-1">
+            <div class="px-4 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-ink-500">Sort by</div>
+            <% [["due_date", "Due date", "fa-clock"],
+                ["title", "Title (A–Z)", "fa-arrow-down-a-z"],
+                ["newest", "Newest first", "fa-arrow-down-wide-short"]].each do |key, label, icon| %>
+              <%= button_to sort_list_path(list, sort: key),
+                  method: :patch,
+                  form: { class: "m-0 block" },
+                  class: "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 bg-transparent border-0 cursor-pointer hover:bg-surface-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" do %>
+                <i class="fa-solid <%= icon %> text-ink-500 w-4 text-center" aria-hidden="true"></i>
+                <span><%= label %></span>
+              <% end %>
+            <% end %>
+          </div>
+
+          <%# --- WIP limit --- soft only: nothing blocks card creation. %>
+          <div class="py-1 border-t border-line">
+            <div class="px-4 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-ink-500">Work-in-progress limit</div>
+            <%= form_with model: list, class: "px-4 pt-1 pb-3 flex items-center gap-2" do |f| %>
+              <%# type=number/min=1 mirrors the model's positive-integer
+                  validation client-side; the model is still the real gate. %>
+              <%= f.number_field :card_limit,
+                  in: 1..999,
+                  step: 1,
+                  placeholder: "No limit",
+                  class: "w-full text-sm border-line rounded focus:ring-brand-700 focus:border-brand-700",
+                  aria: { label: "Maximum cards in this list" } %>
+              <%= f.submit "Set",
+                  class: "flex-shrink-0 bg-brand-600 hover:bg-brand-700 text-white font-medium px-3 py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
+            <% end %>
+            <p class="px-4 pb-2 text-[11px] text-ink-500">Leave blank for no limit. Going over only warns — it never blocks.</p>
+          </div>
+
+          <%# --- Archive all cards --- one activity per card, and a single
+              full-list broadcast rather than N removes. %>
+          <div class="py-1 border-t border-line">
+            <%= button_to archive_all_cards_list_path(list),
+                method: :patch,
+                form: { class: "m-0 block", data: { turbo_confirm: "Archive all cards in this list? You can restore them from the archive view." } },
+                class: "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 bg-transparent border-0 cursor-pointer hover:bg-surface-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" do %>
+              <i class="fa-solid fa-box-archive text-ink-500 w-4 text-center" aria-hidden="true"></i>
+              <span>Archive all cards</span>
+            <% end %>
+          </div>
+
+        </div>
+      </div>
+
     </div>
 
   </div>

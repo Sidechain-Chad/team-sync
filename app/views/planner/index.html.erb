@@ -98,14 +98,27 @@
             <% cards_today.each do |card| %>
               <%# Trello-style chip: just the title, single line, with a small colored
                   left stripe from the card's first label. Board name moved to the
-                  title attribute so it still appears on hover for disambiguation. %>
+                  title attribute so it still appears on hover for disambiguation.
+
+                  A card with BOTH a start and a due date renders one segment per
+                  day it spans, squared off and bled across cell padding so the
+                  row reads as a single bar. Anything else is a :point — the
+                  original single chip, unchanged. %>
+              <% segment = planner_segment(card, day) %>
+              <% shows_title = planner_segment_shows_title?(card, day) %>
               <%= link_to card_path(card),
-                  data: { turbo_frame: "modal" },
-                  class: "block text-[11px] leading-tight px-1.5 py-1 rounded truncate hover:opacity-80 transition-opacity cursor-pointer #{planner_chip_classes(card)}",
-                  title: "#{card.title} — #{card.list.board.name}#{card.location? ? " · #{card.location_name}" : ''}" do %>
-                <% if card.location? %>
-                  <i class="fa-solid fa-location-dot text-[8px] mr-0.5 opacity-70"></i>
-                <% end %><%= card.title %>
+                  data: { turbo_frame: "modal", **(segment == :point ? {} : { planner_segment: segment }) },
+                  class: "block text-[11px] leading-tight px-1.5 py-1 truncate hover:opacity-80 transition-opacity cursor-pointer #{planner_chip_or_bar_classes(card, day)}",
+                  title: "#{card.title} — #{card.list.board.name}#{card.date_range? ? " · #{card.start_date.strftime('%b %-d')}–#{card.due_date.strftime('%b %-d')}" : ''}#{card.location? ? " · #{card.location_name}" : ''}" do %>
+                <% if shows_title %>
+                  <% if card.location? %>
+                    <i class="fa-solid fa-location-dot text-[8px] mr-0.5 opacity-70"></i>
+                  <% end %><%= card.title %>
+                <% else %>
+                  <%# Continuation cell: the bar itself carries the meaning, and
+                      the accessible name still comes from the title attribute. %>
+                  <span class="invisible">&nbsp;</span>
+                <% end %>
               <% end %>
             <% end %>
           </div>

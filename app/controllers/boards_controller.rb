@@ -1,6 +1,6 @@
 class BoardsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_board, only: [:show, :edit, :update, :archive, :map]
+  before_action :set_board, only: [:show, :edit, :update, :archive, :activity, :map]
   before_action :set_owned_board, only: [:destroy]
 
   def index
@@ -56,6 +56,51 @@ class BoardsController < ApplicationController
                           .where(list_id: @board.lists.select(:id))
                           .includes(:list, :labels, :members)
                           .order(updated_at: :desc)
+  end
+
+  FEED_LIMIT = 50
+
+  # Board-level feed of everything that happened on this board's cards:
+  # Activity rows merged with Comments.
+  #
+  # Comments are merged at READ time rather than logged as Activity rows on
+  # create. Logging would make every comment appear TWICE in the card modal,
+  # which already merges comments and activities into one feed (see
+  # CardsController#show's @feed) — and would duplicate the same content across
+  # two tables.
+  #
+  # Both sides are card-scoped (neither has a board_id), so both are reached
+  # through cards -> lists -> board. Board/list-level events (board renamed,
+  # list created) aren't recorded at all and so aren't here — adding them would
+  # mean widening the Activity table, which is out of scope.
+  #
+  # Each side is fetched FEED_LIMIT deep before merging: that's what guarantees
+  # the merged newest-50 is correct no matter how the two interleave (if one
+  # side supplied all 50, taking fewer from it could drop a row that belongs).
+  # No pagination yet.
+  #
+  # The eager loads are what keep this fixed-cost — :user (+ its avatar blob,
+  # since actors differ row to row, unlike the account feed's single user) and
+  # card: :list for the "<card> in <list>" line. Two base queries instead of
+  # one is a fixed cost, independent of row count.
+  def activity
+    card_ids = Card.where(list_id: @board.lists.select(:id)).select(:id)
+
+    activities = Activity
+                   .where(card_id: card_ids)
+                   .includes(:user, { user: { avatar_attachment: :blob } }, card: :list)
+                   .order(created_at: :desc)
+                   .limit(FEED_LIMIT)
+
+    comments = Comment
+                 .where(card_id: card_ids)
+                 .includes(:user, { user: { avatar_attachment: :blob } }, card: :list)
+                 .order(created_at: :desc)
+                 .limit(FEED_LIMIT)
+
+    # Same shape the card modal's @feed uses: merge, sort desc, cap. The view
+    # switches partial on the row's class.
+    @feed = (activities.to_a + comments.to_a).sort_by(&:created_at).reverse.first(FEED_LIMIT)
   end
 
   def map

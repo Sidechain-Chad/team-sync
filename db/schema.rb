@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_24_100639) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_26_103617) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_trgm"
   enable_extension "plpgsql"
@@ -120,6 +120,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_24_100639) do
     t.string "location_address"
     t.integer "comments_count", default: 0, null: false
     t.datetime "due_reminder_sent_at"
+    t.datetime "start_date"
     t.index ["assignee_id"], name: "index_cards_on_assignee_id"
     t.index ["description"], name: "index_cards_on_description_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["latitude", "longitude"], name: "index_cards_on_coordinates", where: "((latitude IS NOT NULL) AND (longitude IS NOT NULL))"
@@ -172,6 +173,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_24_100639) do
     t.integer "position"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "card_limit"
     t.index ["board_id"], name: "index_lists_on_board_id"
   end
 

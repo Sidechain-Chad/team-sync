@@ -1,0 +1,38 @@
+<%#
+  Board-feed row for a Comment — the comment-flavoured sibling of
+  activities/_board_activity.
+
+  Not comments/_comment: that one is card-modal-scoped (it renders a
+  hover-revealed Delete link keyed off current_user, carries the comment's
+  dom_id for the modal's turbo-stream prepend, and shows the body in full with
+  no card context). A board feed spans many cards, is read-only, and needs each
+  row to name its card. Same split _board_activity already makes.
+
+  The body is truncated and HTML-escaped. Comments come from a plain textarea
+  today, but a feed must never render a user-supplied body as markup —
+  `truncate` escapes by default, and ERB output escaping would catch a plain
+  String anyway. (Do not write an ERB output tag inside this comment: the
+  closing percent-angle would end the comment early and leak the rest as
+  visible page text.)
+
+  locals: comment (Comment, with :user and card: :list preloaded)
+%>
+<% card = comment.card %>
+<div class="flex items-start gap-3 p-4" data-feed-row data-comment-row>
+  <%= render "shared/avatar", user: comment.user, size: "h-8 w-8", text_size: "text-[11px]", css_class: "flex-shrink-0" %>
+  <div class="min-w-0 flex-1">
+    <p class="text-sm text-ink-700">
+      <span class="font-semibold"><%= comment.user&.display_name || "Deleted User" %></span>
+      commented on
+      <%= link_to card.title, card_path(card),
+          data: { turbo_frame: "_top" },
+          class: "font-medium text-brand-600 hover:underline" %>
+    </p>
+    <p class="text-sm text-ink-500 mt-1 break-words">
+      <%= truncate(comment.content, length: 140) %>
+    </p>
+    <p class="text-xs text-ink-500 mt-0.5">
+      <%= card.list.name %> · <%= time_ago_in_words(comment.created_at) %> ago
+    </p>
+  </div>
+</div>

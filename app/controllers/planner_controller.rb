@@ -39,11 +39,22 @@ class PlannerController < ApplicationController
 
     cards = Card.active
                 .where(list_id: current_user.all_lists.select(:id))
-                .where(due_date: range_start..range_end)
+                .where(planner_window_sql, range_start: range_start, range_end: range_end)
                 .includes(:labels, list: :board)
 
-    # Group by date for fast lookup in the view: { Date => [Card, Card, ...] }
-    @cards_by_day = cards.group_by { |c| c.due_date.to_date }
+    # Group by date for fast lookup in the view: { Date => [Card, Card, ...] }.
+    # A card with both dates occupies every day it spans (Card#planner_days),
+    # so it renders as a bar segment per cell; a card with only a due date
+    # yields exactly one day, which is the pre-start_date behaviour unchanged.
+    # Days outside the visible grid are dropped — a range can start before the
+    # window or end after it.
+    @cards_by_day = {}
+    cards.each do |card|
+      card.planner_days.each do |day|
+        next unless day >= grid_start && day <= grid_end
+        (@cards_by_day[day] ||= []) << card
+      end
+    end
 
     # Pre-compute prev/next month for the header arrows.
     @prev_month = @first_of_month - 1.month
@@ -105,5 +116,26 @@ class PlannerController < ApplicationController
     @last_board = if session[:last_board_id]
       current_user.all_boards.find_by(id: session[:last_board_id])
     end
+  end
+
+  private
+
+  # Which cards touch the visible grid. Two cases, deliberately kept separate
+  # so the no-start_date case is byte-for-byte the old condition:
+  #
+  #   * no start date  -> the due date itself must fall inside the window
+  #                       (a point, exactly as before start_date existed)
+  #   * both dates     -> the [start, due] span must overlap the window, so a
+  #                       range that begins before the month or ends after it
+  #                       still renders its in-window days
+  #
+  # A start date with no due date matches neither: the Planner is a due-date
+  # view, and such a card doesn't appear today either.
+  def planner_window_sql
+    <<~SQL.squish
+      (start_date IS NULL AND due_date BETWEEN :range_start AND :range_end)
+      OR (start_date IS NOT NULL AND due_date IS NOT NULL
+          AND start_date <= :range_end AND due_date >= :range_start)
+    SQL
   end
 end

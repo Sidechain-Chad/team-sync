@@ -33,6 +33,11 @@ class Card < ApplicationRecord
 
   validates :title, presence: true
 
+  # Only meaningful when BOTH dates are set — either one alone is fine, and so
+  # is neither. Deliberately rejects rather than reordering: silently swapping
+  # the two would hide a typo instead of surfacing it.
+  validate :start_date_not_after_due_date
+
   # Multi-field search across title, description, AND associated comments.
   # Two strategies combined:
   #
@@ -207,11 +212,37 @@ class Card < ApplicationRecord
     due_status == :overdue
   end
 
+  # True only when the card spans real calendar time. Everything date-range
+  # (the Planner's bars) hangs off this, which is what makes a nil start_date
+  # behave exactly as before: no range, so a single point on the due date.
+  def date_range?
+    start_date.present? && due_date.present?
+  end
+
+  # Every calendar day this card occupies on the Planner, in order. A range
+  # covers start..due inclusive; anything else is just the due day, which is
+  # the pre-start_date behaviour. Returns [] for an undated card.
+  def planner_days
+    return [] if due_date.blank?
+    return [due_date.to_date] unless date_range?
+
+    (start_date.to_date..due_date.to_date).to_a
+  end
+
   # Returns the first attached image, used as the card cover on the board.
   # Skips non-image attachments (PDFs, docs etc.) so a non-image first attachment
   # doesn't suppress the cover from a later image.
   def cover_image
     return nil unless attachments.attached?
     attachments.find { |att| att.image? }
+  end
+
+  private
+
+  def start_date_not_after_due_date
+    return if start_date.blank? || due_date.blank?
+    return if start_date <= due_date
+
+    errors.add(:start_date, "must be on or before the due date")
   end
 end

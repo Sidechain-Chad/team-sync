@@ -51,15 +51,7 @@ class CardsController < ApplicationController
         # refreshes every viewer, including this client, since boards/show
         # subscribes to the board's stream too — so the HTTP response
         # itself has nothing left to render.
-        list_for_broadcast = current_user.all_lists
-                                          .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
-                                          .find(@list.id)
-        Turbo::StreamsChannel.broadcast_replace_to(
-          @list.board,
-          target: helpers.dom_id(@list),
-          partial: "lists/list",
-          locals: { list: list_for_broadcast }
-        )
+        broadcast_list_replace(@list)
 
         respond_to do |format|
           format.turbo_stream { head :ok }
@@ -72,6 +64,9 @@ class CardsController < ApplicationController
         # turbo_stream response (cards/create.turbo_stream.erb) only resets
         # the "Add a card" trigger, which IS actor-only.
         broadcast_card_insert(@card)
+        # The gap-insert branch above doesn't need this — its full list replace
+        # already re-renders the pill.
+        broadcast_list_card_count(@list)
 
         respond_to do |format|
           format.turbo_stream
@@ -140,15 +135,26 @@ class CardsController < ApplicationController
       # and logs one activity entry per file.
       result = CardAttachmentService.new(card: @card, user: current_user, files: new_attachments).call
 
-      # Broadcast the freshly-rendered card to anyone viewing this board so
-      # the preview reflects changes (location pin, attachment count, due
-      # pill, title) in real time. Same pattern as toggle_complete.
-      Turbo::StreamsChannel.broadcast_replace_to(
-        @card.list.board,
-        target: @card,
-        partial: "cards/card",
-        locals: { card: @card }
-      )
+      if @card.list_id != old_list.id
+        # The modal's "Move to list" control moves a card through #update, not
+        # #move. A bare card replace is actively wrong here, not merely
+        # incomplete: it targets the card's own dom_id, so other viewers
+        # re-render it in place in the OLD list and it never appears to move.
+        # Two full list replaces relocate it properly and refresh both headers
+        # (count pills included), so no separate pill broadcast is needed.
+        broadcast_list_replace_for(old_list, @card.list)
+      else
+        # Broadcast the freshly-rendered card to anyone viewing this board so
+        # the preview reflects changes (location pin, attachment count, due
+        # pill, title) in real time. Same pattern as toggle_complete. This is
+        # the common edit path — one card replace, exactly as before.
+        Turbo::StreamsChannel.broadcast_replace_to(
+          @card.list.board,
+          target: @card,
+          partial: "cards/card",
+          locals: { card: @card }
+        )
+      end
 
       if result.success?
         # Decide what to send back. Modal-wide refresh is needed when
@@ -197,13 +203,42 @@ class CardsController < ApplicationController
         end
       end
     else
-      render :edit, status: :unprocessable_entity
+      # Same shape as the attachment-rejection branch above: flash.now plus a
+      # modal re-render, which cards/show.html.erb's inline alert slot picks up.
+      # (There is no cards/edit template to render — this branch was previously
+      # unreachable, since title-presence was the only validation and no form
+      # can submit a blank title. The start_date/due_date check makes it real.)
+      error = @card.errors.full_messages.to_sentence
+
+      respond_to do |format|
+        format.turbo_stream do
+          flash.now[:alert] = error
+          # Re-reads from the DB, so the modal shows the card as it actually
+          # stands — the rejected values are discarded, never half-applied.
+          reload_card_for_modal!
+          resolve_return_to!
+          # Deliberately 200, not 422: the due-date form is frame-targeted
+          # (data-turbo-frame="card_due_pill_X"), and Turbo does NOT apply a
+          # turbo-stream response to a frame-scoped submission when the status
+          # is 4xx — the error would be silently swallowed in the browser even
+          # though the body is correct. Verified in-browser. Same 200 +
+          # flash.now + modal-replace shape the attachment-rejection branch
+          # above already uses for a rejected card update.
+          render turbo_stream: turbo_stream.replace("modal", template: "cards/show")
+        end
+        format.html { redirect_to @card.list.board, alert: error }
+      end
     end
   end
 
   def destroy
     @board = @card.list.board
+    list = @card.list
     @card.destroy
+
+    # Hard delete drops the list's active-card count too. (The card's own
+    # removal still isn't broadcast from here — a pre-existing gap, unchanged.)
+    broadcast_list_card_count(list)
 
     # If the request came from the archive page, return there.
     # Otherwise back to the board.
@@ -232,6 +267,20 @@ class CardsController < ApplicationController
       if @card.saved_change_to_list_id?
         @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
       end
+
+      # Make the drag live for everyone else. Before this, #move broadcast
+      # nothing at all, so another viewer saw neither the card leaving its old
+      # list nor arriving in the new one until they reloaded — and once the
+      # count pill started broadcasting, a destination could read "3/3" over
+      # only 2 visible cards. A full replace of both lists keeps the cards and
+      # the count in agreement, and fixes within-list reordering (also
+      # previously invisible) via the single deduped replace.
+      #
+      # The actor still just gets head :ok — their own DOM is already correct
+      # from SortableJS's optimistic move, and they receive these same
+      # broadcasts anyway as a subscriber to the board's stream.
+      broadcast_list_replace_for(old_list, @card.list)
+
       head :ok
     else
       head :unprocessable_entity
@@ -264,6 +313,7 @@ class CardsController < ApplicationController
     # modal replace belongs in this response: it's actor-only (only the
     # copier should be looking at the new card's own modal).
     broadcast_card_insert(new_card)
+    broadcast_list_card_count(target_list)
 
     @card = new_card
     reload_card_for_modal!
@@ -296,6 +346,7 @@ class CardsController < ApplicationController
     @card.archive!
     @card.log_activity(current_user, "archived")
     broadcast_card_remove
+    broadcast_list_card_count(@card.list)
 
     respond_to do |format|
       format.html { redirect_to board_path(@card.list.board) }
@@ -387,12 +438,11 @@ class CardsController < ApplicationController
     @card.log_activity(current_user, "unarchived")
 
     # Tell the board's stream to reinsert the card at the bottom of its list.
-    Turbo::StreamsChannel.broadcast_append_to(
-      @card.list.board,
-      target: "list_#{@card.list_id}_cards",
-      partial: "cards/card",
-      locals: { card: @card }
-    )
+    # Uses the same helper as create/copy: appending to list_X_cards landed the
+    # restored card BELOW the "Add a card" trigger and the gap-inserter overlay,
+    # both of which live inside that container.
+    broadcast_card_insert(@card)
+    broadcast_list_card_count(@card.list)
 
     # If the request came from the archive page, return there so the
     # user can keep restoring cards. Otherwise back to the board.
@@ -480,7 +530,7 @@ class CardsController < ApplicationController
 
   def card_params
     params.require(:card).permit(
-      :title, :description, :due_date, :completed, :list_id, :position,
+      :title, :description, :due_date, :start_date, :completed, :list_id, :position,
       :latitude, :longitude, :location_name, :location_address,
       attachments: []
     )
@@ -520,5 +570,64 @@ class CardsController < ApplicationController
       partial: "cards/card",
       locals: { card: card }
     )
+  end
+
+  # Card-count pill only — NOT the whole list header, which owns the rename
+  # control, the delete button, and the ... dropdown's Stimulus state (replacing
+  # it would tear those down and could slam an open menu shut mid-interaction).
+  #
+  # Called from every path that changes a list's active-card count, EXCEPT the
+  # ones that already broadcast a full list replace (ListsController#sort,
+  # #archive_all_cards, and #create's gap-insert branch) — those re-render the
+  # pill as part of the list partial, so adding this would double up.
+  #
+  # The list is reloaded so active_cards.size reflects the change that just
+  # happened rather than an association cached before it.
+  def broadcast_list_card_count(list)
+    list = list.reload
+
+    Turbo::StreamsChannel.broadcast_replace_to(
+      list.board,
+      target: "list_#{list.id}_card_count",
+      partial: "lists/card_count",
+      locals: { list: list }
+    )
+  end
+
+  # Full replace of a list column for everyone viewing its board.
+  #
+  # This is what makes moves live. Deliberately NOT broadcast_card_remove +
+  # broadcast_card_insert: the insert targets `before` the "Add a card" trigger,
+  # so it always lands at the BOTTOM, while a drag can drop a card anywhere
+  # mid-list. lists/_list renders active_cards in position order, so a full
+  # replace gets arbitrary drop positions right for free — and re-renders the
+  # header, which carries list_X_card_count, so the count pill comes along.
+  #
+  # Keyed off `list.board` rather than one assumed board so each list is
+  # published to its own board's stream. (Today source and destination always
+  # share a board — board_scoped_list confines the target to
+  # @card.list.board_id — so this is equivalent, not load-bearing. It stays
+  # per-list so it can't silently become wrong if that guard ever loosens.)
+  #
+  # The includes are mandatory: rendering a whole list means rendering every
+  # cards/_card in it, which without the preload is an N+1 across the list.
+  # Same preload ListsController#broadcast_list_replace uses.
+  def broadcast_list_replace(list)
+    list_for_broadcast = current_user.all_lists
+                                     .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
+                                     .find(list.id)
+
+    Turbo::StreamsChannel.broadcast_replace_to(
+      list.board,
+      target: helpers.dom_id(list),
+      partial: "lists/list",
+      locals: { list: list_for_broadcast }
+    )
+  end
+
+  # A move touches two lists — or one, when the card never left its list.
+  # Dedupes so a same-list reorder broadcasts a single replace.
+  def broadcast_list_replace_for(*lists)
+    lists.compact.uniq(&:id).each { |list| broadcast_list_replace(list) }
   end
 end
