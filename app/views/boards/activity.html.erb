@@ -19,19 +19,27 @@
       </div>
     </div>
 
-    <% if @activities.empty? %>
+    <% if @feed.empty? %>
       <div class="bg-white rounded-lg shadow-sm border border-line text-center py-12">
         <i class="fa-solid fa-clock-rotate-left text-5xl text-ink-300 mb-4" aria-hidden="true"></i>
         <p class="text-ink-500">No activity yet.</p>
         <p class="text-sm text-ink-300 mt-1">Actions taken on this board's cards will show up here.</p>
       </div>
     <% else %>
+      <%# Mixed feed of Activity and Comment rows (merged in BoardsController
+          #activity), each with its own board-flavoured partial. %>
       <div class="bg-white rounded-lg shadow-sm border border-line divide-y divide-line">
-        <%= render partial: "activities/board_activity", collection: @activities, as: :activity %>
+        <% @feed.each do |entry| %>
+          <% if entry.is_a?(Comment) %>
+            <%= render "activities/board_comment", comment: entry %>
+          <% else %>
+            <%= render "activities/board_activity", activity: entry %>
+          <% end %>
+        <% end %>
       </div>
 
-      <% if @activities.size >= 50 %>
-        <p class="text-xs text-ink-500 mt-3">Showing the 50 most recent actions on this board.</p>
+      <% if @feed.size >= BoardsController::FEED_LIMIT %>
+        <p class="text-xs text-ink-500 mt-3">Showing the <%= BoardsController::FEED_LIMIT %> most recent actions on this board.</p>
       <% end %>
     <% end %>
 

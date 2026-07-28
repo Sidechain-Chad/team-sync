@@ -11,7 +11,7 @@
   locals: activity (Activity, with :user and card: :list preloaded)
 %>
 <% card = activity.card %>
-<div class="flex items-start gap-3 p-4" data-activity-row>
+<div class="flex items-start gap-3 p-4" data-feed-row data-activity-row>
   <%= render "shared/avatar", user: activity.user, size: "h-8 w-8", text_size: "text-[11px]", css_class: "flex-shrink-0" %>
   <div class="min-w-0 flex-1">
     <p class="text-sm text-ink-700">

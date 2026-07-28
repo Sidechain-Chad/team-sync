@@ -395,21 +395,143 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_equal small, large, "query count must not grow with activity count (N+1 regression)"
   end
 
+  # --- comments merged into the board activity feed ---
+
+  test "activity feed includes a comment on a card on this board" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Commented Card")
+    card.comments.create!(user: @user, content: "A comment worth seeing")
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_match "A comment worth seeing", response.body
+    assert_match "Commented Card", response.body
+    assert_match "commented on", response.body
+  end
+
+  test "activity feed excludes a comment on another board's card" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    list.cards.create!(title: "Mine Card").comments.create!(user: @user, content: "Local comment body")
+
+    other_board = @user.boards.create!(name: "Other Board")
+    other_list = other_board.lists.create!(name: "Other List", position: 1)
+    other_list.cards.create!(title: "Elsewhere Card").comments.create!(user: @user, content: "Foreign comment body")
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_match "Local comment body", response.body
+    assert_no_match(/Foreign comment body/, response.body)
+  end
+
+  test "activity feed interleaves comments and activities strictly newest-first" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Interleaved Card")
+
+    Activity.create!(user: @user, card: card, action: "renamed", description: "OLDEST-ACTIVITY", created_at: 4.hours.ago)
+    card.comments.create!(user: @user, content: "MIDDLE-COMMENT", created_at: 3.hours.ago)
+    Activity.create!(user: @user, card: card, action: "renamed", description: "NEWER-ACTIVITY", created_at: 2.hours.ago)
+    card.comments.create!(user: @user, content: "NEWEST-COMMENT", created_at: 1.hour.ago)
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    positions = %w[NEWEST-COMMENT NEWER-ACTIVITY MIDDLE-COMMENT OLDEST-ACTIVITY].map { |m| response.body.index(m) }
+    assert_equal positions.compact, positions, "every marker should be present"
+    assert_equal positions.sort, positions, "feed must be strictly newest-first across both types"
+  end
+
+  test "activity feed caps the merged result at 50 rows, newest first" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Busy Card")
+
+    # 40 of each: the merged newest-50 must be drawn from both sides, which is
+    # why each side is fetched 50-deep before merging.
+    40.times { |i| Activity.create!(user: @user, card: card, action: "renamed", description: "A#{i}", created_at: (100 - i).minutes.ago) }
+    40.times { |i| card.comments.create!(user: @user, content: "C#{i}", created_at: (60 - i).minutes.ago) }
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_equal 50, response.body.scan(/data-feed-row/).size
+
+    # The newest 50 of those 80 are: all 40 comments (newest) + the 10 newest
+    # activities. So the oldest activities must have fallen off the end.
+    assert_match "C39", response.body
+    assert_no_match(/\bA0\b/, response.body)
+  end
+
+  test "activity feed truncates a long comment body" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Long Comment Card")
+    body = "L" * 300
+    card.comments.create!(user: @user, content: body)
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_no_match(/L{200}/, response.body, "the full 300-char body must not be rendered")
+    assert_match(/L{100}/, response.body, "a healthy prefix of the body should still show")
+  end
+
+  test "activity feed escapes HTML in a comment body rather than rendering it" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "XSS Card")
+    card.comments.create!(user: @user, content: "<script>alert('x')</script><b>bold</b>")
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_no_match(%r{<script>alert}, response.body)
+    assert_no_match(%r{<b>bold</b>}, response.body)
+    assert_match "&lt;script&gt;", response.body
+    assert_match "&lt;b&gt;bold&lt;/b&gt;", response.body
+  end
+
+  # Regression: an ERB output tag written inside a `<%#` comment in one of the
+  # feed partials terminated the comment at its own "%>" and leaked the rest of
+  # the comment text onto the page as visible content. Caught in the browser,
+  # not by the content assertions above — hence this guard.
+  test "activity feed renders no leaked ERB source text" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Leak Check Card")
+    Activity.create!(user: @user, card: card, action: "created")
+    card.comments.create!(user: @user, content: "Leak check comment")
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    feed = response.body[/<h1.*?<\/div>\s*<\/div>\s*<\/div>/m] || response.body
+    assert_no_match(/%>/, feed, "raw ERB fragment leaked into the rendered feed")
+    assert_no_match(/\blocals:/, feed, "partial documentation leaked into the rendered feed")
+  end
+
+  test "activity feed query count stays flat as comment count grows" do
+    small = count_queries_for_board_activity(activity_count: 5, comment_count: 5)
+    large = count_queries_for_board_activity(activity_count: 5, comment_count: 10)
+
+    assert_equal small, large, "query count must not grow with comment count (N+1 regression)"
+  end
+
   private
 
-  def count_queries_for_board_activity(activity_count:)
-    user = User.create!(email: "feedperf#{activity_count}@example.com", password: "password")
+  def count_queries_for_board_activity(activity_count:, comment_count: 0)
+    # Keyed on BOTH counts — the comment-growth test calls this twice with the
+    # same activity_count, and a shared email would collide on uniqueness.
+    suffix = "#{activity_count}x#{comment_count}"
+    user = User.create!(email: "feedperf#{suffix}@example.com", password: "password")
     attach_test_avatar(user)
     sign_in user
 
-    board = user.boards.create!(name: "Feed Perf Board #{activity_count}")
+    board = user.boards.create!(name: "Feed Perf Board #{suffix}")
     board.lists.destroy_all
     list = board.lists.create!(name: "List", position: 1)
 
     # A second actor with their own avatar, so the feed renders more than one
     # distinct user's avatar — proving the per-user avatar preload is fixed
     # cost (one lookup per distinct actor) rather than per activity row.
-    other = User.create!(email: "feedperfother#{activity_count}@example.com", password: "password")
+    other = User.create!(email: "feedperfother#{suffix}@example.com", password: "password")
     attach_test_avatar(other)
     board.board_users.create!(user: other)
 
@@ -418,6 +540,13 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     activity_count.times do |i|
       card = list.cards.create!(title: "Card #{i}")
       Activity.create!(user: i.even? ? user : other, card: card, action: "created")
+    end
+
+    # One card per comment too, so a missing `card: :list` on the comment side
+    # shows up as growth rather than being masked by an already-loaded card.
+    comment_count.times do |i|
+      card = list.cards.create!(title: "Commented Card #{i}")
+      card.comments.create!(user: i.even? ? user : other, content: "Comment #{i}")
     end
 
     result = count_queries { get activity_board_url(board) }
