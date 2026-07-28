@@ -224,6 +224,104 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
     assert_no_match "Panel Foreign Range 67", response.body
   end
 
+  # --- agenda rows name their span, so repeated range rows are self-explanatory ---
+  #
+  # A range card appears on every day it spans, and every row was previously
+  # identical (same title, same board, same due time) — it read as three separate
+  # cards rather than one spanning one. Range rows now carry the span instead of
+  # the bare due time. Due-only cards are untouched.
+
+  test "panel: a range card's row shows the span instead of the due time" do
+    card = cards(:one)
+    card.update!(title: "Span Row Card 71",
+                 start_date: Time.utc(2026, 8, 3, 9, 0),
+                 due_date:   Time.utc(2026, 8, 5, 15, 0))
+    travel_to Time.utc(2026, 8, 1, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_equal 3, chip_count_for(card)
+      # Every one of the three rows carries the span...
+      assert_equal 3, response.body.scan("Aug 3–5").size
+      # ...and none of them shows the bare due time any more.
+      assert_no_match(/3:00 PM/, response.body)
+    end
+  end
+
+  test "panel: a due-only card's row still shows its time, unchanged" do
+    card = cards(:one)
+    card.update!(title: "Point Row Card 72",
+                 start_date: nil,
+                 due_date: Time.utc(2026, 8, 4, 14, 0))
+    travel_to Time.utc(2026, 8, 1, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_equal 1, chip_count_for(card)
+      assert_match(/2:00 PM/, response.body)
+      assert_no_match(/Aug 4–/, response.body)
+    end
+  end
+
+  test "panel: a same-day start and due renders as a point with the time, not a span" do
+    card = cards(:one)
+    card.update!(title: "Same Day Row Card 73",
+                 start_date: Time.utc(2026, 8, 4, 9, 0),
+                 due_date:   Time.utc(2026, 8, 4, 16, 0))
+    travel_to Time.utc(2026, 8, 1, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_equal 1, chip_count_for(card)
+      assert_match(/4:00 PM/, response.body)
+      assert_no_match(/Aug 4–4/, response.body)
+    end
+  end
+
+  # The tempting mistake: labelling the span with the days that happen to be
+  # visible. The window here is Aug 1..Aug 22 but the card really runs Jul 28 to
+  # Aug 26, so a clipped label would read "Aug 1 – Aug 22" and misstate the card.
+  test "panel: a range extending past both window edges shows its TRUE span" do
+    card = cards(:one)
+    card.update!(title: "True Span Card 74",
+                 start_date: Time.utc(2026, 7, 28, 9, 0),
+                 due_date:   Time.utc(2026, 8, 26, 17, 0))
+    travel_to Time.utc(2026, 8, 1, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_match(/Jul 28 – Aug 26/, response.body, "span must be the card's real range")
+      assert_no_match(/Aug 1 – Aug 22/, response.body, "span must not be clipped to the visible window")
+    end
+  end
+
+  test "panel: a cross-month span spells out both months" do
+    card = cards(:one)
+    card.update!(title: "Cross Month Card 75",
+                 start_date: Time.utc(2026, 8, 30, 9, 0),
+                 due_date:   Time.utc(2026, 9, 2, 17, 0))
+    travel_to Time.utc(2026, 8, 29, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_match(/Aug 30 – Sep 2/, response.body)
+    end
+  end
+
+  test "panel: a same-month span collapses the repeated month" do
+    card = cards(:one)
+    card.update!(title: "Same Month Card 76",
+                 start_date: Time.utc(2026, 8, 10, 9, 0),
+                 due_date:   Time.utc(2026, 8, 12, 17, 0))
+    travel_to Time.utc(2026, 8, 9, 8, 0) do
+      get planner_panel_url
+
+      assert_response :success
+      assert_match(/Aug 10–12/, response.body)
+      assert_no_match(/Aug 10 – Aug 12/, response.body, "same month should not repeat the month name")
+    end
+  end
+
   test "panel query count stays flat as the number of range cards grows" do
     small = count_queries_for_panel(range_cards: 3)
     large = count_queries_for_panel(range_cards: 6)

@@ -57,9 +57,18 @@
                     <div class="w-1 self-stretch rounded-full <%= color ? "bg-#{color}-500" : 'bg-surface-300' %> shrink-0"></div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-ink-700 truncate"><%= card.title %></p>
+                      <%# A range card appears once per day it spans, so every one
+                          of those rows would otherwise be identical — same title,
+                          same board, same due time — and read as separate cards.
+                          The span is what makes the repetition self-evident, so it
+                          takes the due time's place on range rows. Due-only cards
+                          (and same-day start==due, which is a point) keep the
+                          time: planner_span_label returns nil for those. %>
                       <p class="text-xs text-ink-500 truncate">
                         <%= card.list.board.name %>
-                        <% if card.due_date.hour != 0 %>
+                        <% if (span = planner_span_label(card)) %>
+                          · <%= span %>
+                        <% elsif card.due_date.hour != 0 %>
                           · <%= card.due_date.strftime("%-l:%M %p") %>
                         <% end %>
                       </p>
