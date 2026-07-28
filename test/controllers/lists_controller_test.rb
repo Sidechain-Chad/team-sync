@@ -275,6 +275,52 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
     assert_nil @list.reload.card_limit
   end
 
+  # --- #update broadcasts: renames and WIP limits are live ---
+  #
+  # Broadcast target is the list's existing header frame — the same frame the
+  # inline rename already replaces in the actor's own response, so this is one
+  # mechanism rather than a second targeting scheme. `replace` is by id and
+  # idempotent, so the actor receiving both their response and this broadcast
+  # can't duplicate anything (unlike append/before).
+
+  test "update broadcasts exactly one header replace when the name changes" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch list_url(@list), params: { list: { name: "Renamed Live" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal "Renamed Live", @list.reload.name
+    assert_equal [["replace", "header_list_#{@list.id}"]], broadcast_targets(broadcasts)
+    assert_match(/Renamed Live/, broadcast_for(broadcasts, "header_list_#{@list.id}"))
+  end
+
+  test "update broadcasts exactly one header replace when the card limit changes" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch list_url(@list), params: { list: { card_limit: 5 } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal 5, @list.reload.card_limit
+    assert_equal [["replace", "header_list_#{@list.id}"]], broadcast_targets(broadcasts)
+    # The pill rides along inside the header frame, so viewers see the new limit.
+    assert_match(/id="list_#{@list.id}_card_count"/, broadcast_for(broadcasts, "header_list_#{@list.id}"))
+  end
+
+  test "a failed update broadcasts nothing" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch list_url(@list), params: { list: { card_limit: 0 } }, as: :turbo_stream
+    end
+
+    assert_response :unprocessable_entity
+    assert_empty broadcasts, "an invalid update must not broadcast a header"
+  end
+
   # --- header rendering of the WIP limit ---
 
   test "list header shows no card count when no limit is set" do

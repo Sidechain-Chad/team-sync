@@ -1119,19 +1119,8 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
 
   private
 
-  # [[action, target], ...] for a captured broadcast list, one pair per
-  # broadcast. Asserting on targets (rather than just counting) is what lets a
-  # test distinguish a legitimate extra broadcast from a duplicated one.
-  def broadcast_targets(broadcasts)
-    broadcasts.map do |payload|
-      payload.match(/<turbo-stream action="([^"]+)" target="([^"]+)"/).captures
-    end
-  end
-
-  # The single captured broadcast aimed at `target`, or nil.
-  def broadcast_for(broadcasts, target)
-    broadcasts.find { |payload| payload.include?(%(target="#{target}")) }
-  end
+  # broadcast_targets / broadcast_for now live in test_helper — ListsController's
+  # broadcast tests need the same two helpers, and one mechanism beats two copies.
 
   # A cross-list move renders BOTH lists in full (every cards/_card in each), so
   # this is the guard on the move broadcast's preload. Fresh user + sign-in per

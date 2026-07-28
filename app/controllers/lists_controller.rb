@@ -32,6 +32,22 @@ class ListsController < ApplicationController
   def update
     @list = current_user.all_lists.find(params[:id])
     if @list.update(list_params)
+      # A rename or a WIP-limit change was previously invisible to other viewers
+      # until they reloaded. Broadcast the SAME header frame the actor's own
+      # response replaces below, rather than inventing a second targeting
+      # scheme — the frame already exists on every viewer's board page.
+      #
+      # No anti-double-render dance needed here (unlike broadcast_card_insert):
+      # `replace` targets by id and is idempotent, so the actor receiving both
+      # their own response and this broadcast just replaces the same frame
+      # twice. Only append/before can duplicate content.
+      #
+      # Two accepted side effects for OTHER viewers, both fine for an action
+      # this rare: the ... dropdown lives inside this frame, so an open menu on
+      # this list closes; and the frame holds the board-filter listCount target
+      # ("3 of 7"), so an active filter's count blanks until they re-filter.
+      broadcast_header_replace(@list)
+
       respond_to do |format|
         format.html { redirect_to board_path(@list.board) }
 
@@ -115,6 +131,19 @@ class ListsController < ApplicationController
   end
 
   private
+
+  # Replaces just the list's header frame for every viewer of the board — the
+  # rename link, the filtered-count target, the WIP pill and the ... menu. Not
+  # the whole list column: #update never changes which cards are in the list, so
+  # re-rendering every card would be pure waste (and an N+1 without a preload).
+  def broadcast_header_replace(list)
+    Turbo::StreamsChannel.broadcast_replace_to(
+      list.board,
+      target: helpers.dom_id(list, :header),
+      partial: "lists/header",
+      locals: { list: list }
+    )
+  end
 
   # Re-renders the whole list column for every viewer of the board. Needs the
   # same eager-loading as boards#show — the partial renders every one of the
