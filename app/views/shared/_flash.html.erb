@@ -7,14 +7,13 @@
     render with this styling too now — that's intentional, not a leak;
     if they ever prove noisy, blank those specific keys in
     config/locales/devise.en.yml rather than special-casing here. %>
-<%# z-[10002] rather than the original z-[100]: the card modal is z-[9999]
-    (overlay) / z-[10000] (panel) and the mention typeahead sits at z-[10001] for
-    the same reason, so at z-[100] this toast painted BEHIND the modal. That made
-    it invisible for exactly the branches that need it most — the comment form and
-    the description editor both live inside the modal (CommentsController#create,
-    CardsController#update_description). Verified with elementFromPoint, not by
-    eye. A toast belongs on top of everything by definition, so this is the right
-    layer, not a special case. %>
+<%# z-toast — the top of the ladder (see the stacking layers block in
+    app/assets/tailwind/application.css). This started as z-[100], which painted
+    the toast BEHIND the card modal and so hid it for exactly the branches that
+    need it most: the comment form and the description editor both live inside the
+    modal. The token also clears flatpickr's body-appended calendar (99999), so an
+    error can't hide behind an open date picker either. Verified with
+    elementFromPoint, not by eye. %>
 <%#
   TIMEOUTS DIFFER BY SEVERITY, and that difference is the whole point of this
   partial's shape:
@@ -37,7 +36,7 @@
   :error is accepted so a future caller can't have a message silently dropped.
 %>
 <% error_message = flash[:alert].presence || flash[:error].presence %>
-<div id="flash" class="fixed top-20 left-1/2 -translate-x-1/2 z-[10002] w-full max-w-md px-4 pointer-events-none">
+<div id="flash" class="fixed top-20 left-1/2 -translate-x-1/2 z-toast w-full max-w-md px-4 pointer-events-none">
   <% if error_message %>
     <%# role="alert" so a persistent error is announced, not just shown —
         consistent with the a11y baseline this app maintains. %>

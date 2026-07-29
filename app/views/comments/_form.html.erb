@@ -28,10 +28,11 @@
         }
     %>
 
-    <%# Populated by mention-typeahead#render; z-[10001] renders it above the
-        card modal (z-[10000]/z-[9999]) so it isn't clipped behind it. %>
+    <%# Populated by mention-typeahead#render. z-modal-menu is the tier for
+        popovers opened from inside a modal — it outranks the modal's own content.
+        (It can't escape the modal's stacking context, and doesn't need to.) %>
     <ul data-mention-typeahead-target="dropdown"
-        class="hidden absolute left-0 top-full mt-1 w-64 max-h-48 overflow-y-auto bg-white border border-line rounded-md shadow-xl z-[10001] list-none p-1"></ul>
+        class="hidden absolute left-0 top-full mt-1 w-64 max-h-48 overflow-y-auto bg-white border border-line rounded-md shadow-xl z-modal-menu list-none p-1"></ul>
 
     <%# Toolbar (Contains the SEND BUTTON) %>
     <%# This starts hidden, but the controller reveals it when you click the input %>

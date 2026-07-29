@@ -5,7 +5,7 @@
 <%= turbo_frame_tag "modal" do %>
   <%# Backdrop click closes the modal. The inner panel uses stop_propagation_controller.js
       so clicks inside don't bubble up and trigger the close. %>
-  <div class="fixed inset-0 bg-ink-900/40 z-50 flex items-start justify-center pt-20"
+  <div class="fixed inset-0 bg-ink-900/40 z-modal flex items-start justify-center pt-20"
        data-action="click->modal#close">
     <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col"
          data-controller="stop-propagation"

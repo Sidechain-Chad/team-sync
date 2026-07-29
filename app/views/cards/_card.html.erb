@@ -41,7 +41,7 @@
         card bodies — the same pattern Trello uses. Archive only appears once
         the card is marked complete and gets a more pronounced shadow as the
         "next-step" affordance. %>
-    <div class="absolute top-2 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 ease-out z-10">
+    <div class="absolute top-2 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 ease-out z-content">
 
       <% if card.completed? %>
         <%= button_to archive_card_path(card),

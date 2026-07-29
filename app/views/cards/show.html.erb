@@ -13,7 +13,7 @@
     breaking the next modal close ("Content missing"). Keep the two in sync. %>
 <%= turbo_frame_tag "modal", target: "_top",
       data: { controller: "modal", action: "turbo:before-render@document->modal#close" } do %>
-  <div class="fixed inset-0 z-[9999] flex items-center justify-center">
+  <div class="fixed inset-0 z-modal flex items-center justify-center">
 
     <%# Overlay (clicking it closes the modal, same destination as ✕) %>
     <%= link_to close_path,
@@ -22,7 +22,7 @@
     <% end %>
 
     <%# THE MODAL BOX %>
-    <div class="relative z-[10000] bg-surface-100 w-full max-w-6xl h-[90vh] rounded-lg shadow-2xl flex flex-col text-ink-700 m-4 pointer-events-auto"
+    <div class="relative z-modal-panel bg-surface-100 w-full max-w-6xl h-[90vh] rounded-lg shadow-2xl flex flex-col text-ink-700 m-4 pointer-events-auto"
          role="dialog"
          aria-modal="true"
          aria-labelledby="card_modal_title_<%= @card.id %>"
