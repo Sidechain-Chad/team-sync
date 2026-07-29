@@ -3,6 +3,7 @@ require "test_helper"
 class AttachmentsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
   include ActiveJob::TestHelper
+  include ActionCable::TestHelper
 
   setup do
     @user = users(:one)
@@ -99,5 +100,83 @@ class AttachmentsControllerTest < ActionDispatch::IntegrationTest
     assert ActiveStorage::Blob.exists?(original_blob.id),
            "expected the shared blob to survive since the original card still references it"
     assert @card.reload.attachments.first.blob.persisted?
+  end
+
+  # --- board-tile broadcast ---
+  #
+  # A card's cover image is derived from its attachments and renders in
+  # cards/_card, and the tile also shows a paperclip badge with
+  # card.attachments.size — so BOTH image and non-image attachments change what
+  # every viewer of the board sees. CardLabelsController and
+  # CardMembersController already broadcast the re-rendered tile for the same
+  # reason; these two actions didn't.
+  #
+  # Scope is the board tile only. Other viewers with the card MODAL open still
+  # won't see the attachment list itself change — that needs its own target
+  # decision and is out of scope here.
+
+  test "attaching an image broadcasts exactly one card replace to the board" do
+    sign_in @user
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream) do
+      post card_attachments_url(@card), params: { file: fixture_file_upload("test/fixtures/files/test.png", "image/png") }
+    end
+
+    assert_response :success
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+  end
+
+  test "attaching a NON-image also broadcasts, because the tile shows an attachment count" do
+    sign_in @user
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream) do
+      post card_attachments_url(@card), params: { file: fixture_file_upload("test/fixtures/files/test.txt", "text/plain") }
+    end
+
+    assert_response :success
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+    # The cover is unchanged for a non-image (Card#cover_image skips them), but
+    # the paperclip badge count is not — hence the broadcast.
+    assert_match(/fa-paperclip/, broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card)))
+  end
+
+  test "removing an attachment broadcasts exactly one card replace" do
+    sign_in @user
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream) do
+      delete card_attachment_url(@card, @active_storage_attachment), as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+  end
+
+  test "removing the cover image broadcasts a tile that no longer renders a cover" do
+    sign_in @user
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board)
+    assert @card.reload.cover_image, "setup should leave the card with a cover"
+
+    broadcasts = capture_broadcasts(stream) do
+      delete card_attachment_url(@card, @active_storage_attachment), as: :turbo_stream
+    end
+
+    body = broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card))
+    # purge_later deletes the attachment row synchronously but leaves the
+    # in-memory association cached, so without a reload the broadcast would
+    # cheerfully re-render the cover that was just removed.
+    assert_no_match(/<img[^>]*class="w-full h-\[100px\]/, body,
+                    "the re-rendered tile must not still show the purged cover")
+  end
+
+  test "the actor's own response does not contain the board tile (anti double-render)" do
+    sign_in @user
+
+    delete card_attachment_url(@card, @active_storage_attachment), as: :turbo_stream
+
+    assert_response :success
+    assert_no_match(/target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, response.body)
   end
 end

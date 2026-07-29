@@ -1151,6 +1151,41 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  # The duplicate-risk guard for the attachment broadcast work.
+  #
+  # #update ALREADY broadcasts a card replace for any non-move update, and that
+  # broadcast fires AFTER CardAttachmentService runs — so the modal's "Attach"
+  # form was already covered, and adding a second broadcast here would have given
+  # the actor two. `replace` is idempotent by id so it wouldn't visibly duplicate,
+  # but it doubles the render and would break these count-by-target assertions.
+  # AttachmentsController#create/#destroy were the genuinely uncovered paths.
+
+  test "attaching via the modal broadcasts exactly ONE card replace, not two" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+    file = fixture_file_upload("test.png", "image/png")
+
+    broadcasts = capture_broadcasts(stream) do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts),
+                 "one replace — #update's own broadcast, with no second one added"
+  end
+
+  test "the modal attach broadcast reflects the new attachment" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+    file = fixture_file_upload("test.png", "image/png")
+
+    broadcasts = capture_broadcasts(stream) do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    # The broadcast is emitted after the service attaches, so the re-rendered
+    # tile already carries the paperclip badge.
+    assert_match(/fa-paperclip/, broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card)))
+  end
+
   private
 
   # broadcast_targets / broadcast_for now live in test_helper — ListsController's
