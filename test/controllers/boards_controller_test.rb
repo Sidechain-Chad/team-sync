@@ -309,6 +309,89 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end
 
+  # --- failure branches must not 500 on a turbo-stream-only request ---
+  #
+  # boards/new and boards/edit exist only as HTML, and `render :new/:edit` looks
+  # the template up in the REQUEST's formats — so a turbo-stream-only Accept found
+  # nothing and raised MissingTemplate. These are plain full-page forms whose
+  # success path is a redirect, so the fix pins the render to HTML and keeps 422
+  # (Turbo needs a 4xx to re-render a form).
+  TURBO_STREAM_ONLY = { "Accept" => "text/vnd.turbo-stream.html" }.freeze
+
+  test "create with a blank name does not raise for a turbo-stream-only request" do
+    assert_no_difference "Board.count" do
+      post boards_url, params: { board: { name: "" } }, headers: TURBO_STREAM_ONLY
+    end
+
+    assert_response :unprocessable_entity
+    assert_match(/can&#39;t be blank/, response.body,
+                 "the failure must be conveyed as readable text, not just a wrapper class")
+  end
+
+  test "create with a blank name re-renders the form with 422 for an HTML request" do
+    assert_no_difference "Board.count" do
+      post boards_url, params: { board: { name: "" } }, headers: { "Accept" => "text/html" }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select "form"
+    assert_select "p.text-danger-600", text: "can't be blank"
+  end
+
+  test "update with a blank name does not raise for a turbo-stream-only request" do
+    original = @board.name
+
+    patch board_url(@board), params: { board: { name: "" } }, headers: TURBO_STREAM_ONLY
+
+    assert_response :unprocessable_entity
+    assert_equal original, @board.reload.name
+  end
+
+  test "update with a blank name re-renders the form with 422 for an HTML request" do
+    patch board_url(@board), params: { board: { name: "" } }, headers: { "Accept" => "text/html" }
+
+    assert_response :unprocessable_entity
+    assert_select "form"
+    assert_select "p.text-danger-600", text: "can't be blank"
+  end
+
+  # --- validation messages on the board forms ---
+  #
+  # Both forms previously conveyed a failed save ONLY through Rails'
+  # field_with_errors wrapper, which this app has no CSS for at all — so a blank
+  # name produced no visible feedback whatsoever. These assert the message text,
+  # deliberately: asserting the wrapper class is what let the gap hide.
+
+  test "create with a blank name shows the error message next to the name field" do
+    post boards_url, params: { board: { name: "" } }
+
+    assert_response :unprocessable_entity
+    assert_select "p.text-danger-600", text: "can't be blank"
+    # The field itself is flagged too, mirroring account/profile.
+    assert_select "input#board_name.border-danger-600"
+  end
+
+  test "update with a blank name shows the error message next to the name field" do
+    patch board_url(@board), params: { board: { name: "" } }
+
+    assert_response :unprocessable_entity
+    assert_select "p.text-danger-600", text: "can't be blank"
+    assert_select "input#board_name.border-danger-600"
+  end
+
+  test "a successful board create renders no error message" do
+    post boards_url, params: { board: { name: "Valid Board Name" } }
+
+    assert_redirected_to board_url(Board.find_by!(name: "Valid Board Name"))
+  end
+
+  test "the board form shows no error message before submission" do
+    get new_board_url
+
+    assert_response :success
+    assert_select "p.text-danger-600", false, "a pristine form must not show errors"
+  end
+
   # --- board activity feed ---
 
   test "activity feed lists activities for cards on this board" do
@@ -514,7 +597,191 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_equal small, large, "query count must not grow with comment count (N+1 regression)"
   end
 
+  # --- board activity pagination ---
+  #
+  # Offset/page-based, deliberately NOT a created_at cursor: archive_all_cards
+  # writes one Activity per card within the same second, so timestamp ties are
+  # routine rather than theoretical, and a `created_at <` cursor would skip or
+  # repeat tied rows. A composite (created_at, id) cursor can't work either,
+  # because the feed merges two tables with independent id spaces.
+  #
+  # The risk offset paging carries instead is a non-deterministic sort: if two
+  # requests order tied rows differently, page 2 repeats or skips. Hence the
+  # tie test below, and the total ordering the controller sorts by.
+
+  test "activity feed page 2 returns the next rows with no overlap and no gaps" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Paged Card")
+
+    # 120 rows alternating type, every one a distinct timestamp so the expected
+    # order is unambiguous. Ties get their own test below.
+    120.times do |i|
+      if i.even?
+        Activity.create!(user: @user, card: card, action: "renamed",
+                         description: "PA#{i}", created_at: (500 - i).minutes.ago)
+      else
+        card.comments.create!(user: @user, content: "PC#{i}", created_at: (500 - i).minutes.ago)
+      end
+    end
+
+    get activity_board_url(@board)
+    assert_response :success
+    page1 = feed_row_ids
+    assert_equal 50, page1.size, "page 1 should be a full page"
+
+    get activity_board_url(@board, page: 2)
+    assert_response :success
+    page2 = feed_row_ids
+    assert_equal 50, page2.size, "page 2 should be a full page"
+
+    assert_empty page1 & page2, "page 2 must not repeat any row from page 1"
+    assert_equal 100, (page1 + page2).uniq.size
+    # No gaps: the two pages together must be exactly the newest 100 rows, in order.
+    assert_equal expected_feed_ids(@board).first(100), page1 + page2
+  end
+
+  test "activity feed ordering holds across the page boundary" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Boundary Card")
+
+    120.times do |i|
+      if i.even?
+        Activity.create!(user: @user, card: card, action: "renamed",
+                         description: "BA#{i}", created_at: (500 - i).minutes.ago)
+      else
+        card.comments.create!(user: @user, content: "BC#{i}", created_at: (500 - i).minutes.ago)
+      end
+    end
+
+    get activity_board_url(@board)
+    last_of_page1 = resolve_feed_row(feed_row_ids.last)
+
+    get activity_board_url(@board, page: 2)
+    first_of_page2 = resolve_feed_row(feed_row_ids.first)
+
+    assert_operator last_of_page1.created_at, :>, first_of_page2.created_at,
+                    "the last row of page 1 must be newer than the first row of page 2"
+  end
+
+  test "activity feed page with tied created_at neither repeats nor skips a row" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Tied Card")
+
+    # The archive_all_cards shape: a burst of rows sharing one timestamp, with
+    # the 50-row page boundary landing INSIDE the tied group.
+    tied_at = 2.hours.ago.change(usec: 0)
+    40.times { |i| Activity.create!(user: @user, card: card, action: "archived", description: "TA#{i}", created_at: tied_at) }
+    30.times { |i| card.comments.create!(user: @user, content: "TC#{i}", created_at: tied_at) }
+
+    get activity_board_url(@board)
+    page1 = feed_row_ids
+    assert_equal 50, page1.size
+
+    get activity_board_url(@board, page: 2)
+    page2 = feed_row_ids
+    assert_equal 20, page2.size, "the remaining tied rows should all come back"
+
+    assert_empty page1 & page2, "tied rows must not repeat across pages"
+    assert_equal 70, (page1 + page2).uniq.size, "every tied row must appear exactly once"
+  end
+
+  test "activity feed shows Load more on a full page and hides it on a short final page" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Short Page Card")
+
+    60.times { |i| Activity.create!(user: @user, card: card, action: "renamed", description: "SA#{i}", created_at: (200 - i).minutes.ago) }
+
+    get activity_board_url(@board)
+    assert_response :success
+    assert_equal 50, feed_row_ids.size
+    assert_match(/id="activity_load_more"/, response.body, "a full page should offer Load more")
+
+    get activity_board_url(@board, page: 2)
+    assert_response :success
+    assert_equal 10, feed_row_ids.size
+    assert_no_match(/id="activity_load_more"/, response.body, "a short final page has no more history")
+  end
+
+  test "activity feed hides Load more when the whole feed fits on one page" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Tiny Feed Card")
+    Activity.create!(user: @user, card: card, action: "renamed", description: "ONLY-ONE")
+
+    get activity_board_url(@board)
+
+    assert_response :success
+    assert_no_match(/id="activity_load_more"/, response.body)
+  end
+
+  test "activity feed treats a junk or out-of-range page param as page 1" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Junk Page Card")
+    60.times { |i| Activity.create!(user: @user, card: card, action: "renamed", description: "JA#{i}", created_at: (200 - i).minutes.ago) }
+
+    get activity_board_url(@board)
+    page1 = feed_row_ids
+
+    ["0", "-3", "abc", ""].each do |junk|
+      get activity_board_url(@board, page: junk)
+      assert_response :success
+      assert_equal page1, feed_row_ids, "page=#{junk.inspect} should fall back to page 1"
+    end
+  end
+
+  test "activity feed page 2 appends into the feed via turbo_stream" do
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Append Card")
+    60.times { |i| Activity.create!(user: @user, card: card, action: "renamed", description: "NA#{i}", created_at: (200 - i).minutes.ago) }
+
+    get activity_board_url(@board, page: 2), as: :turbo_stream
+
+    assert_response :success
+    # Appends the rows into the existing container rather than replacing the feed.
+    assert_match(/<turbo-stream action="append" target="activity_feed_rows"/, response.body)
+    # And updates the Load more control itself — this is the short final page,
+    # so the control must be emptied out.
+    assert_match(/<turbo-stream action="replace" target="activity_load_more_frame"/, response.body)
+    assert_no_match(/id="activity_load_more"/, response.body)
+  end
+
+  test "activity pagination does not leak another board's rows" do
+    other_board = boards(:two)
+    other_list = other_board.lists.create!(name: "Other List", position: 1)
+    other_card = other_list.cards.create!(title: "Other Card")
+    60.times { |i| Activity.create!(user: users(:two), card: other_card, action: "renamed", description: "FOREIGN#{i}", created_at: (200 - i).minutes.ago) }
+
+    list = @board.lists.create!(name: "Feed List", position: 1)
+    card = list.cards.create!(title: "Mine Card")
+    60.times { |i| Activity.create!(user: @user, card: card, action: "renamed", description: "MINE#{i}", created_at: (200 - i).minutes.ago) }
+
+    get activity_board_url(@board, page: 2)
+
+    assert_response :success
+    assert_no_match(/FOREIGN/, response.body)
+  end
+
   private
+
+  # Row identities as rendered, in document order — "activity_12" / "comment_7".
+  # Identity has to carry the type: the feed merges two tables with independent
+  # id spaces, so a bare id would collide across them.
+  def feed_row_ids
+    response.body.scan(/data-feed-row="([^"]+)"/).flatten
+  end
+
+  def resolve_feed_row(dom_id)
+    type, id = dom_id.split("_")
+    type == "activity" ? Activity.find(id) : Comment.find(id)
+  end
+
+  # The whole feed for a board, newest first, as row identities. Only meaningful
+  # when every row has a distinct created_at — with ties the true order is not
+  # determined by timestamp alone, which is the point of the tie test.
+  def expected_feed_ids(board)
+    card_ids = Card.where(list_id: board.lists.select(:id)).select(:id)
+    rows = Activity.where(card_id: card_ids).to_a + Comment.where(card_id: card_ids).to_a
+    rows.sort_by(&:created_at).reverse.map { |r| ActionView::RecordIdentifier.dom_id(r) }
+  end
 
   def count_queries_for_board_activity(activity_count:, comment_count: 0)
     # Keyed on BOTH counts — the comment-growth test calls this twice with the

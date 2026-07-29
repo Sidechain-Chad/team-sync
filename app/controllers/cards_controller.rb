@@ -338,7 +338,38 @@ class CardsController < ApplicationController
         format.html { redirect_to @card }
       end
     else
-      render :edit_description, status: :unprocessable_entity
+      # cards/edit_description exists only as HTML, so a bare `render
+      # :edit_description` raised MissingTemplate for a turbo-stream-only
+      # Accept. Reaching this branch at all takes a card whose PERSISTED row is
+      # already invalid — description has no validation of its own, so the only
+      # way to fail is a pre-existing start_date > due_date (update_column, a
+      # data import, an older row). Rare, but a 500 either way.
+      error = @card.errors.full_messages.to_sentence
+
+      respond_to do |format|
+        format.html { render :edit_description, formats: [:html], status: :unprocessable_entity }
+
+        # Mirrors the success path above — same frame, same partial — plus the
+        # error. 200 rather than 422 for the same reason as
+        # CardsController#update's rejected branch: this form is frame-targeted
+        # (cards/edit_description wraps itself in the card's description frame),
+        # and Turbo drops a 4xx turbo-stream response for a frame-targeted
+        # submission. Reverting to the read-only description is right here: the
+        # thing that needs fixing is the card's dates, not the text just typed.
+        format.turbo_stream do
+          flash.now[:alert] = error
+          @card.reload
+
+          render turbo_stream: [
+            turbo_stream.replace(
+              helpers.dom_id(@card, :description),
+              partial: "cards/description",
+              locals: { card: @card }
+            ),
+            turbo_stream.replace("flash", partial: "shared/flash")
+          ]
+        end
+      end
     end
   end
 

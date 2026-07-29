@@ -18,7 +18,7 @@
   locals: comment (Comment, with :user and card: :list preloaded)
 %>
 <% card = comment.card %>
-<div class="flex items-start gap-3 p-4" data-feed-row data-comment-row>
+<div class="flex items-start gap-3 p-4" data-feed-row="<%= dom_id(comment) %>" data-comment-row>
   <%= render "shared/avatar", user: comment.user, size: "h-8 w-8", text_size: "text-[11px]", css_class: "flex-shrink-0" %>
   <div class="min-w-0 flex-1">
     <p class="text-sm text-ink-700">

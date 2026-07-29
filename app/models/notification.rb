@@ -53,8 +53,24 @@ class Notification < ApplicationRecord
 
   # Where clicking this notification lands, and the human string. Resolve the
   # card from the notifiable (Card for added_to_card, Comment for comment).
+  #
+  # Returns nil for an orphan — a notification whose notifiable row is gone.
+  # Card and Comment both cascade (`has_many :notifications, as: :notifiable`),
+  # so that shouldn't happen going forward, but notifiable is polymorphic and
+  # therefore un-FK-able: a raw SQL delete, a pre-cascade destroy, or a restored
+  # backup can all still leave one behind. Callers must handle nil — see
+  # #orphaned? and notifications/_notification.
   def card
     notifiable.is_a?(Comment) ? notifiable.card : notifiable
+  end
+
+  # True when the thing this notification is about no longer exists, so there's
+  # nothing to name and nowhere to click through to. The feed skips these rather
+  # than raising on nil (the bell dropdown used to 500 for the whole user over a
+  # single orphaned row — and an actor-less due_soon is the reachable case, since
+  # the partial only falls back to the card title when there's no actor).
+  def orphaned?
+    card.nil?
   end
 
   def message

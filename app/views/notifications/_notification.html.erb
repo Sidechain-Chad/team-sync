@@ -19,7 +19,13 @@
   <% end %>
   <div class="min-w-0 flex-1">
     <p class="text-sm text-ink-700">
-      <span class="font-semibold"><%= notification.actor&.display_name || notification.card.title %></span>
+      <%# Both fallbacks are load-bearing. actor is nil for due_soon (delivered
+          by DueSoonScanJob with no actor), which is why the card title is the
+          second choice. card is nil for an orphan — a notification whose
+          notifiable row is gone; notifiable is polymorphic so no FK can prevent
+          that. notifications#index already skips orphans, but this partial must
+          not be the thing that raises if one ever reaches it. %>
+      <span class="font-semibold"><%= notification.actor&.display_name || notification.card&.title || "A deleted card" %></span>
       <%= notification.message %>
     </p>
     <p class="text-xs text-ink-500 mt-0.5"><%= time_ago_in_words(notification.created_at) %> ago</p>

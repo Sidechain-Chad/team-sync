@@ -56,6 +56,49 @@
   --shadow-lg:  0 10px 15px -3px rgb(42 33 28 / 0.14), 0 4px 6px -4px rgb(42 33 28 / 0.14);
   --shadow-xl:  0 20px 25px -5px rgb(42 33 28 / 0.14), 0 8px 10px -6px rgb(42 33 28 / 0.14);
   --shadow-2xl: 0 25px 50px -12px rgb(42 33 28 / 0.32);
+
+  /* ============================================================
+     Stacking layers.
+
+     THE RULE: any transient, user-opened overlay sits above all static
+     chrome. Two bugs shipped from not having this written down — the flash
+     toast painting behind the card modal, and the list ... menu / filter
+     popover painting behind the bottom nav (which left the WIP-limit "Set"
+     button unclickable at 375x520). Both passed their tests, because a
+     stacking bug is invisible to assertions about response bodies.
+
+     Ascending. Values are deliberately NOT evenly spaced — two of them are
+     pinned by third-party CSS we don't control:
+
+       flatpickr's open calendar hard-codes z-index 99999 and appends itself
+       to <body>, so it lives in the ROOT stacking context. The due-date
+       picker is opened from inside the card modal, so the modal MUST stay
+       below 99999 or the picker renders behind it (verified with
+       elementFromPoint). That's why the modal tier keeps its proven
+       9999/10000 rather than being renumbered down into small numbers.
+
+       The toast then has to clear 99999 too, or an error can hide behind an
+       open date picker — hence 100000, not 10002.
+
+       Mapbox GL was checked on the map page: its controls compute to
+       z-index 2, so it constrains nothing.
+     ============================================================ */
+  --z-index-content:     10;     /* in-page: map container, gap-inserter overlay */
+  --z-index-chrome:      40;     /* static furniture: bottom nav, planner side panel */
+  --z-index-menu:        50;     /* transient page-level overlays, AND the top nav
+                                    bar itself — see below */
+  --z-index-modal:     9999;     /* modal backdrop: card modal, shortcuts, switcher */
+  --z-index-modal-panel: 10000;  /* the panel inside that backdrop */
+  --z-index-modal-menu:  10001;  /* popovers opened from inside a modal */
+  --z-index-toast:     100000;   /* flash — above everything, incl. flatpickr */
+
+  /* Why the top nav BAR is in the menu tier and not chrome: a positioned,
+     z-indexed element caps its descendants, so the nav's five dropdowns
+     cannot outrank the nav itself at page level no matter what value they
+     declare. They were z-50 inside a z-40 bar, i.e. effectively 40, and so
+     lost to the bottom nav. Ranking the host in the menu tier is what lets
+     its children clear other chrome. Alternative would be portalling the
+     dropdowns out of the nav; there's no precedent for that here. */
 }
 
 body {

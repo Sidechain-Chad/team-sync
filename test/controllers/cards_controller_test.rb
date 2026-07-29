@@ -1117,21 +1117,79 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/list_#{@list_three.id}_card_count/, response.body)
   end
 
+  # cards/edit_description exists only as HTML, so `render :edit_description` in
+  # update_description's failure branch raised MissingTemplate for a
+  # turbo-stream-only Accept. Reaching that branch at all takes a card whose
+  # PERSISTED row is already invalid — description itself has no validation, so
+  # the only way to fail is a pre-existing start_date > due_date, which
+  # update_column can produce (raw SQL, a data import, an older row). Rare, but a
+  # 500 either way, and the success path here is a frame replace.
+  test "update_description on an already-invalid card does not raise for a turbo-stream-only request" do
+    # Bypass validation to persist the invalid state a normal write can't create.
+    @card.update_column(:start_date, Time.utc(2026, 9, 1, 9, 0))
+    @card.update_column(:due_date,   Time.utc(2026, 8, 1, 9, 0))
+    assert_not Card.find(@card.id).valid?, "setup must leave the row invalid"
+
+    patch update_description_card_url(@card), params: { card: { description: "New body" } },
+          headers: { "Accept" => "text/vnd.turbo-stream.html" }
+
+    # 200, not 422: the form is frame-targeted (the card's description frame), and
+    # Turbo drops a 4xx turbo-stream response for a frame-targeted submission.
+    assert_response :success
+    assert_match(/turbo-stream/, response.body)
+    assert_match(/must be on or before the due date/, response.body,
+                 "the validation error must actually reach the user")
+  end
+
+  test "update_description on an already-invalid card re-renders the form with 422 for HTML" do
+    @card.update_column(:start_date, Time.utc(2026, 9, 1, 9, 0))
+    @card.update_column(:due_date,   Time.utc(2026, 8, 1, 9, 0))
+
+    patch update_description_card_url(@card), params: { card: { description: "New body" } },
+          headers: { "Accept" => "text/html" }
+
+    assert_response :unprocessable_entity
+  end
+
+  # The duplicate-risk guard for the attachment broadcast work.
+  #
+  # #update ALREADY broadcasts a card replace for any non-move update, and that
+  # broadcast fires AFTER CardAttachmentService runs — so the modal's "Attach"
+  # form was already covered, and adding a second broadcast here would have given
+  # the actor two. `replace` is idempotent by id so it wouldn't visibly duplicate,
+  # but it doubles the render and would break these count-by-target assertions.
+  # AttachmentsController#create/#destroy were the genuinely uncovered paths.
+
+  test "attaching via the modal broadcasts exactly ONE card replace, not two" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+    file = fixture_file_upload("test.png", "image/png")
+
+    broadcasts = capture_broadcasts(stream) do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts),
+                 "one replace — #update's own broadcast, with no second one added"
+  end
+
+  test "the modal attach broadcast reflects the new attachment" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+    file = fixture_file_upload("test.png", "image/png")
+
+    broadcasts = capture_broadcasts(stream) do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    # The broadcast is emitted after the service attaches, so the re-rendered
+    # tile already carries the paperclip badge.
+    assert_match(/fa-paperclip/, broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card)))
+  end
+
   private
 
-  # [[action, target], ...] for a captured broadcast list, one pair per
-  # broadcast. Asserting on targets (rather than just counting) is what lets a
-  # test distinguish a legitimate extra broadcast from a duplicated one.
-  def broadcast_targets(broadcasts)
-    broadcasts.map do |payload|
-      payload.match(/<turbo-stream action="([^"]+)" target="([^"]+)"/).captures
-    end
-  end
-
-  # The single captured broadcast aimed at `target`, or nil.
-  def broadcast_for(broadcasts, target)
-    broadcasts.find { |payload| payload.include?(%(target="#{target}")) }
-  end
+  # broadcast_targets / broadcast_for now live in test_helper — ListsController's
+  # broadcast tests need the same two helpers, and one mechanism beats two copies.
 
   # A cross-list move renders BOTH lists in full (every cards/_card in each), so
   # this is the guard on the move broadcast's preload. Fresh user + sign-in per

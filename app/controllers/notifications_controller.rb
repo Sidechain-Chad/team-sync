@@ -5,7 +5,16 @@ class NotificationsController < ApplicationController
   # shared/_top_nav.html.erb) — fetched only when the bell opens, so this
   # query never runs on a normal page load.
   def index
-    @notifications = current_user.notifications.recent.includes(:actor, :notifiable).limit(15)
+    # reject(&:orphaned?) is applied AFTER the limit, deliberately: filtering in
+    # SQL isn't possible across a polymorphic association without a join per
+    # type, and paging past orphans would make the query cost depend on how many
+    # exist. Skipping them here means a feed of 15 can show fewer if some are
+    # orphaned — acceptable, and far better than raising for the whole user.
+    @notifications = current_user.notifications
+                                 .recent
+                                 .includes(:actor, :notifiable)
+                                 .limit(15)
+                                 .reject(&:orphaned?)
   end
 
   # Click-through: mark this one notification read, then land on its card.
@@ -26,7 +35,16 @@ class NotificationsController < ApplicationController
       notification.update!(read_at: Time.current)
       Notification.broadcast_badge_for(current_user)
     end
-    redirect_to card_path(notification.card)
+
+    # An orphan has no card to land on, so card_path(nil) would raise. The feed
+    # doesn't render these as links, but a stale tab or a bookmarked URL can
+    # still reach here — mark it read (done above, which clears it from the
+    # badge) and fall back to the boards index.
+    if notification.orphaned?
+      redirect_to boards_path, alert: "That notification's card is no longer available."
+    else
+      redirect_to card_path(notification.card)
+    end
   end
 
   def read_all

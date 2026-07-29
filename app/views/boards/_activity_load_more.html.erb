@@ -1,0 +1,30 @@
+<%#
+  "Load more" control for the board activity feed.
+
+  The wrapper renders even when there's nothing more to load: it's the
+  turbo_stream replace target, and replacing a missing target is silently
+  dropped — so an always-present wrapper is what lets the last page empty the
+  control out instead of leaving a dead button behind.
+
+  data-turbo-stream makes this GET link ask for a turbo-stream response, so the
+  next page APPENDS to the feed rather than navigating or replacing it. Turbo
+  intercepts links carrying that attribute (FormLinkClickObserver) and reissues
+  them as a stream request — no custom JS needed.
+
+  Not a turbo-frame: a link inside a frame gets frame-navigated, which would
+  swap the control's own markup in place of the rows. A plain id + explicit
+  replace keeps the two effects separate.
+
+  locals: board (Board), has_more (Boolean), next_page (Integer)
+%>
+<div id="activity_load_more_frame" class="mt-4 text-center">
+  <% if has_more %>
+    <%= link_to activity_board_path(board, page: next_page),
+        id: "activity_load_more",
+        data: { turbo_stream: true },
+        class: "inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink-700 bg-white border border-line rounded-lg shadow-sm hover:bg-surface-50 hover:border-ink-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" do %>
+      <i class="fa-solid fa-arrow-down text-xs text-ink-500" aria-hidden="true"></i>
+      Load more
+    <% end %>
+  <% end %>
+</div>

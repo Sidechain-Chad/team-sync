@@ -24,7 +24,9 @@
         </div>
       <% else %>
         <% @cards_by_day.each do |day, cards| %>
-          <div class="mb-5">
+          <%# data-agenda-day is the stable hook for "which day group is this" —
+              the visible label is "Today"/"Tomorrow" for the first two days. %>
+          <div class="mb-5" data-agenda-day="<%= day.iso8601 %>">
             <%# Day header — highlights today in blue %>
             <%
               is_today    = day == Date.current
@@ -46,8 +48,11 @@
             <%# Cards for this day %>
             <div class="space-y-1.5">
               <% cards.each do |card| %>
+                <%# data-agenda-role is the stable hook for which part of the span
+                    this row represents (starts / in progress / due) — nil, and so
+                    omitted, for a point. %>
                 <%= link_to card_path(card),
-                    data: { turbo_frame: "modal" },
+                    data: { turbo_frame: "modal", agenda_role: planner_agenda_role(card, day) },
                     class: "block p-2 rounded bg-white border border-line hover:border-ink-300 hover:bg-surface-50 transition group" do %>
                   <div class="flex items-start gap-2">
                     <%# Color stripe from first label (or gray if none) %>
@@ -55,9 +60,19 @@
                     <div class="w-1 self-stretch rounded-full <%= color ? "bg-#{color}-500" : 'bg-surface-300' %> shrink-0"></div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-ink-700 truncate"><%= card.title %></p>
+                      <%# A range card now appears on at most three days (start,
+                          today, due), so the row has to say WHICH of those it is —
+                          otherwise "why Aug 2 and Aug 20 but not Aug 11?" has no
+                          answer. The span itself is what makes the repetition
+                          read as one card rather than several. Due-only cards (and
+                          same-day start==due points) keep the plain time and get
+                          no marker: both helpers return nil for those. %>
                       <p class="text-xs text-ink-500 truncate">
-                        <%= card.list.board.name %>
-                        <% if card.due_date.hour != 0 %>
+                        <% role = planner_agenda_role_label(card, day) %>
+                        <% if role %><span class="font-medium text-ink-700"><%= role %></span> · <% end %><%= card.list.board.name %>
+                        <% if (span = planner_span_label(card)) %>
+                          · <%= span %>
+                        <% elsif card.due_date.hour != 0 %>
                           · <%= card.due_date.strftime("%-l:%M %p") %>
                         <% end %>
                       </p>

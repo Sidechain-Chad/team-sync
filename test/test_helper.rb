@@ -33,5 +33,19 @@ module ActiveSupport
       count = count_queries(&block)
       assert count <= n, "Expected at most #{n} queries, got #{count}"
     end
+
+    # [[action, target], ...] for a captured broadcast list, one pair per
+    # broadcast. Asserting on targets (rather than just counting) is what lets a
+    # test distinguish a legitimate extra broadcast from a duplicated one.
+    def broadcast_targets(broadcasts)
+      broadcasts.map do |payload|
+        payload.match(/<turbo-stream action="([^"]+)" target="([^"]+)"/).captures
+      end
+    end
+
+    # The single captured broadcast aimed at `target`, or nil.
+    def broadcast_for(broadcasts, target)
+      broadcasts.find { |payload| payload.include?(%(target="#{target}")) }
+    end
   end
 end

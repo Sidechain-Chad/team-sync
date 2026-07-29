@@ -38,3 +38,43 @@ services:
         value: "true"
       - key: WEB_CONCURRENCY
         value: "2"
+
+  # Solid Queue supervisor. Without this service nothing processes jobs in
+  # production: config/recurring.yml schedules due_soon_scan hourly, but a
+  # schedule with no worker running is dead code.
+  #
+  # `bundle exec ./bin/jobs` is the gem's own documented entry point (README:
+  # "you are ready to start processing jobs by running bin/jobs"). It's a Thor
+  # CLI whose `default_command` is :start, so the bare invocation starts the
+  # supervisor — which in turn reads config/recurring.yml from its default path
+  # and runs the scheduler, so the hourly tick needs no extra flag.
+  #
+  # WEB_CONCURRENCY and RAILS_SERVE_STATIC_FILES are deliberately omitted —
+  # both are web-only. Worker concurrency is configured in config/queue.yml
+  # (threads, plus JOB_CONCURRENCY for processes), not here.
+  #
+  # Reusing ./bin/render-build.sh means both services run db:migrate on deploy.
+  # That's safe: Rails takes an advisory lock for the duration of a migration,
+  # so whichever service arrives second waits rather than racing. Reusing it
+  # also guarantees the worker has a precompiled asset manifest, which matters
+  # because the worker renders partials when broadcasting Turbo streams.
+  - type: worker
+    name: team-sync-worker
+    runtime: ruby
+    plan: starter           # background workers are NOT available on Render's free tier
+    region: oregon          # must match the web service and the database
+    buildCommand: ./bin/render-build.sh
+    startCommand: bundle exec ./bin/jobs
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: team-sync-db
+          property: connectionString
+      - key: RAILS_MASTER_KEY
+        sync: false        # set manually in the Render dashboard
+      - key: CLOUDINARY_URL
+        sync: false        # set manually in the Render dashboard
+      - key: RAILS_ENV
+        value: production
+      - key: RAILS_LOG_TO_STDOUT
+        value: "true"

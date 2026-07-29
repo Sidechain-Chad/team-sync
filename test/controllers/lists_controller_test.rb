@@ -271,6 +271,111 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
   test "update rejects a non-positive card limit" do
     patch list_url(@list), params: { list: { card_limit: 0 } }, as: :turbo_stream
 
+    # 200 for the turbo_stream branch is deliberate — see #update's comment: the
+    # WIP form is frame-targeted, and Turbo drops a 4xx turbo-stream response for
+    # a frame-targeted submission, so a 422 here would show the user nothing.
+    # The HTML branch still returns 422 (covered below).
+    assert_response :success
+    assert_nil @list.reload.card_limit
+  end
+
+  # --- #update broadcasts: renames and WIP limits are live ---
+  #
+  # Broadcast target is the list's existing header frame — the same frame the
+  # inline rename already replaces in the actor's own response, so this is one
+  # mechanism rather than a second targeting scheme. `replace` is by id and
+  # idempotent, so the actor receiving both their response and this broadcast
+  # can't duplicate anything (unlike append/before).
+
+  test "update broadcasts exactly one header replace when the name changes" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch list_url(@list), params: { list: { name: "Renamed Live" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal "Renamed Live", @list.reload.name
+    assert_equal [["replace", "header_list_#{@list.id}"]], broadcast_targets(broadcasts)
+    assert_match(/Renamed Live/, broadcast_for(broadcasts, "header_list_#{@list.id}"))
+  end
+
+  test "update broadcasts exactly one header replace when the card limit changes" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch list_url(@list), params: { list: { card_limit: 5 } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal 5, @list.reload.card_limit
+    assert_equal [["replace", "header_list_#{@list.id}"]], broadcast_targets(broadcasts)
+    # The pill rides along inside the header frame, so viewers see the new limit.
+    assert_match(/id="list_#{@list.id}_card_count"/, broadcast_for(broadcasts, "header_list_#{@list.id}"))
+  end
+
+  test "a failed update broadcasts nothing" do
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      patch list_url(@list), params: { list: { card_limit: 0 } }, as: :turbo_stream
+    end
+
+    # 200, not 422 — frame-targeted turbo_stream error render; see #update.
+    assert_response :success
+    assert_empty broadcasts, "an invalid update must not broadcast a header"
+  end
+
+  # --- failure branches must not 500 on a turbo-stream-only request ---
+  #
+  # `render :edit` looks up a template in the REQUEST's formats. lists/edit exists
+  # only as HTML, so a request whose Accept is turbo-stream ALONE finds nothing and
+  # raises MissingTemplate. A normal Turbo form submission sends
+  # "text/vnd.turbo-stream.html, text/html, ..." and falls through to the HTML
+  # template, which is exactly why this stayed invisible from the UI.
+  #
+  # NOTE: `as: :turbo_stream` does NOT reproduce it — that still resolves to HTML.
+  # The bug needs the bare Accept header, so these tests set it explicitly.
+  TURBO_STREAM_ONLY = { "Accept" => "text/vnd.turbo-stream.html" }.freeze
+
+  test "update with an invalid card_limit does not raise for a turbo-stream-only request" do
+    patch list_url(@list), params: { list: { card_limit: 0 } }, headers: TURBO_STREAM_ONLY
+
+    # 200, not 422: both entry points sit inside the list header frame, and Turbo
+    # discards a 4xx turbo-stream response for a frame-targeted submission.
+    assert_response :success
+    assert_nil @list.reload.card_limit
+    assert_match(/turbo-stream/, response.body)
+    assert_match(/must be greater than 0/, response.body, "the error must actually reach the user")
+  end
+
+  test "update with a blank name does not raise for a turbo-stream-only request" do
+    original = @list.name
+
+    patch list_url(@list), params: { list: { name: "" } }, headers: TURBO_STREAM_ONLY
+
+    assert_response :success
+    assert_equal original, @list.reload.name
+    assert_match(/can&#39;t be blank|can't be blank/, response.body)
+  end
+
+  test "a failed turbo-stream update restores the header rather than the rejected value" do
+    @list.update!(card_limit: 4)
+
+    patch list_url(@list), params: { list: { card_limit: -3 } }, headers: TURBO_STREAM_ONLY
+
+    assert_response :success
+    # The header frame is re-rendered from the DB, so the rejected value is
+    # discarded rather than left half-applied on screen.
+    assert_match(/target="header_list_#{@list.id}"/, response.body)
+    assert_match(/id="list_#{@list.id}_card_count"/, response.body)
+    assert_equal 4, @list.reload.card_limit
+  end
+
+  test "update with an invalid card_limit still re-renders the form with 422 for an HTML request" do
+    patch list_url(@list), params: { list: { card_limit: 0 } }, headers: { "Accept" => "text/html" }
+
+    # HTML form re-render keeps 422 — Turbo needs a 4xx to re-render a form.
     assert_response :unprocessable_entity
     assert_nil @list.reload.card_limit
   end

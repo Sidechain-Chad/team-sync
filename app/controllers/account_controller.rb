@@ -16,7 +16,14 @@ class AccountController < ApplicationController
       # query param.
       redirect_to account_profile_path, notice: "Profile updated."
     else
-      render :profile, status: :unprocessable_entity
+      # `formats: [:html]` is load-bearing, not decoration: a bare `render
+      # :profile` looks the template up in the REQUEST's formats, and
+      # account/profile exists only as HTML — so a turbo-stream-only Accept
+      # found nothing and raised MissingTemplate, i.e. a 500 on an ordinary
+      # validation failure. This is a plain full-page form (success is a
+      # redirect, there's no frame to update), so HTML is the only sensible
+      # response and 422 stays: Turbo needs a 4xx to re-render a form.
+      render :profile, formats: [:html], status: :unprocessable_entity
     end
   end
 

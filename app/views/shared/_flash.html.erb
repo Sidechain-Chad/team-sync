@@ -7,21 +7,55 @@
     render with this styling too now — that's intentional, not a leak;
     if they ever prove noisy, blank those specific keys in
     config/locales/devise.en.yml rather than special-casing here. %>
-<div id="flash" class="fixed top-20 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4 pointer-events-none">
-  <% if flash[:alert].present? %>
+<%# z-toast — the top of the ladder (see the stacking layers block in
+    app/assets/tailwind/application.css). This started as z-[100], which painted
+    the toast BEHIND the card modal and so hid it for exactly the branches that
+    need it most: the comment form and the description editor both live inside the
+    modal. The token also clears flatpickr's body-appended calendar (99999), so an
+    error can't hide behind an open date picker either. Verified with
+    elementFromPoint, not by eye. %>
+<%#
+  TIMEOUTS DIFFER BY SEVERITY, and that difference is the whole point of this
+  partial's shape:
+
+    errors  -> timeout 0 = never auto-dismiss (flash_controller only arms
+               setTimeout when the value is positive)
+    notices -> 5000ms, unchanged
+
+  Every error-surfacing path in the app funnels through here (board forms, list
+  rename, WIP limit, comments, update_description, Devise). A toast that removes
+  itself after 5s made a real error indistinguishable from the silent failures
+  those arcs were spent fixing — it outran a deliberate observer twice during
+  browser verification. A success toast lingering is its own annoyance, so those
+  keep the timer.
+
+  Only ONE flash renders at a time into this replaceable #flash target, so a new
+  flash replaces a lingering one. That's intended — no toast stack.
+
+  Both keys are read for the error branch: :alert is what the app sets today,
+  :error is accepted so a future caller can't have a message silently dropped.
+%>
+<% error_message = flash[:alert].presence || flash[:error].presence %>
+<div id="flash" class="fixed top-20 left-1/2 -translate-x-1/2 z-toast w-full max-w-md px-4 pointer-events-none">
+  <% if error_message %>
+    <%# role="alert" so a persistent error is announced, not just shown —
+        consistent with the a11y baseline this app maintains. %>
     <div class="bg-danger-600 text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg ring-1 ring-white/10 mb-2 pointer-events-auto flex items-start gap-2"
+         role="alert"
          data-controller="flash"
-         data-flash-timeout-value="5000">
-      <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0"></i>
-      <span><%= flash[:alert] %></span>
+         data-flash-timeout-value="0">
+      <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+      <span class="flex-1"><%= error_message %></span>
+      <%= render "shared/flash_dismiss" %>
     </div>
   <% end %>
   <% if flash[:notice].present? %>
     <div class="bg-success-100 text-success-600 text-sm font-medium px-4 py-3 rounded-lg shadow-lg mb-2 pointer-events-auto flex items-start gap-2"
          data-controller="flash"
          data-flash-timeout-value="5000">
-      <i class="fa-solid fa-circle-check mt-0.5 shrink-0"></i>
-      <span><%= flash[:notice] %></span>
+      <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+      <span class="flex-1"><%= flash[:notice] %></span>
+      <%= render "shared/flash_dismiss" %>
     </div>
   <% end %>
 </div>

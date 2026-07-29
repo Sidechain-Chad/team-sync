@@ -114,6 +114,77 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: "#{@card.title} is due soon"
   end
 
+  # --- orphaned notifiable must never take the bell down ---
+  #
+  # `delete` (not `destroy`) skips callbacks, so it leaves the notification row
+  # behind exactly the way a pre-cascade destroy or a raw SQL delete would. The
+  # cascade stops NEW orphans; this guard is what survives the ones already in a
+  # database. Both matter — hence tests for both.
+  #
+  # Note the crash needs a nil actor: the partial reads
+  # `actor&.display_name || notification.card.title`, so with an actor present
+  # the `||` short-circuits and the missing card is never touched. due_soon is
+  # delivered with actor: nil, so this is a reachable path, not a contrived one.
+
+  test "index survives a notification whose card was deleted without callbacks" do
+    card = @card.list.cards.create!(title: "Doomed Card")
+    Notification.create!(recipient: @user, actor: nil, notifiable: card, action: "due_soon")
+    Card.where(id: card.id).delete_all
+
+    get notifications_url
+
+    assert_response :success
+  end
+
+  test "index survives a notification whose comment was deleted without callbacks" do
+    comment = @card.comments.create!(user: users(:two), content: "Doomed comment")
+    Notification.create!(recipient: @user, actor: nil, notifiable: comment, action: "mention")
+    Comment.where(id: comment.id).delete_all
+
+    get notifications_url
+
+    assert_response :success
+  end
+
+  test "index still renders the healthy notifications alongside an orphaned one" do
+    card = @card.list.cards.create!(title: "Doomed Card 2")
+    Notification.create!(recipient: @user, actor: nil, notifiable: card, action: "due_soon")
+    Card.where(id: card.id).delete_all
+
+    Notification.create!(recipient: @user, actor: users(:two), notifiable: @card, action: "added_to_card")
+
+    get notifications_url
+
+    assert_response :success
+    # One bad row must not swallow the rest of the feed.
+    assert_select "p", text: "#{users(:two).display_name} added you to this card"
+    assert_no_match(/Doomed Card 2/, response.body)
+  end
+
+  test "an orphaned notification is not rendered as a row" do
+    card = @card.list.cards.create!(title: "Doomed Card 3")
+    orphan = Notification.create!(recipient: @user, actor: nil, notifiable: card, action: "due_soon")
+    Card.where(id: card.id).delete_all
+
+    get notifications_url
+
+    assert_response :success
+    assert_no_match(/#{read_notification_path(orphan)}/, response.body,
+                    "an orphan has nowhere to click through to, so it must not render a link")
+  end
+
+  test "clicking through an orphaned notification does not raise" do
+    card = @card.list.cards.create!(title: "Doomed Card 4")
+    orphan = Notification.create!(recipient: @user, actor: nil, notifiable: card, action: "due_soon")
+    Card.where(id: card.id).delete_all
+
+    get read_notification_url(orphan)
+
+    # Nowhere to land, so it can't be a redirect-to-card; what matters is that
+    # it doesn't 500 on card_path(nil).
+    assert_response :redirect
+  end
+
   test "a normal page render fires only the unread-count query, not the feed query" do
     5.times do
       Notification.create!(recipient: @user, actor: users(:two), notifiable: @card, action: "added_to_card")

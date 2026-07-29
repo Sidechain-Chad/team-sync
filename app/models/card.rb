@@ -11,6 +11,13 @@ class Card < ApplicationRecord
   has_many :activities, dependent: :destroy
   has_many :checklists, -> { order(position: :asc) }, dependent: :destroy
 
+  # Polymorphic, so unlike recipient_id/actor_id this can't be backed by a real
+  # foreign key — nothing at the DB level stops a destroyed card from leaving its
+  # notifications behind. Without this cascade an orphan's `notification.card` is
+  # nil, which used to take the whole bell dropdown down (see
+  # notifications/_notification, which is now also defensive about it).
+  has_many :notifications, as: :notifiable, dependent: :destroy
+
   # :cover is a named variant. NOT preprocessed — on Cloudinary it's only
   # a fallback (see CardsHelper#card_cover_url / MediaHelper#media_transform_url,
   # which builds Cloudinary's own transformation URL instead), and
@@ -227,6 +234,32 @@ class Card < ApplicationRecord
     return [due_date.to_date] unless date_range?
 
     (start_date.to_date..due_date.to_date).to_a
+  end
+
+  # The days a range card should occupy in the SIDE PANEL agenda: at most its
+  # start day, today, and its due day.
+  #
+  # The calendar grid still uses planner_days and still draws a bar on every
+  # spanned day — only the agenda collapses. The agenda's window is 22 days
+  # (today..today+21), so a card spanning a quarter previously took every single
+  # row and crowded everything else out. Start / today / due are the three facts
+  # a viewer actually needs from a long card: when it began, that it's live right
+  # now, and when it lands.
+  #
+  # Non-ranges are untouched — a due-only card, or a start==due point, falls
+  # straight through to planner_days and yields its single day, exactly as before.
+  # The caller still clips these to the visible window, so a start before it or a
+  # due after it simply drops out (see PlannerController#panel).
+  def agenda_days(today: Date.current)
+    return planner_days unless date_range?
+
+    first_day = start_date.to_date
+    last_day  = due_date.to_date
+    return planner_days if first_day == last_day
+
+    days = [first_day, last_day]
+    days << today if today.between?(first_day, last_day)
+    days.uniq.sort
   end
 
   # Returns the first attached image, used as the card cover on the board.

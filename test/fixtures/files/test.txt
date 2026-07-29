@@ -1,0 +1,3 @@
+A non-image attachment fixture. Used to prove the board tile broadcasts for
+non-images too, because the tile shows an attachment COUNT (paperclip badge)
+even when Card#cover_image skips the file.

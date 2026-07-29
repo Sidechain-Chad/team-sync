@@ -1,0 +1,25 @@
+<%#
+  Dismiss ✕ for a flash toast.
+
+  Mandatory for the error variant, which no longer auto-dismisses — a persistent
+  toast with no visible way to close it would be worse than the timer bug it
+  replaces. The whole toast was already click-to-dismiss (flash_controller binds a
+  click listener on its element), but with no affordance to reveal that; this is
+  the missing affordance, not new behaviour.
+
+  Rendered on the notice variant too so the two toasts don't diverge visually in
+  the same slot — harmless there, since the click already dismissed them.
+
+  Reuses the app's existing ✕: fa-xmark + aria-label, same as the card modal's
+  close button (cards/show.html.erb) and the shortcuts overlay's. No Esc binding —
+  Esc already has three claimants (modal, help overlay, filter popover) and a
+  fourth risks that chain.
+
+  `currentColor` inheritance means one partial works on both the crimson error and
+  the pale success background without hardcoding either.
+%>
+<button type="button"
+        class="shrink-0 -mr-1 -mt-0.5 p-1 rounded opacity-70 hover:opacity-100 bg-transparent border-0 cursor-pointer text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1"
+        aria-label="Dismiss">
+  <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+</button>
