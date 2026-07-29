@@ -2,6 +2,7 @@ require "test_helper"
 
 class CardMembersControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   setup do
     @user = users(:one)
@@ -18,6 +19,55 @@ class CardMembersControllerTest < ActionDispatch::IntegrationTest
 
   teardown do
     ActiveJob::Base.queue_adapter = @old_adapter
+  end
+
+  # --- board-tile broadcast ---
+  #
+  # A card's assigned members show as avatars on its board tile, so adding or
+  # removing one changes what every viewer of the board sees. CardLabelsController
+  # — the exact sibling of this controller, same UI surface — already broadcasts
+  # the re-rendered card tile for the same reason; this was simply missed.
+  #
+  # No double-render risk: the actor's own turbo_stream template touches only
+  # modal-internal frames (member_row_*, assigned_members_list,
+  # card_face_avatars_*), never the board tile — and `replace` targets by id, so
+  # it's idempotent even if it ever did.
+
+  test "adding a member broadcasts the re-rendered card tile to the board" do
+    other = users(:two)
+    @board.board_users.create!(user: other) unless @board.active_members.include?(other)
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      post card_members_url(@card), params: { user_id: other.id }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+  end
+
+  test "removing a member broadcasts the re-rendered card tile to the board" do
+    other = users(:two)
+    @board.board_users.create!(user: other) unless @board.active_members.include?(other)
+    @card.members << other
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      delete card_member_url(@card, other), as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+  end
+
+  test "the actor's own response does not contain the board tile (anti double-render)" do
+    other = users(:two)
+    @board.board_users.create!(user: other) unless @board.active_members.include?(other)
+
+    post card_members_url(@card), params: { user_id: other.id }, as: :turbo_stream
+
+    assert_response :success
+    assert_no_match(/target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, response.body)
   end
 
   test "should add a board member as a card member" do
