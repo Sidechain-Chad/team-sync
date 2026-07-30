@@ -42,11 +42,22 @@ Rails.application.routes.draw do
     resources :board_users, only: [:create, :destroy]
     resources :labels, only: [:new, :create, :edit, :update, :destroy]
 
+    # #closed lists the user's closed boards. On the collection, not a member,
+    # and declared BEFORE the member routes so /boards/closed can't be swallowed
+    # by the :id segment of resources' own show route.
+    collection do
+      get :closed
+    end
+
     member do
       get :archive
       get :activity
       get :map
       patch :toggle_favorite
+      # Close/reopen the whole board. NOT named :archive — that member route
+      # already exists above and means "show this board's archived CARDS".
+      patch :close
+      patch :reopen
     end
   end
 

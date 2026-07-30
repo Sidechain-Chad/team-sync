@@ -3,11 +3,12 @@ class PlannerController < ApplicationController
 
   def index
     # Resolve the board the user most recently viewed, if any. Guarded
-    # through current_user.all_boards so a stale session id from a board
-    # they've lost access to (revoked share, deleted board) silently
-    # resolves to nil instead of leaking or 404'ing.
+    # through current_user.open_boards so a stale session id from a board
+    # they've lost access to (revoked share, deleted board) — or one they've
+    # since closed — silently resolves to nil instead of leaking, 404'ing, or
+    # offering a "back to <board>" link to a hidden board.
     @last_board = if session[:last_board_id]
-      current_user.all_boards.find_by(id: session[:last_board_id])
+      current_user.open_boards.find_by(id: session[:last_board_id])
     end
 
     # Month is controlled via ?year=2026&month=4 query params; defaults to today.
@@ -31,14 +32,14 @@ class PlannerController < ApplicationController
     grid_end   = @first_of_month.end_of_month.end_of_week(:sunday)
     @days      = (grid_start..grid_end).to_a
 
-    # Pull only dated cards from boards the user can see (owned + shared),
-    # falling within the visible grid range. Eager-load the list+board so the
-    # card chip can colour-code by board without N+1.
+    # Pull only dated cards from boards the user can see (owned + shared) and
+    # hasn't closed, falling within the visible grid range. Eager-load the
+    # list+board so the card chip can colour-code by board without N+1.
     range_start = grid_start.beginning_of_day
     range_end   = grid_end.end_of_day
 
     cards = Card.active
-                .where(list_id: current_user.all_lists.select(:id))
+                .where(list_id: current_user.open_lists.select(:id))
                 .where(planner_window_sql, range_start: range_start, range_end: range_end)
                 .includes(:labels, list: :board)
 
@@ -63,8 +64,8 @@ class PlannerController < ApplicationController
 
   def panel
     # Vertical agenda for the side panel: next 21 days of dated cards from
-    # boards the user can see. Smaller window than the full calendar since
-    # the sidebar is for "what's next," not "the whole month."
+    # boards the user can see and hasn't closed. Smaller window than the full
+    # calendar since the sidebar is for "what's next," not "the whole month."
     range_start = Date.current.beginning_of_day
     range_end   = (Date.current + 21.days).end_of_day
 
@@ -73,7 +74,7 @@ class PlannerController < ApplicationController
     # outside them. Grouping by due_date alone used to put a multi-day card on
     # its due day only, which disagreed with the grid's bars.
     cards = Card.active
-                .where(list_id: current_user.all_lists.select(:id))
+                .where(list_id: current_user.open_lists.select(:id))
                 .where(planner_window_sql, range_start: range_start, range_end: range_end)
                 .order(:due_date)
                 .includes(:labels, list: :board)
@@ -130,17 +131,18 @@ class PlannerController < ApplicationController
     range_end   = @first_of_month.end_of_month.end_of_day
 
     # Cross-board: every dated card in the visible month *with location*,
-    # across every board the user can see. The map view's whole point is
-    # surfacing locations regardless of which board they live on.
+    # across every open board the user can see. The map view's whole point is
+    # surfacing locations regardless of which board they live on — which is
+    # exactly why it needs the closed-board filter too.
     @located_cards = Card.active
-                         .where(list_id: current_user.all_lists.select(:id))
+                         .where(list_id: current_user.open_lists.select(:id))
                          .where(due_date: range_start..range_end)
                          .with_location
                          .includes(:labels, list: :board)
 
     # @last_board lets the back link match #index's behaviour.
     @last_board = if session[:last_board_id]
-      current_user.all_boards.find_by(id: session[:last_board_id])
+      current_user.open_boards.find_by(id: session[:last_board_id])
     end
   end
 

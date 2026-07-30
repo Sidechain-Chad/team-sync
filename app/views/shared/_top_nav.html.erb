@@ -41,8 +41,10 @@
           /search?q=... which returns the <turbo-frame id="search_results">
           fragment. %>
       <%= turbo_frame_tag "search_results", data: { search_target: "frame" } do %>
+        <%# open_boards, matching SearchController#index's blank-query branch —
+            this is the same list, just rendered inline on page load. %>
         <%= render "search/recent",
-            recent_boards: current_user.all_boards.order(updated_at: :desc).limit(5) %>
+            recent_boards: current_user.open_boards.order(updated_at: :desc).limit(5) %>
       <% end %>
     </div>
   </div>

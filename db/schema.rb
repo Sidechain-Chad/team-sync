@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_26_103617) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_30_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_trgm"
   enable_extension "plpgsql"
@@ -80,6 +80,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_26_103617) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "closed_at"
+    t.index ["closed_at"], name: "index_boards_on_closed_at"
     t.index ["name"], name: "index_boards_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["user_id"], name: "index_boards_on_user_id"
   end

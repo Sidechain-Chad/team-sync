@@ -43,6 +43,30 @@ class Board < ApplicationRecord
                     }
                   }
 
+  # ---- Close / reopen ----
+  #
+  # Closing hides a board from every listing and cross-board aggregation while
+  # leaving it fully intact and reachable by direct URL, so its owner can reopen
+  # it. Deliberately NOT applied inside User#all_boards / #all_lists / #all_cards:
+  # those back authorization (BoardsController#set_board,
+  # CardsController#board_scoped_list), and scoping them would make a closed
+  # board 404 — including the very page that offers Reopen. Filtering happens at
+  # the listing/aggregation sites instead.
+  scope :open,   -> { where(closed_at: nil) }
+  scope :closed, -> { where.not(closed_at: nil) }
+
+  def closed?
+    closed_at.present?
+  end
+
+  def close!
+    update!(closed_at: Time.current)
+  end
+
+  def reopen!
+    update!(closed_at: nil)
+  end
+
   def favorited_by?(user)
     return false unless user
     board_favorites.exists?(user_id: user.id)

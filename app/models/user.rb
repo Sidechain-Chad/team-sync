@@ -91,6 +91,27 @@ class User < ApplicationRecord
     Card.where(list_id: all_lists.select(:id))
   end
 
+  # ---- Listing scopes: the all_* scopes above, minus closed boards ----
+  #
+  # The all_* scopes back AUTHORIZATION (set_board, board_scoped_list,
+  # every `find(params[...])` in the app) and must keep resolving a closed
+  # board — otherwise its owner could never reach the page that reopens it.
+  # These open_* scopes are the LISTING counterparts: use them anywhere boards
+  # or their cards are enumerated or aggregated rather than looked up by id.
+  # Two names instead of one flag is deliberate — it makes "did this call site
+  # get the closed-board filter?" a grep, not a code read.
+  def open_boards
+    all_boards.merge(Board.open)
+  end
+
+  def open_lists
+    List.where(board_id: open_boards.select(:id))
+  end
+
+  def open_cards
+    Card.where(list_id: open_lists.select(:id))
+  end
+
   def all_checklists
     Checklist.where(card_id: all_cards.select(:id))
   end

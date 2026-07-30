@@ -5,9 +5,11 @@
     <span class="text-xs font-bold text-ink-500 uppercase tracking-wide">Switch boards</span>
   </div>
 
+  <%# `.open` on both — this popover is a second board switcher alongside
+      boards#switcher, so it needs the same closed-board filter. %>
   <%
-    owned_boards  = current_user.boards.order(:name)
-    shared_boards = current_user.shared_boards.order(:name)
+    owned_boards  = current_user.boards.open.order(:name)
+    shared_boards = current_user.shared_boards.open.order(:name)
   %>
 
   <div class="max-h-80 overflow-y-auto p-2">

@@ -11,7 +11,7 @@ class SearchController < ApplicationController
     @query = params[:q].to_s.strip
 
     if @query.blank?
-      @recent_boards = current_user.all_boards
+      @recent_boards = current_user.open_boards
                                    .order(updated_at: :desc)
                                    .limit(5)
     else
@@ -19,14 +19,17 @@ class SearchController < ApplicationController
       # the user's accessible scope so search never leaks across
       # workspace boundaries — important when this is sold to a
       # production company with multiple teams in one DB.
+      # open_boards / open_cards, not all_*: a closed board must not be findable
+      # by name, and neither must its cards — searching is exactly how a hidden
+      # board would otherwise leak straight back into view.
       @boards = Board.search_for(@query)
-                     .where(id: current_user.all_boards.select(:id))
+                     .where(id: current_user.open_boards.select(:id))
                      .limit(8)
 
       # `active` scope skips archived cards. Pre-build the accessible
       # card IDs subquery so the `where(id: ...)` filter composes
       # cleanly with pg_search's ORDER BY rank.
-      accessible_card_ids = current_user.all_cards.active.select(:id)
+      accessible_card_ids = current_user.open_cards.active.select(:id)
 
       @cards = Card.search_for(@query)
                    .where(id: accessible_card_ids)

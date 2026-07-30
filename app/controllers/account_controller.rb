@@ -30,15 +30,16 @@ class AccountController < ApplicationController
   # Activities are historical (kept even after board access is lost — see
   # User#activities `dependent: :nullify`), but a card's board can be left,
   # deleted, or otherwise fall out of reach after the activity happened.
-  # Scoping to `current_user.all_cards` (the same access check every other
-  # card read in the app uses) keeps this feed from linking a card the
-  # user would 404 on if they clicked through.
+  # Scoping to `current_user.open_cards` (the accessible-card check every other
+  # card read in the app uses, minus closed boards) keeps this feed from linking
+  # a card the user would 404 on if they clicked through, and from surfacing
+  # cards on a board they've closed.
   def activity
     # Every row renders current_user's own avatar — the same in-memory
     # object each time, so Rails' association caching already makes this
     # a single query total regardless of activity count; no includes needed.
     @activities = current_user.activities
-                               .where(card_id: current_user.all_cards.select(:id))
+                               .where(card_id: current_user.open_cards.select(:id))
                                .includes(card: { list: :board })
                                .order(created_at: :desc)
                                .limit(50)
@@ -48,12 +49,12 @@ class AccountController < ApplicationController
     @sort = params[:sort] == "updated" ? "updated" : "due"
 
     # assigned_cards is every card this user is a member of; intersecting
-    # with all_cards drops any assignment left over from a board they no
+    # with open_cards drops any assignment left over from a board they no
     # longer have access to (e.g. removed as a member without the
-    # assignment itself being cleaned up).
+    # assignment itself being cleaned up), and any on a closed board.
     scope = current_user.assigned_cards
                          .active
-                         .where(id: current_user.all_cards.select(:id))
+                         .where(id: current_user.open_cards.select(:id))
                          .includes(:labels, list: :board)
 
     @cards = if @sort == "updated"

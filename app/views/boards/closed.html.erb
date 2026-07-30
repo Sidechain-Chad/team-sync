@@ -1,0 +1,76 @@
+<%# Closed boards listing. Deliberately shaped like boards/archive.html.erb —
+    the card-level counterpart — rather than like the index grid: this is a
+    recovery page you pass through, not a place you work. %>
+<div class="canvas-golden min-h-[calc(100vh-3.5rem)]">
+  <div class="w-full max-w-4xl mx-auto p-6">
+
+    <%# Header %>
+    <div class="flex items-center justify-between mb-6 pb-4 border-b border-line">
+      <div>
+        <%= link_to boards_path,
+            class: "text-sm text-ink-500 hover:text-brand-600 flex items-center gap-1 mb-2" do %>
+          <i class="fa-solid fa-arrow-left text-xs" aria-hidden="true"></i>
+          Back to My Workspaces
+        <% end %>
+        <h1 class="font-display text-2xl font-bold text-ink-700 flex items-center gap-2">
+          <i class="fa-solid fa-box-archive text-ink-500" aria-hidden="true"></i>
+          Closed Boards
+        </h1>
+      </div>
+    </div>
+
+    <%# Empty state — icon + placeholder, per the house rule for list pages. %>
+    <% if @closed_boards.empty? %>
+      <div class="bg-white rounded-lg shadow-sm border border-line text-center py-12">
+        <i class="fa-solid fa-box-archive text-5xl text-ink-300 mb-4" aria-hidden="true"></i>
+        <p class="text-ink-500">No closed boards.</p>
+        <p class="text-sm text-ink-300 mt-1">Boards you close are kept here and can be reopened.</p>
+      </div>
+    <% else %>
+
+      <div class="bg-white rounded-lg shadow-sm border border-line p-4">
+        <div class="text-xs text-ink-500 uppercase font-bold mb-3">
+          Boards (<%= @closed_boards.size %>)
+        </div>
+
+        <div id="closed_boards_list" class="space-y-2">
+          <% @closed_boards.each do |board| %>
+            <%# gap-y-2 + flex-wrap so the row stacks instead of overflowing at
+                375px, where the name and the Reopen button won't share a line. %>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3 bg-surface-50 hover:bg-surface-200 border border-line rounded-md transition-colors">
+
+              <div class="flex-1 min-w-0">
+                <%# Still a link: a closed board renders normally by direct URL,
+                    which is how a non-owner member reaches it at all. %>
+                <%= link_to board_path(board),
+                    class: "font-medium text-ink-700 hover:text-brand-600 transition-colors block truncate" do %>
+                  <%= board.name %>
+                <% end %>
+                <p class="text-xs text-ink-500 mt-0.5">
+                  Closed <%= time_ago_in_words(board.closed_at) %> ago
+                  <% unless board.owner?(current_user) %>
+                    · owned by <%= board.user.display_name %>
+                  <% end %>
+                </p>
+              </div>
+
+              <%# Owner-only, matching boards#reopen's set_owned_board guard —
+                  a shared member sees the row but no Reopen control. %>
+              <% if board.owner?(current_user) %>
+                <%= button_to reopen_board_path(board),
+                    method: :patch,
+                    form: { class: "m-0 shrink-0" },
+                    class: "bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-3 py-1.5 rounded cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2" do %>
+                  Reopen
+                <% end %>
+              <% end %>
+
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+    <% end %>
+
+  </div>
+</div>

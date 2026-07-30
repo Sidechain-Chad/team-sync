@@ -389,6 +389,50 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     assert_no_match inaccessible_card.title, response.body
   end
 
+  # --- closed boards ---
+  #
+  # Both account feeds aggregate across every board the user can reach, so both
+  # need the closed-board filter. One test each: they're separate queries
+  # (assigned_cards vs activities), and a shared test would let one leak.
+
+  test "cards excludes an assigned card on a closed board" do
+    sign_in @user
+
+    board = @user.boards.create!(name: "Account Closable Board")
+    list  = board.lists.create!(name: "L", position: 1)
+    card  = list.cards.create!(title: "Assigned On Closed Board")
+    CardMember.create!(card: card, user: @user)
+
+    get account_cards_url
+    assert_response :success
+    assert_match card.title, response.body
+
+    board.close!
+    get account_cards_url
+
+    assert_response :success
+    assert_no_match(/Assigned On Closed Board/, response.body)
+  end
+
+  test "activity excludes activity on a card on a closed board" do
+    sign_in @user
+
+    board = @user.boards.create!(name: "Account Activity Closable Board")
+    list  = board.lists.create!(name: "L", position: 1)
+    card  = list.cards.create!(title: "Activity On Closed Board")
+    Activity.create!(user: @user, card: card, action: "created")
+
+    get account_activity_url
+    assert_response :success
+    assert_match card.title, response.body
+
+    board.close!
+    get account_activity_url
+
+    assert_response :success
+    assert_no_match(/Activity On Closed Board/, response.body)
+  end
+
   test "cards excludes archived cards" do
     sign_in @user
 

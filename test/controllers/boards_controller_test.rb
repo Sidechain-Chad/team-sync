@@ -866,4 +866,303 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
       filename: "avatar.png", content_type: "image/png"
     )
   end
+
+  # ============================================================
+  # Close / reopen a board
+  #
+  # Closing hides a board from every listing and cross-board aggregation but
+  # leaves it intact and reachable by direct URL so its owner can reopen it.
+  # The filtering deliberately does NOT live in User#all_boards/#all_lists/
+  # #all_cards (those back authorization — scoping them would 404 the very page
+  # that offers Reopen), so each listing site carries the filter itself. That
+  # makes "a call site was missed" the realistic failure mode, which is why
+  # there's one absence test per aggregation below rather than one general one.
+  # ============================================================
+
+  test "closing sets closed_at and reopening clears it" do
+    assert_nil @board.closed_at
+
+    patch close_board_url(@board)
+    assert_redirected_to boards_url
+    assert_not_nil @board.reload.closed_at
+    assert @board.closed?
+
+    patch reopen_board_url(@board)
+    assert_redirected_to board_url(@board)
+    assert_nil @board.reload.closed_at
+    assert_not @board.closed?
+  end
+
+  test "a shared member cannot close the board" do
+    member = User.create!(email: "close_member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    sign_out @user
+    sign_in member
+
+    patch close_board_url(@board)
+
+    assert_response :not_found
+    assert_nil @board.reload.closed_at, "closed_at must be unchanged"
+  end
+
+  test "a shared member cannot reopen the board" do
+    member = User.create!(email: "reopen_member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    @board.close!
+    closed_at = @board.closed_at
+    sign_out @user
+    sign_in member
+
+    patch reopen_board_url(@board)
+
+    assert_response :not_found
+    assert_equal closed_at.to_i, @board.reload.closed_at.to_i, "closed_at must be unchanged"
+  end
+
+  test "a non-member cannot close another user's board" do
+    outsider = User.create!(email: "close_outsider@example.com", password: "password")
+    sign_out @user
+    sign_in outsider
+
+    patch close_board_url(@board)
+
+    assert_response :not_found
+    assert_nil @board.reload.closed_at
+  end
+
+  # --- absence from board listings ---
+
+  test "a closed board is absent from the boards index owned section" do
+    get boards_url
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+
+    @board.close!
+    get boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), count: 0
+  end
+
+  test "a closed board shared with the user is absent from the index shared section" do
+    owner = User.create!(email: "shared_owner@example.com", password: "password")
+    shared = owner.boards.create!(name: "Shared Board")
+    shared.board_users.create!(user: @user)
+
+    get boards_url
+    assert_select "a[href=?]", board_path(shared), minimum: 1
+
+    shared.close!
+    get boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(shared), count: 0
+  end
+
+  # Favouriting is independent of closing, so a starred board that gets closed
+  # is the case most likely to slip through — it's read from favorited_boards,
+  # a different scope than the owned/shared sections.
+  test "a favourited closed board is absent from the starred section and sidebar" do
+    current_user_favorite = @user.board_favorites.create!(board: @board)
+    assert current_user_favorite.persisted?
+
+    get boards_url
+    assert_select "#starred_section a[href=?]", board_path(@board), minimum: 1
+
+    @board.close!
+    get boards_url
+
+    assert_response :success
+    assert_select "#starred_section a[href=?]", board_path(@board), count: 0
+    assert_select "a[href=?]", board_path(@board), count: 0,
+                  message: "a closed board must not appear anywhere on the index"
+  end
+
+  test "toggling a favourite does not resurrect a closed board into the starred section" do
+    @user.board_favorites.create!(board: @board)
+    @board.close!
+    other = @user.boards.create!(name: "Still Open")
+
+    patch toggle_favorite_board_url(other), as: :turbo_stream
+
+    assert_response :success
+    assert_no_match(/#{board_path(@board)}"/, response.body,
+                    "the re-rendered starred section must still exclude the closed board")
+  end
+
+  test "a closed board is absent from the switcher" do
+    get switch_boards_url
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+
+    @board.close!
+    get switch_boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), count: 0
+  end
+
+  test "a closed board is absent from recently viewed" do
+    get board_url(@board) # seeds session[:recent_board_ids]
+    get boards_url
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+
+    @board.close!
+    get boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), count: 0
+  end
+
+  test "boards#closed lists the closed board and not the open one" do
+    open_board = @user.boards.create!(name: "Open Board")
+    @board.close!
+
+    get closed_boards_url
+
+    assert_response :success
+    # Scoped to the list — the top nav's switch-boards popover legitimately
+    # links every OPEN board on every page, this one included.
+    assert_select "#closed_boards_list a[href=?]", board_path(@board), minimum: 1
+    assert_select "#closed_boards_list a[href=?]", board_path(open_board), count: 0
+    assert_select "form[action=?]", reopen_board_path(@board), count: 1
+  end
+
+  test "boards#closed renders the empty-state placeholder when nothing is closed" do
+    get closed_boards_url
+
+    assert_response :success
+    assert_select ".fa-box-archive"
+    assert_select "p", text: "No closed boards."
+  end
+
+  test "boards#closed shows a shared closed board but no Reopen control for a non-owner" do
+    owner = User.create!(email: "closed_owner@example.com", password: "password")
+    shared = owner.boards.create!(name: "Shared Closed")
+    shared.board_users.create!(user: @user)
+    shared.close!
+
+    get closed_boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(shared), minimum: 1
+    assert_select "form[action=?]", reopen_board_path(shared), count: 0,
+                  message: "reopen is owner-only, matching set_owned_board"
+  end
+
+  test "reopening restores the board to the index" do
+    @board.close!
+    get boards_url
+    assert_select "a[href=?]", board_path(@board), count: 0
+
+    patch reopen_board_url(@board)
+    get boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+  end
+
+  # --- the board itself still resolves, and shows the banner ---
+
+  test "the owner can still open a closed board by direct URL and sees the banner and Reopen" do
+    list = @board.lists.create!(name: "Todo", position: 1)
+    card = list.cards.create!(title: "Still here", position: 1)
+    @board.close!
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "[role=status]", text: /This board is closed/
+    assert_select "form[action=?]", reopen_board_path(@board), count: 1
+    # Non-destructive: the board still renders its lists and cards.
+    assert_select "##{ActionView::RecordIdentifier.dom_id(card)}", count: 1
+    assert_match(/Todo/, response.body)
+  end
+
+  test "a shared member can open a closed board but sees no Reopen control" do
+    member = User.create!(email: "banner_member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    @board.close!
+    sign_out @user
+    sign_in member
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "[role=status]", text: /This board is closed/
+    assert_select "form[action=?]", reopen_board_path(@board), count: 0
+  end
+
+  test "an open board renders no closed banner and the menu offers Close board" do
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "[role=status]", count: 0
+    assert_select "a[href=?]", close_board_path(@board), count: 1
+  end
+
+  test "a closed board's menu does not offer Close board again" do
+    @board.close!
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "a[href=?]", close_board_path(@board), count: 0
+  end
+
+  test "a shared member's board menu offers no Close board" do
+    member = User.create!(email: "menu_member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    sign_out @user
+    sign_in member
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "a[href=?]", close_board_path(@board), count: 0
+  end
+
+  # --- the Delete control is untouched by any of this ---
+
+  test "the Delete board control is unaffected by closing" do
+    @board.close!
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+    assert_match(/Delete board/, response.body)
+  end
+
+  test "a closed board can still be destroyed by its owner" do
+    @board.close!
+
+    assert_difference "Board.count", -1 do
+      delete board_url(@board)
+    end
+    assert_redirected_to root_url
+  end
+
+  # --- authorization scopes stay unscoped ---
+
+  test "all_boards, all_lists and all_cards still resolve a closed board" do
+    list = @board.lists.create!(name: "Todo", position: 1)
+    card = list.cards.create!(title: "Reachable", position: 1)
+    @board.close!
+
+    assert_includes @user.all_boards, @board,
+                    "all_boards backs authorization and must not filter closed boards"
+    assert_includes @user.all_lists, list
+    assert_includes @user.all_cards, card
+
+    # ...and the open_* listing counterparts do filter.
+    assert_not_includes @user.open_boards, @board
+    assert_not_includes @user.open_lists, list
+    assert_not_includes @user.open_cards, card
+  end
+
+  test "the board show query count still holds with the closed banner rendered" do
+    @board.close!
+    count = count_queries { get board_url(@board) }
+    assert_response :success
+    assert_operator count, :<=, 21
+  end
 end
