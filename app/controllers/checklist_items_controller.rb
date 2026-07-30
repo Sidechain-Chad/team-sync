@@ -1,10 +1,14 @@
 class ChecklistItemsController < ApplicationController
+  include BroadcastsCardUpdates
+
   before_action :authenticate_user!
   before_action :set_checklist
 
   def create
     @item = @checklist.checklist_items.new(item_params)
     if @item.save
+      broadcast_card_update
+
       respond_to do |format|
         format.turbo_stream do
           render turbo_stream: [
@@ -37,6 +41,10 @@ class ChecklistItemsController < ApplicationController
       end
     end
 
+    # After the update, never before: a broadcast that fires with pre-mutation
+    # state is a passing-but-wrong broadcast.
+    broadcast_card_update
+
     respond_to do |format|
       format.turbo_stream do
         # Replace both the item (for the strikethrough style) and the
@@ -62,6 +70,8 @@ class ChecklistItemsController < ApplicationController
     @item = @checklist.checklist_items.find(params[:id])
     @item.destroy
 
+    broadcast_card_update
+
     respond_to do |format|
       format.turbo_stream do
         render turbo_stream: [
@@ -79,8 +89,17 @@ class ChecklistItemsController < ApplicationController
 
   private
 
+  # broadcast_card_update (BroadcastsCardUpdates) needs @card. It comes from the
+  # checklist, NOT from params[:card_id]: the card id in the path is never
+  # validated against the checklist, so trusting it would let a mismatched id
+  # aim the broadcast at the wrong board's stream.
+  #
+  # No double render on any of the three actions: their own turbo_stream
+  # responses target checklist_item_<id> and checklist_<id> — modal-internal ids,
+  # never the card tile.
   def set_checklist
     @checklist = current_user.all_checklists.find(params[:checklist_id])
+    @card = @checklist.card
   end
 
   def item_params
