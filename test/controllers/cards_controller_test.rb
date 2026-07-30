@@ -423,6 +423,95 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#quick_add_row i.fa-paperclip", count: 1
   end
 
+  # --- empty card feed placeholder ---
+  #
+  # #activities_and_comments is the broadcast_prepend_to target for both Comment
+  # and Activity, so the placeholder inside it is rendered UNCONDITIONALLY and
+  # hidden by CSS whenever it isn't :only-child. These tests exist to stop someone
+  # "tidying up" by reintroducing an `if @feed.empty?` — which would go stale the
+  # instant a live comment was prepended beside it.
+
+  test "a card with no comments or activity renders the feed placeholder" do
+    empty_card = @list_one.cards.create!(title: "Nothing here yet")
+    assert_equal 0, Comment.where(card: empty_card).count
+    assert_equal 0, Activity.where(card: empty_card).count
+
+    get card_url(empty_card)
+
+    assert_response :success
+    assert_select "#activities_and_comments > .feed-empty", count: 1
+    assert_select "#activities_and_comments > .feed-empty p", text: "No comments or activity yet."
+    # Nothing else inside — so the placeholder really is :only-child and visible.
+    assert_select "#activities_and_comments > *", count: 1
+  end
+
+  test "a card WITH feed items still renders the placeholder markup — CSS hides it, not a conditional" do
+    # Counted straight off the DB, not via @card.comments.empty? — comments_count
+    # is a counter cache and cards.yml doesn't set it, so the association's
+    # own #empty? trusts a stale 0 and reports "no comments" for a card that
+    # demonstrably has one. (The view is unaffected: @feed builds with `+`,
+    # which forces a real load.)
+    assert_equal 1, Comment.where(card: @card).count, "fixture precondition: cards(:one) has a comment"
+    assert_equal 1, Activity.where(card: @card).count, "fixture precondition: cards(:one) has an activity"
+
+    get card_url(@card)
+
+    assert_response :success
+    # Both present: the placeholder is unconditional, and it now has siblings, so
+    # `.feed-empty:not(:only-child)` hides it in the browser.
+    assert_select "#activities_and_comments > .feed-empty", count: 1
+    assert_select "#activities_and_comments > ##{ActionView::RecordIdentifier.dom_id(Comment.where(card: @card).first)}", count: 1
+    assert_select "#activities_and_comments > .automated-activity", count: Activity.where(card: @card).count
+    assert_select "#activities_and_comments > *", minimum: 3
+  end
+
+  test "the placeholder is the only non-feed element in the container, which :only-child depends on" do
+    get card_url(@card)
+
+    assert_response :success
+    # Every element child is either a feed item or the placeholder. If a
+    # structural wrapper is ever added in here, :only-child breaks and the
+    # placeholder silently never shows again.
+    assert_select "#activities_and_comments > *" do |children|
+      children.each do |child|
+        classes = child["class"].to_s
+        assert child["id"].to_s.start_with?("comment_") ||
+               classes.include?("automated-activity") ||
+               classes.include?("feed-empty"),
+               "unexpected element in #activities_and_comments: #{child.name} class=#{classes.inspect} id=#{child["id"].inspect}"
+      end
+    end
+  end
+
+  test "the comment prepend broadcast is unchanged — comment partial only, no placeholder" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @card)
+
+    broadcasts = capture_broadcasts(stream) do
+      @card.comments.create!(content: "Live one", user: @user)
+    end
+
+    assert_equal [["prepend", "activities_and_comments"]], broadcast_targets(broadcasts)
+    body = broadcast_for(broadcasts, "activities_and_comments")
+    assert_match(/id="#{ActionView::RecordIdentifier.dom_id(Comment.last)}"/, body)
+    assert_match(/Live one/, body)
+    assert_no_match(/feed-empty/, body,
+                    "the prepend must stay exactly what it was — CSS does the hiding, not the broadcast")
+  end
+
+  test "the activity prepend broadcast is unchanged — activity partial only, no placeholder" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @card)
+
+    broadcasts = capture_broadcasts(stream) do
+      @card.log_activity(@user, "updated", "Live activity")
+    end
+
+    assert_equal [["prepend", "activities_and_comments"]], broadcast_targets(broadcasts)
+    body = broadcast_for(broadcasts, "activities_and_comments")
+    assert_match(/automated-activity/, body)
+    assert_no_match(/feed-empty/, body,
+                    "the prepend must stay exactly what it was — CSS does the hiding, not the broadcast")
+  end
+
   test "right column is the comments-and-activity conversation pane only" do
     get card_url(@card)
 

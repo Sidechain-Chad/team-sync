@@ -589,7 +589,32 @@
           <div class="flex-1 overflow-y-auto pr-2 space-y-4 transition-all">
             <%= turbo_stream_from @card %>
             <div id="activities_and_comments" class="space-y-4">
+              <%# Rendered UNCONDITIONALLY — deliberately no `if @feed.empty?`.
+                  This div is the broadcast_prepend_to target for both Comment and
+                  Activity (see their after_create_commit hooks), so a server-side
+                  conditional can't stay correct: a placeholder rendered inside
+                  goes stale the moment a live comment is prepended beside it, and
+                  one rendered outside can't see the prepend at all. Instead CSS
+                  hides it whenever it is not `:only-child` (see .feed-empty in
+                  tailwind/application.css), so an empty feed shows it and the
+                  first item — server-rendered OR live-prepended — hides it, with
+                  no change to any broadcast.
+
+                  DEPENDS ON BEING THE ONLY ELEMENT CHILD: if you add any other
+                  structural element inside #activities_and_comments, this
+                  placeholder silently never appears again. Feed items only in
+                  here. (`:only-child`, not `:empty` — ERB leaves whitespace text
+                  nodes that defeat `:empty`.)
+
+                  Rendered LAST, after the feed, so that the container's
+                  `space-y-4` (a `> * + *` rule, which still fires across a
+                  display:none sibling) can't push a stray 1rem onto the first
+                  real feed item. %>
               <%= render @feed %>
+              <div class="feed-empty px-4 py-12 text-center">
+                <i class="fa-solid fa-comment-slash text-3xl text-ink-300 mb-3" aria-hidden="true"></i>
+                <p class="text-sm text-ink-500">No comments or activity yet.</p>
+              </div>
             </div>
           </div>
 

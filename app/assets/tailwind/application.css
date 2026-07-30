@@ -302,6 +302,26 @@ body {
 .list-chosen { cursor: grabbing; }
 
 /* ============================================================
+   Card-modal feed empty state (cards/show.html.erb).
+
+   The placeholder is rendered unconditionally inside
+   #activities_and_comments, which is also the broadcast_prepend_to target
+   for Comment and Activity. A server-side `if @feed.empty?` cannot stay
+   correct there: inside the container it survives the first live prepend
+   and sits next to the new comment; outside it, it never learns the
+   prepend happened. So the visibility decision is made by CSS on the
+   DOM's actual shape instead — alone means empty, any sibling means
+   there's a feed — and no broadcast has to change.
+
+   `:only-child` (element-based), NOT `:empty`: ERB leaves whitespace text
+   nodes in the container, which defeat `:empty` outright. The flip side is
+   that this depends on feed items being the ONLY other elements in there;
+   adding a structural wrapper inside the container silently kills the
+   placeholder forever.
+   ============================================================ */
+.feed-empty:not(:only-child) { display: none; }
+
+/* ============================================================
    Completion pop — one-shot celebration for a card LANDING on
    completed=true (never on un-completing; Trello celebrates finishing,
    not regret). Server-driven, not a pure-CSS "on state change" trick:
