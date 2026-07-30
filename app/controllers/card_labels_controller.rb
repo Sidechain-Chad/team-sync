@@ -1,4 +1,6 @@
 class CardLabelsController < ApplicationController
+  include BroadcastsCardUpdates
+
   before_action :authenticate_user!
   before_action :set_card
 
@@ -22,16 +24,5 @@ class CardLabelsController < ApplicationController
 
   def set_card
     @card = current_user.all_cards.find(params[:card_id])
-  end
-
-  # Replace the small card on the board so its label pills update for
-  # everyone on the board (mirrors the pattern in CardsController).
-  def broadcast_card_update
-    Turbo::StreamsChannel.broadcast_replace_to(
-      @card.list.board,
-      target: @card,
-      partial: "cards/card",
-      locals: { card: @card }
-    )
   end
 end

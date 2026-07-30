@@ -1,4 +1,6 @@
 class CardMembersController < ApplicationController
+  include BroadcastsCardUpdates
+
   before_action :authenticate_user!
   before_action :set_card
 
@@ -36,24 +38,12 @@ class CardMembersController < ApplicationController
 
   private
 
-  # Replace the small card on the board so its member avatars update for
-  # everyone viewing it — a copy of CardLabelsController#broadcast_card_update,
-  # which does exactly this for label pills. Members show on the tile the same
-  # way labels do, so the two controllers should behave the same; this one just
-  # never got it.
+  # broadcast_card_update comes from BroadcastsCardUpdates — the card's member
+  # avatars render on its board tile, so every viewer needs the fresh tile.
   #
-  # Broadcast-only, no double render: the actor's own turbo_stream template
-  # touches modal-internal frames only (member_row_*, assigned_members_list,
-  # card_face_avatars_*), never the board tile. `replace` also targets by id, so
-  # it stays idempotent regardless.
-  def broadcast_card_update
-    Turbo::StreamsChannel.broadcast_replace_to(
-      @card.list.board,
-      target: @card,
-      partial: "cards/card",
-      locals: { card: @card }
-    )
-  end
+  # No double render: the actor's own turbo_stream template touches
+  # modal-internal frames only (member_row_*, assigned_members_list,
+  # card_face_avatars_*), never the board tile.
 
   def set_card
     @card = current_user.all_cards.find(params[:card_id])
