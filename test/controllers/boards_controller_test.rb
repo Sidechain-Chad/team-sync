@@ -1456,4 +1456,17 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
 
     assert Board.exists?(name: "Copy of Rich Board")
   end
+
+  # boards#copy redirects to the copy, which is self-evident confirmation — but it
+  # sets a flash too, for consistency with lists#copy. Pinned so it can't be dropped.
+  test "copying a board sets a flash naming the copy" do
+    board, = rich_board
+
+    post copy_board_url(board), params: { name: "Flashy Copy" }
+
+    copy = Board.find_by!(name: "Flashy Copy")
+    assert_redirected_to board_url(copy)
+    assert_match(/Flashy Copy/, flash[:notice])
+    assert_nil flash[:alert]
+  end
 end

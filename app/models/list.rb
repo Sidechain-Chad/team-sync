@@ -40,10 +40,17 @@ class List < ApplicationRecord
   # a cross-board list copy would hit Card#copy_to's label problem with none of
   # board copy's remapping machinery, so it's not offered.
   #
-  # No explicit position: acts_as_list's create callback appends, so the copy
-  # lands last on the board — matching how a copied card lands last in its list.
-  # (Trello inserts immediately after the source; appending is simpler and
-  # consistent with the card behaviour already shipped here.)
+  # POSITION depends on where the copy is going, and it's derived rather than
+  # passed so no caller can get it wrong:
+  #
+  # - SAME board (ListsController#copy) → immediately after the source, via
+  #   acts_as_list's insert_at, which shifts the following lists for us. Trello's
+  #   behaviour, and the reason it matters here is visibility: appending put the
+  #   copy at the far end of the board, off-screen on a board with several lists,
+  #   so a user had no evidence the copy had happened at all.
+  # - DIFFERENT board (Board#copy_to) → appended, which is what reproduces the
+  #   source board's list order, since board copy walks the source's lists in
+  #   position order onto an empty board.
   #
   # log_activity: false on every card — see the note above Card#copy_to. Cards
   # come across with labels, members, checklists+items (items reset incomplete)
@@ -57,6 +64,12 @@ class List < ApplicationRecord
 
     transaction do
       copy = board.lists.create!(name: name.presence || self.name, card_limit: card_limit)
+
+      # acts_as_list's create callback has already appended it; this pulls it up
+      # to sit right after the source and shifts everything below down by one.
+      # Inside the transaction, so a failure can't leave the copy stranded at the
+      # end of the board.
+      copy.insert_at(position + 1) if board.id == board_id
 
       active_cards.each do |card|
         card.copy_to(list: copy, title: card.title, user: user,

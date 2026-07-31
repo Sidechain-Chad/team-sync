@@ -556,13 +556,43 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
     assert archived.reload.archived?
   end
 
-  test "the copy lands last on the board" do
+  # Was "lands last on the board". Appending put the copy at the far end, which on a
+  # board with several lists is off-screen — so a user had no visible evidence the
+  # copy happened. It now lands immediately after the source (Trello's behaviour),
+  # via acts_as_list's insert_at.
+  test "the copy is positioned immediately after the source list" do
     list, = populated_list
-    @board.lists.create!(name: "Someone else's list")
+    after = @board.lists.create!(name: "Comes after")
+    last  = @board.lists.create!(name: "Comes last")
+    before_order = @board.lists.order(:position).map(&:name)
+    assert_equal ["MyString", "Source", "Comes after", "Comes last"], before_order,
+                 "fixture order assumption for this test"
 
-    post copy_list_url(list), params: { name: "Should be last" }, as: :turbo_stream
+    post copy_list_url(list), params: { name: "The copy" }, as: :turbo_stream
 
-    assert_equal "Should be last", @board.lists.order(:position).last.name
+    order = @board.lists.order(:position).map(&:name)
+    assert_equal "The copy", order[order.index("Source") + 1],
+                 "the copy must sit directly after its source"
+    assert_equal ["MyString", "Source", "The copy", "Comes after", "Comes last"], order
+    # The lists that were already there keep their relative order — insert_at must
+    # shift them down, not reshuffle them.
+    assert_equal before_order, order - ["The copy"]
+    assert_equal [1, 2, 3, 4, 5], @board.lists.order(:position).map(&:position),
+                 "positions stay a clean 1..n sequence after the shift"
+    assert_equal after.id, @board.lists.order(:position).to_a[3].id
+    assert_equal last.id, @board.lists.order(:position).to_a[4].id
+  end
+
+  test "copying the LAST list still lands the copy right after it" do
+    list, = populated_list
+    @board.lists.create!(name: "Middle")
+    list.update!(position: @board.lists.maximum(:position) + 1)
+
+    post copy_list_url(list), params: { name: "Trailing copy" }, as: :turbo_stream
+
+    order = @board.lists.order(:position).map(&:name)
+    assert_equal "Trailing copy", order.last
+    assert_equal "Source", order[-2]
   end
 
   test "copy broadcasts exactly ONE list insert, not one per card" do
@@ -575,8 +605,13 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
       post copy_list_url(list), params: { name: "One broadcast" }, as: :turbo_stream
     end
 
-    assert_equal [["before", "new_list_form"]], broadcast_targets(broadcasts)
-    body = broadcast_for(broadcasts, "new_list_form")
+    # AFTER the source, not before new_list_form (the far end of the board). The
+    # DB position and the broadcast insertion point have to agree, or a reload
+    # shows the copy in one place and every live viewer sees it in another — which
+    # is exactly what shipped before this was caught in the browser.
+    target = ActionView::RecordIdentifier.dom_id(list)
+    assert_equal [["after", target]], broadcast_targets(broadcasts)
+    body = broadcast_for(broadcasts, target)
     assert_match(/One broadcast/, body)
     # The single insert carries the cards with it — that's why one is enough.
     assert_match(/Rich card/, body)
@@ -584,14 +619,73 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Third card/, body)
   end
 
-  test "the actor's own copy response contains no list markup (anti double-render)" do
+  # The DOM insertion point must agree with the persisted position. This asserts the
+  # pairing directly rather than trusting each half separately.
+  test "the broadcast inserts after the same list the copy is positioned after" do
     list, = populated_list
+    @board.lists.create!(name: "Follows the source")
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      post copy_list_url(list), params: { name: "Agreement check" }, as: :turbo_stream
+    end
+
+    action, target = broadcast_targets(broadcasts).first
+    assert_equal "after", action
+    assert_equal ActionView::RecordIdentifier.dom_id(list), target
+
+    order = @board.lists.order(:position).to_a
+    copy = List.find_by!(name: "Agreement check")
+    assert_equal list.id, order[order.index(copy) - 1].id,
+                 "the row the broadcast inserts after must be the row the copy follows in the DB"
+  end
+
+  # The anti-double-render property has to survive the flash being added. It used to
+  # be asserted as "the new list's NAME doesn't appear", which the flash now
+  # legitimately breaks (it names the copy — that's the point). Tightened to what
+  # the property actually means: no list markup and no card markup, only the flash.
+  test "the actor's own copy response contains the flash and NO list markup" do
+    list, = populated_list
+    list.cards.create!(title: "Second card")
 
     post copy_list_url(list), params: { name: "Actor check" }, as: :turbo_stream
 
     assert_response :success
-    assert_no_match(/Actor check/, response.body)
-    assert_no_match(/turbo-stream/, response.body)
+
+    # Exactly one stream, and it targets the flash slot.
+    assert_equal 1, response.body.scan(/<turbo-stream /).size
+    assert_match(/<turbo-stream action="replace" target="flash"/, response.body)
+
+    # No list column, no list header, no cards — the broadcast delivers all of that,
+    # and rendering it here too would insert the list twice for the actor.
+    assert_no_match(/turbo-frame id="list_/, response.body)
+    assert_no_match(/turbo-frame id="header_list_/, response.body)
+    assert_no_match(/turbo-frame id="card_/, response.body)
+    assert_no_match(/Rich card/, response.body)
+    assert_no_match(/Second card/, response.body)
+  end
+
+  test "the actor's copy response flash names the new list" do
+    list, = populated_list
+
+    post copy_list_url(list), params: { name: "Named in the flash" }, as: :turbo_stream
+
+    assert_response :success
+    assert_match(/List copied as &quot;Named in the flash&quot;\./, response.body)
+    # notice, not alert — so it inherits shared/_flash's 5s auto-dismiss.
+    assert_match(/data-flash-timeout-value="5000"/, response.body)
+    assert_no_match(/role="alert"/, response.body)
+  end
+
+  # The thing the user thought was broken. It was always working; confirm it still is
+  # now that the confirmation exists.
+  test "the submitted name really is applied to the copy" do
+    list, = populated_list
+
+    post copy_list_url(list), params: { name: "Definitely renamed" }, as: :turbo_stream
+
+    assert List.exists?(board: @board, name: "Definitely renamed")
+    assert_equal "Source", list.reload.name, "the source keeps its own name"
   end
 
   # A 20-card list copy writing 20 "copied this card from…" rows would flood the

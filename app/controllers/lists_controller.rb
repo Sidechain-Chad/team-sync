@@ -174,15 +174,32 @@ class ListsController < ApplicationController
     # this response as well would insert it twice (the same convention #create
     # and CardsController#create follow).
     #
+    # Inserted AFTER the source, matching where List#copy_to just positioned it.
+    #
     # Re-read with BOARD_PAGE_INCLUDES first. #create broadcasts a brand-new
     # (therefore empty) list and needs no preload, but a COPY arrives full of
     # cards, and rendering lists/_list without the preload is an N+1 across every
     # one of them. Same preload broadcast_list_replace uses.
-    broadcast_list_insert(list_with_cards_preloaded(new_list))
+    broadcast_list_insert_after(list_with_cards_preloaded(new_list), after: @list)
 
     respond_to do |format|
-      format.turbo_stream { head :ok }
-      format.html { redirect_to board_path(@list.board) }
+      # The response used to be `head :ok`. "Render nothing for the LIST" (correct —
+      # the broadcast delivers it, and rendering it here too would insert it twice)
+      # had been over-applied into "render nothing at all", so submitting the form
+      # produced no flash, left the dropdown open still showing the typed name, and
+      # looked exactly like nothing had happened. The name was always being applied;
+      # this is purely the missing confirmation.
+      #
+      # Still NO list markup here — only the flash slot, which is a different
+      # target, so the one-broadcast / no-double-render property is untouched.
+      # notice rather than alert so it inherits shared/_flash's 5-second
+      # auto-dismiss; errors are the ones that persist.
+      format.turbo_stream do
+        flash.now[:notice] = "List copied as \"#{new_list.name}\"."
+        render turbo_stream: turbo_stream.replace("flash", partial: "shared/flash")
+      end
+
+      format.html { redirect_to board_path(@list.board), notice: "List copied as \"#{new_list.name}\"." }
     end
   end
 
@@ -251,6 +268,27 @@ class ListsController < ApplicationController
     Turbo::StreamsChannel.broadcast_before_to(
       list.board,
       target: "new_list_form",
+      partial: "lists/list",
+      locals: { list: list }
+    )
+  end
+
+  # #copy's insert, which must land the new column in the SAME place the DB now
+  # says it is: immediately after the source. broadcast_list_insert always targets
+  # `before: new_list_form`, i.e. the far right end of the board — correct for
+  # #create (a new list does belong at the end) but wrong here, and wrong in a
+  # particularly misleading way: the row order in the database was right, so a
+  # reload showed the copy in the right place while every live viewer, the actor
+  # included, watched it appear off-screen at the end. Caught in the browser, not
+  # by the position test.
+  #
+  # `after` the source rather than `before` the following list: the source is a
+  # stable target that always exists, whereas "the list that now follows" may be
+  # nothing at all when the source was last.
+  def broadcast_list_insert_after(list, after:)
+    Turbo::StreamsChannel.broadcast_after_to(
+      list.board,
+      target: helpers.dom_id(after),
       partial: "lists/list",
       locals: { list: list }
     )

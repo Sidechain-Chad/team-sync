@@ -92,7 +92,18 @@
               only; the archived ones stay with the source. %>
           <div class="py-1 border-t border-line">
             <div class="px-4 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-ink-500">Copy list</div>
-            <%= form_with url: copy_list_path(list), method: :post, class: "px-4 pt-1 pb-3 flex items-center gap-2" do |f| %>
+            <%# submit->dropdown#close: a copy is a completed action, not a step in
+                a sequence — leaving the menu open still showing the typed name is
+                what made it look like nothing had happened. dropdown#close is the
+                app's existing hook for "something inside a dropdown was activated
+                but doesn't navigate" (shared/_top_nav's shortcuts launcher and
+                search/_results both use it); the document-level dropdown#hide
+                deliberately ignores clicks inside the dropdown, so it can't do this
+                job. Fires on submit, so it also closes on the validation-failure
+                path — which redirects to the board anyway. %>
+            <%= form_with url: copy_list_path(list), method: :post,
+                          data: { action: "submit->dropdown#close" },
+                          class: "px-4 pt-1 pb-3 flex items-center gap-2" do |f| %>
               <%= text_field_tag :name, "#{list.name} (copy)",
                   class: "w-full text-sm border-line rounded focus:ring-brand-700 focus:border-brand-700",
                   aria: { label: "Name for the copied list" } %>
