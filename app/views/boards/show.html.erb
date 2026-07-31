@@ -1,5 +1,11 @@
 <%= turbo_stream_from @board %>
 
+<%# Per-user watched card ids for this board. Deliberately OUTSIDE the canvas div
+    and outside #board_lists so nothing that re-renders a list or a tile can
+    replace or remove it — the badges depend on it still being there when they
+    reconnect. %>
+<%= render "boards/watched_cards", board: @board %>
+
 <%# Canvas wallpaper — an uploaded board background photo (scrimmed dark so
     the white title/action cluster stays legible over it), or else the same
     deterministic warm gradient as this board's tile cover, so the board

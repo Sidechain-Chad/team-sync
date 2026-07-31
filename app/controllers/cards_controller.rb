@@ -588,14 +588,28 @@ class CardsController < ApplicationController
 
     respond_to do |format|
       format.turbo_stream do
+        # BOTH targets are actor-only, which is the whole point: still no board
+        # broadcast, because watch state is per-user and broadcasting it would
+        # show one user's eye to every viewer.
+        #
         # The partial reads the state itself (card.watched_by?), same as
         # boards/_star_button — one source of truth, so the response and the
         # initial modal render can't disagree.
-        render turbo_stream: turbo_stream.replace(
-          helpers.dom_id(@card, :watch),
-          partial: "cards/watch_button",
-          locals: { card: @card }
-        )
+        render turbo_stream: [
+          turbo_stream.replace(
+            helpers.dom_id(@card, :watch),
+            partial: "cards/watch_button",
+            locals: { card: @card }
+          ),
+          # Refreshes the per-user id set the tile badges read, so the board
+          # behind the modal updates immediately. A no-op when the actor isn't
+          # looking at a board page — replace on a missing target does nothing.
+          turbo_stream.replace(
+            "watched_cards",
+            partial: "boards/watched_cards",
+            locals: { board: @card.list.board }
+          )
+        ]
       end
       format.html { redirect_to @card }
     end

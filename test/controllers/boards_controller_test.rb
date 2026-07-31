@@ -304,7 +304,14 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     # Bumped 20 -> 21 for the top-nav notifications bell's unread-count
     # query (current_user.notifications.unread.count) — renders on every
     # page, fixed-cost, independent of card count.
-    assert_operator small, :<=, 21
+    # Bumped 21 -> 22 for boards/_watched_cards' single pluck of the current
+    # user's watched card ids on this board. ONE query for the whole page, not
+    # one per card — the tile badges read that one set client-side rather than
+    # each asking the DB (which is also why cards/_card can stay free of
+    # current_user). The helper below watches a card in every list, so a
+    # per-card or per-list lookup would show up as growth in the equality
+    # assertion rather than hiding under this ceiling.
+    assert_operator small, :<=, 22
 
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end
@@ -843,6 +850,11 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
       cards_per_list.times do |j|
         card = list.cards.create!(title: "Card #{i}-#{j}")
         first_card ||= card
+        # One watched card per list, and a watched card whose index scales with
+        # cards_per_list, so the watched-ids lookup is exercised at both sizes.
+        # If it were ever done per card (or per list) instead of as one pluck,
+        # this is what would make the count grow.
+        CardWatcher.create!(card: card, user: user) if j.zero? || j == cards_per_list - 1
         2.times do |k|
           checklist = card.checklists.create!(title: "Checklist #{k}", position: k + 1)
           3.times { |m| checklist.checklist_items.create!(content: "Item #{m}", position: m + 1) }

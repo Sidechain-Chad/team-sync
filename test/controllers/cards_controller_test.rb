@@ -1629,15 +1629,114 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_select "button[aria-pressed=?]", "true"
   end
 
-  # The board tile deliberately carries no watch state — see #toggle_watch.
-  test "the board tile renders no watch indicator" do
+  # --- the tile watch badge: markup identical for everyone, state client-side ---
+  #
+  # The tile DOES carry a watch badge now, but it is byte-identical for every
+  # viewer: always rendered, always hidden, no per-user state. Visibility comes
+  # from #watched_cards (rendered in request context) via watch_badge_controller.
+  # These are the assertions that protect that split; the reason it has to be a
+  # split at all is that cards/_card is broadcast through
+  # ApplicationController.renderer, which has no session.
+
+  test "the tile renders the watch badge element, hidden, for a card the user does NOT watch" do
+    get board_url(@board_one)
+
+    assert_response :success
+    tile = css_select("turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)}").first.to_s
+    assert_match(/data-controller="watch-badge"/, tile)
+    assert_match(/data-watch-badge-card-id-value="#{@card.id}"/, tile)
+    assert_match(/class="hidden items-center gap-1"/, tile,
+                 "the badge must ship hidden — the browser decides, not the server")
+  end
+
+  test "the tile markup is IDENTICAL whether or not the viewer watches the card" do
+    get board_url(@board_one)
+    not_watching = css_select("turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)}").first.to_s
+
     CardWatcher.create!(card: @card, user: @user)
+
+    get board_url(@board_one)
+    watching = css_select("turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)}").first.to_s
+
+    assert_equal not_watching, watching,
+                 "per-user state in the tile would leak through broadcast_card_update to every viewer"
+  end
+
+  test "a broadcast tile body is identical for a watcher and a non-watcher" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+    target = ActionView::RecordIdentifier.dom_id(@card)
+
+    # A rename is the cheapest thing that fires broadcast_card_update.
+    plain = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"), params: { card: { title: "Broadcast A" } }, as: :turbo_stream
+    end
+    body_without_watch = broadcast_for(plain, target)
+
+    CardWatcher.create!(card: @card, user: @user)
+
+    watched = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"), params: { card: { title: "Broadcast A" } }, as: :turbo_stream
+    end
+    body_with_watch = broadcast_for(watched, target)
+
+    assert_equal body_without_watch, body_with_watch,
+                 "the broadcast body must not depend on the acting user's watch state"
+    assert_match(/data-controller="watch-badge"/, body_with_watch,
+                 "the badge must still be present in the broadcast body")
+  end
+
+  test "watched_cards renders only the current user's watched ids for THIS board" do
+    other_board_card = cards(:one) # will be watched on board_one
+    off_board = @list_three.cards.create!(title: "Also on board one")
+    CardWatcher.create!(card: other_board_card, user: @user)
 
     get board_url(@board_one)
 
     assert_response :success
-    assert_select "turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)} .fa-eye", count: 0
-    assert_no_match(/watch/i, css_select("turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)}").first.to_s)
+    ids = JSON.parse(css_select("#watched_cards").first["data-watched-card-ids"])
+    assert_includes ids, other_board_card.id
+    assert_not_includes ids, off_board.id
+  end
+
+  test "watched_cards is per-user: another user's page render has a different set" do
+    CardWatcher.create!(card: @card, user: @user)
+
+    get board_url(@board_one)
+    mine = JSON.parse(css_select("#watched_cards").first["data-watched-card-ids"])
+    assert_equal [@card.id], mine
+
+    # A second board member who watches nothing.
+    other = User.create!(email: "watch-badge-other@example.com", password: "password")
+    @board_one.board_users.create!(user: other)
+    sign_out @user
+    sign_in other
+
+    get board_url(@board_one)
+    theirs = JSON.parse(css_select("#watched_cards").first["data-watched-card-ids"])
+    assert_empty theirs, "one user's watch set must not appear on another user's page"
+  end
+
+  test "watched_cards excludes cards on boards the user cannot see" do
+    foreign = cards(:two) # boards(:two), no access
+    CardWatcher.create!(card: foreign, user: @user)
+
+    get board_url(@board_one)
+
+    ids = JSON.parse(css_select("#watched_cards").first["data-watched-card-ids"])
+    assert_not_includes ids, foreign.id
+  end
+
+  test "toggle_watch replaces watched_cards with the updated id set" do
+    patch toggle_watch_card_url(@card), as: :turbo_stream
+
+    assert_response :success
+    assert_match(/<turbo-stream action="replace" target="watched_cards"/, response.body)
+    body = response.body
+    assert_match(/data-watched-card-ids="\[#{@card.id}\]"/, body)
+
+    patch toggle_watch_card_url(@card), as: :turbo_stream
+    assert_match(/data-watched-card-ids="\[\]"/, response.body,
+                 "unwatching must ship the shrunken set")
   end
 
   private
