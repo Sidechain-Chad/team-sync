@@ -31,16 +31,16 @@ class ChecklistsController < ApplicationController
     end
   end
 
-  # UNREACHABLE — no rename UI exists (the checklist title renders as a static
-  # <h3> in checklists/_checklist), so nothing can reach this action. Left as-is
-  # rather than given a broadcast: adding one would be untestable through any real
-  # path. If a rename UI is ever added, it needs broadcast_card_update too — the
-  # title itself isn't on the tile, but the action would then be live code.
-  def update
-    @checklist = @card.checklists.find(params[:id])
-    @checklist.update(checklist_params)
-    redirect_to @card.list.board
-  end
+  # There is deliberately no #update. It existed, unreachable — a checklist's
+  # title renders as a static <h3> in checklists/_checklist with no rename UI —
+  # and its `update` return value was UNCHECKED, so a validation failure would
+  # have redirected to the board as if it had worked. Dead code with a silent
+  # trap in it, removed rather than left to be found by whoever adds renaming.
+  #
+  # A checklist-rename feature must re-add it WITH a failure branch (the
+  # flash.now + frame-replace shape the app's other rejected writes use), and with
+  # broadcast_card_update — the title isn't on the card tile, but the action
+  # would then be live code.
 
   def destroy
     @checklist = @card.checklists.find(params[:id])

@@ -21,8 +21,9 @@ class ChecklistsControllerTest < ActionDispatch::IntegrationTest
   # No double render: create appends into checklists_for_<card id>, destroy removes
   # checklist_<id> — both modal-internal, never the tile.
   #
-  # checklists#update has no broadcast on purpose: there is no rename UI (the title
-  # is a static <h3>), so it is unreachable dead code.
+  # There is no #update to cover: it was unreachable (the title is a static <h3>
+  # with no rename UI) and its save was unchecked, so it was removed along with
+  # its route rather than left as a silent-failure trap.
 
   def board_stream
     Turbo::StreamsChannel.send(:stream_name_from, @card.list.board)

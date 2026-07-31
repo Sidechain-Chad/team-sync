@@ -81,7 +81,9 @@ Rails.application.routes.draw do
     resources :comments, only: [:create, :destroy]
     resources :labels, only: [:create, :destroy], controller: 'card_labels', param: :label_id
     
-    resources :checklists, only: [:create, :update, :destroy] do
+    # No :update — a checklist title has no rename UI, so the action was dead
+    # code with an unchecked save in it (see ChecklistsController).
+    resources :checklists, only: [:create, :destroy] do
       resources :checklist_items, only: [:create, :update, :destroy]
     end
     resources :attachments, only: [:create, :destroy]
