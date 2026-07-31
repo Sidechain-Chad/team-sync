@@ -1549,6 +1549,127 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[aria-label=?]", "Edit card", count: 0
   end
 
+  # --- `moved` and `archived` notifications ---
+  #
+  # Both go to card.subscribers (members ∪ watchers) wholesale; `deliver` skips the
+  # actor and applies each recipient's preference, same as DueSoonScanJob.
+
+  # A member and a WATCHER-who-is-not-a-member, neither of them the actor.
+  def two_subscribers_on(card)
+    member = User.create!(email: "sub-member-#{card.id}@example.com", password: "password")
+    watcher = User.create!(email: "sub-watcher-#{card.id}@example.com", password: "password")
+    @board_one.board_users.create!(user: member)
+    @board_one.board_users.create!(user: watcher)
+    card.members << member
+    CardWatcher.create!(card: card, user: watcher)
+    [member, watcher]
+  end
+
+  test "moving a card BETWEEN lists notifies its subscribers, including a watcher who is not a member" do
+    member, watcher = two_subscribers_on(@card)
+
+    assert_difference -> { Notification.where(action: "moved").count }, 2 do
+      patch move_card_url(@card), params: { card: { list_id: @list_three.id, position: 1 } }, as: :json
+    end
+
+    assert_response :success
+    recipients = Notification.where(action: "moved").map(&:recipient)
+    assert_equal [member, watcher].sort_by(&:id), recipients.sort_by(&:id)
+    assert_not_includes recipients, @user, "the actor is never notified about their own action"
+    assert_not_includes @card.reload.members, watcher, "the watcher must not be a member"
+    assert_equal @card, Notification.where(action: "moved").first.notifiable
+  end
+
+  # TRAP 1: #move also handles reordering WITHIN a list. Without the guard in
+  # notify_card_moved, every drag-to-reorder would notify every subscriber.
+  test "reordering WITHIN a list notifies nobody" do
+    two_subscribers_on(@card)
+    @card.list.cards.create!(title: "Sibling")
+
+    assert_no_difference -> { Notification.count } do
+      patch move_card_url(@card), params: { card: { list_id: @card.list_id, position: 2 } }, as: :json
+    end
+
+    assert_response :success
+    assert_equal 2, @card.reload.position, "the reorder itself must still have happened"
+  end
+
+  test "the modal Move-to-list path notifies identically to a drag" do
+    member, watcher = two_subscribers_on(@card)
+
+    assert_difference -> { Notification.where(action: "moved").count }, 2 do
+      patch card_url(@card), params: { card: { list_id: @list_three.id, position: "bottom" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal [member, watcher].sort_by(&:id),
+                 Notification.where(action: "moved").map(&:recipient).sort_by(&:id)
+  end
+
+  test "a modal update that does NOT change the list notifies nobody" do
+    two_subscribers_on(@card)
+
+    assert_no_difference -> { Notification.count } do
+      patch card_url(@card), params: { card: { title: "Renamed, not moved" } }, as: :turbo_stream
+    end
+  end
+
+  test "a subscriber with Cards moved turned off is not notified" do
+    member, watcher = two_subscribers_on(@card)
+    member.update!(notification_preferences: { "moved" => false })
+
+    assert_difference -> { Notification.where(action: "moved").count }, 1 do
+      patch move_card_url(@card), params: { card: { list_id: @list_three.id, position: 1 } }, as: :json
+    end
+
+    assert_equal [watcher], Notification.where(action: "moved").map(&:recipient)
+  end
+
+  test "archiving a card notifies its subscribers but not the actor" do
+    member, watcher = two_subscribers_on(@card)
+
+    assert_difference -> { Notification.where(action: "archived").count }, 2 do
+      patch archive_card_url(@card)
+    end
+
+    recipients = Notification.where(action: "archived").map(&:recipient)
+    assert_equal [member, watcher].sort_by(&:id), recipients.sort_by(&:id)
+    assert_not_includes recipients, @user
+    assert @card.reload.archived?
+  end
+
+  test "a subscriber with Cards archived turned off is not notified" do
+    member, watcher = two_subscribers_on(@card)
+    watcher.update!(notification_preferences: { "archived" => false })
+
+    assert_difference -> { Notification.where(action: "archived").count }, 1 do
+      patch archive_card_url(@card)
+    end
+
+    assert_equal [member], Notification.where(action: "archived").map(&:recipient)
+  end
+
+  # Deliberate divergence from Trello, which bundles archive/unarchive under one
+  # toggle: two actions sharing one preference entry would break the 1:1
+  # action↔preference mapping #notifies? depends on.
+  test "unarchiving a card notifies nobody" do
+    two_subscribers_on(@card)
+    @card.archive!
+
+    assert_no_difference -> { Notification.count } do
+      patch unarchive_card_url(@card)
+    end
+    assert_not @card.reload.archived?
+  end
+
+  test "a card with no subscribers notifies nobody when moved" do
+    bare = @list_three.cards.create!(title: "Nobody watching")
+
+    assert_no_difference -> { Notification.count } do
+      patch move_card_url(bare), params: { card: { list_id: @list_one.id, position: 1 } }, as: :json
+    end
+  end
+
   TURBO_STREAM_ONLY = { "Accept" => "text/vnd.turbo-stream.html" }.freeze
 
   # --- #toggle_watch ---

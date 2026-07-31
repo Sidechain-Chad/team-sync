@@ -7,11 +7,19 @@ class Notification < ApplicationRecord
 
   # action => { title:, description: } for the settings toggles. Only types with
   # a live trigger appear here; add a row when a new trigger ships.
+  # EVERY action passed to .deliver must appear here. #notifies? is
+  # `notification_preferences.fetch(action.to_s, true)`, so an action MISSING from
+  # this hash is delivered unconditionally — it silently bypasses the user's
+  # preferences instead of failing loudly. NotificationCoverageTest pins that:
+  # it greps every deliver call site and fails on an action with no entry here.
   PREFERENCE_TYPES = {
-    "comment"       => { title: "Comments",        description: "New comments on cards you're a member of" },
-    "mention"       => { title: "Mentions",        description: "When someone @mentions you in a comment" },
-    "added_to_card" => { title: "Added to a card", description: "When someone adds you to a card" },
-    "due_soon"      => { title: "Due dates",       description: "When a card you're on is coming due" }
+    "comment"           => { title: "Comments",                   description: "New comments on cards you're a member of" },
+    "mention"           => { title: "Mentions",                   description: "When someone @mentions you in a comment" },
+    "added_to_card"     => { title: "Added to a card",            description: "When someone adds you to a card" },
+    "removed_from_card" => { title: "You're removed from a card", description: "Someone removes you as a member from a card" },
+    "due_soon"          => { title: "Due dates",                  description: "When a card you're on is coming due" },
+    "moved"             => { title: "Cards moved",                description: "Cards you're watching are moved between lists" },
+    "archived"          => { title: "Cards archived",             description: "Cards you're watching are archived" }
   }.freeze
 
   scope :unread, -> { where(read_at: nil) }
@@ -73,12 +81,22 @@ class Notification < ApplicationRecord
     card.nil?
   end
 
+  # DELIBERATELY GENERIC for "moved": "moved this card to X" is not possible here
+  # without lying. This method is computed from live associations at render time,
+  # so it would name the card's CURRENT list, not the list it moved to when the
+  # notification was created — actively wrong the moment the card moves again.
+  # (Activity gets away with "moved this card from A to B" because it stores the
+  # names in its `description` column at write time.) Naming the destination would
+  # need a per-notification context column; that's a separate change.
   def message
     case action
-    when "added_to_card" then "added you to this card"
-    when "comment"       then "commented on this card"
-    when "mention"       then "mentioned you in a comment"
-    when "due_soon"      then "is due soon"
+    when "added_to_card"     then "added you to this card"
+    when "removed_from_card" then "removed you from this card"
+    when "comment"           then "commented on this card"
+    when "mention"           then "mentioned you in a comment"
+    when "due_soon"          then "is due soon"
+    when "moved"             then "moved this card"
+    when "archived"          then "archived this card"
     else "sent you a notification"
     end
   end

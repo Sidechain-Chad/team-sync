@@ -636,4 +636,35 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
     copy = List.find_by!(name: "Same board")
     assert_equal @board.id, copy.board_id
   end
+
+  # --- TRAP 2: bulk archive must not notify ---
+  #
+  # cards#archive notifies the card's subscribers. This action archives every card
+  # in the list by calling card.archive! on the MODEL, so it never reaches that
+  # controller action — N cards would otherwise mean N notifications per subscriber
+  # for one click. This test is what pins the trigger's placement: move it into
+  # Card#archive! or a model callback and this fails.
+  test "archive_all_cards notifies nobody, however many cards and subscribers" do
+    list = @board.lists.create!(name: "Bulk archive")
+    member = User.create!(email: "bulk-member@example.com", password: "password")
+    watcher = User.create!(email: "bulk-watcher@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    @board.board_users.create!(user: watcher)
+
+    3.times do |i|
+      card = list.cards.create!(title: "Bulk #{i}")
+      card.members << member
+      CardWatcher.create!(card: card, user: watcher)
+    end
+
+    assert_no_difference -> { Notification.count } do
+      patch archive_all_cards_list_url(list), as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal 0, list.reload.active_cards.count, "the bulk archive itself must still have happened"
+    assert_equal 3, list.archived_cards.count
+    # The per-card activity trail is unchanged — that IS wanted for bulk archive.
+    assert_equal 3, Activity.where(action: "archived").count
+  end
 end

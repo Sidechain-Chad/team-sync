@@ -133,6 +133,11 @@ class CardsController < ApplicationController
         @card.log_activity(current_user, "renamed", @card.title)
       end
 
+      # Same helper as #move — the modal's "Move to list" must notify identically.
+      # Deliberately NOT extended to `renamed`: Trello doesn't notify on rename,
+      # and this app's inline rename saves on blur, so it would be pure noise.
+      notify_card_moved(old_list)
+
       # Use the service for attachments — handles validation (size + type)
       # and logs one activity entry per file.
       result = CardAttachmentService.new(card: @card, user: current_user, files: new_attachments).call
@@ -271,6 +276,9 @@ class CardsController < ApplicationController
       if @card.saved_change_to_list_id?
         @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
       end
+
+      # No-op for a within-list reorder — the guard is inside the helper.
+      notify_card_moved(old_list)
 
       # Make the drag live for everyone else. Before this, #move broadcast
       # nothing at all, so another viewer saw neither the card leaving its old
@@ -478,6 +486,22 @@ class CardsController < ApplicationController
   def archive
     @card.archive!
     @card.log_activity(current_user, "archived")
+
+    # HERE, not in a model callback or in Card#archive!, and that placement is
+    # load-bearing: ListsController#archive_all_cards archives every card in a list
+    # by calling card.archive! directly, so a model-level trigger would fire N
+    # notifications per subscriber for one bulk click. Living in this controller
+    # action means the bulk path can't reach it by construction — pinned by a test
+    # in ListsControllerTest.
+    #
+    # Unarchive deliberately does NOT notify. Trello bundles archive/unarchive
+    # under one "Cards archived" toggle, but two actions sharing one preference
+    # entry would break the 1:1 action↔preference mapping #notifies? depends on
+    # (and which NotificationCoverageTest enforces). One action, archive only.
+    @card.subscribers.each do |subscriber|
+      Notification.deliver(recipient: subscriber, actor: current_user, notifiable: @card, action: "archived")
+    end
+
     broadcast_card_remove
     broadcast_list_card_count(@card.list)
 
@@ -742,6 +766,27 @@ class CardsController < ApplicationController
     only_location_keys = (p.keys - location_keys).empty?
     all_blank          = location_keys.all? { |k| p[k].blank? }
     only_location_keys && all_blank && ! @card.location?
+  end
+
+  # "Cards moved" notification, shared by BOTH move paths: #move (drag) and
+  # #update (the modal's "Move to list"). One helper so the two can't drift.
+  #
+  # THE GUARD LIVES HERE, not at the call sites. #move also handles reordering
+  # WITHIN a list — same endpoint, same params shape — so without this every
+  # drag-to-reorder would notify every subscriber of the card. Keeping the check
+  # inside the helper means a future third caller inherits it instead of having to
+  # remember it. Compares against the pre-update list rather than
+  # saved_change_to_list_id? because #update can save the card again (via
+  # CardAttachmentService) before this point, which would clear saved_changes.
+  #
+  # Subscribers wholesale — members ∪ watchers. `deliver` already skips the actor
+  # and applies each recipient's preference, same as DueSoonScanJob.
+  def notify_card_moved(old_list)
+    return if @card.list_id == old_list.id
+
+    @card.subscribers.each do |subscriber|
+      Notification.deliver(recipient: subscriber, actor: current_user, notifiable: @card, action: "moved")
+    end
   end
 
   def broadcast_card_remove

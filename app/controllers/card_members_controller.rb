@@ -27,7 +27,17 @@ class CardMembersController < ApplicationController
 
     # Destroy the join row, not the user. find_by + safe-nav
     # avoids raising if it was already removed in another tab.
-    @card.card_members.find_by(user: @user)&.destroy
+    removed = @card.card_members.find_by(user: @user)&.destroy
+
+    # Mirrors #create's added_to_card: the removed user is the only recipient, not
+    # the card's subscribers — this is about them, not about the card changing.
+    # Gated on a row having actually been destroyed, so the already-removed case
+    # (a second tab, a double submit) doesn't notify a second time. Removing
+    # yourself notifies nobody: Notification.deliver no-ops when recipient ==
+    # actor, same as #create.
+    if removed
+      Notification.deliver(recipient: @user, actor: current_user, notifiable: @card, action: "removed_from_card")
+    end
 
     broadcast_card_update
 
