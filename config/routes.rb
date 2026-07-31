@@ -98,6 +98,9 @@ Rails.application.routes.draw do
       patch :archive
       patch :unarchive
       patch :toggle_complete
+      # Per-user card subscription. Named like boards#toggle_favorite, the
+      # closest precedent — same shape: one join row, created or destroyed.
+      patch :toggle_watch
     end
   end
 end

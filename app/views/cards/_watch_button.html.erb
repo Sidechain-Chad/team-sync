@@ -1,0 +1,23 @@
+<%# Per-user watch toggle for the card modal. Each user sees their OWN watch
+    state, which is exactly why this control exists only here and not on the
+    board tile: cards/_card is broadcast to the board stream, so every viewer
+    receives identical HTML and a per-user badge there would show one user's
+    state to everyone. See the follow-up note in CardsController#toggle_watch.
+
+    Shape and state-by-icon-weight both follow boards/_star_button, the closest
+    precedent (solid = on, regular = off, label and tooltip flip with state).
+    Deliberately NOT its `text-yellow-300` though — that's a raw Tailwind colour,
+    and chrome here flows from the @theme tokens. brand-600 is the app's verified
+    on-surface accent.
+
+    The form carries the replace target id so #toggle_watch can swap just this
+    control; nothing else on the page changes. %>
+<% watching = card.watched_by?(current_user) %>
+<%= button_to toggle_watch_card_path(card),
+    method: :patch,
+    form: { class: "m-0", id: dom_id(card, :watch) },
+    class: "h-8 w-8 flex items-center justify-center rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1 #{watching ? 'text-brand-600 bg-surface-200 hover:bg-surface-300' : 'text-ink-500 hover:text-ink-700 hover:bg-surface-200'}",
+    title: watching ? "Stop watching this card" : "Watch this card",
+    aria: { label: watching ? "Stop watching this card" : "Watch this card", pressed: watching.to_s } do %>
+  <i class="<%= watching ? 'fa-solid' : 'fa-regular' %> fa-eye text-sm" aria-hidden="true"></i>
+<% end %>

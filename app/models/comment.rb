@@ -15,20 +15,26 @@ class Comment < ApplicationRecord
     broadcast_prepend_to card, target: "activities_and_comments", partial: "comments/comment"
   end
 
-  # Notify @mentioned board members first, then every other current card
-  # member with the plain "comment" notification. v1 simplification: only
-  # current card *members* (beyond anyone @mentioned) are notified — someone
-  # who commented earlier but isn't a member isn't auto-watched the way
-  # Trello would be.
+  # Notify @mentioned board members first, then every other of the card's
+  # SUBSCRIBERS with the plain "comment" notification. Subscribers, not members:
+  # watching a card is how you follow a card you're not on (Card#subscribers is
+  # members ∪ watchers, deduped, so being both still yields one notification).
+  #
+  # Still a v1 simplification in one respect: commenting doesn't auto-watch the
+  # way Trello does, so an earlier commenter who never watched or joined stays
+  # silent.
   after_create_commit do
     mentioned = mentioned_users
     mentioned.each do |u|
       Notification.deliver(recipient: u, actor: user, notifiable: self, action: "mention")
     end
-    # Remaining card members who weren't mentioned still get the plain comment
+    # Remaining subscribers who weren't mentioned still get the plain comment
     # notification. `deliver` already no-ops on self; subtracting `mentioned`
-    # prevents a mentioned card-member from getting BOTH.
-    (card.members - [user] - mentioned).each do |u|
+    # prevents a mentioned subscriber from getting BOTH. A watcher's comment
+    # notification is gated by their own `comment` preference inside `deliver`,
+    # which is why watching needs no Notification::PREFERENCE_TYPES entry of its
+    # own — it widens an audience, it isn't an event type.
+    (card.subscribers - [user] - mentioned).each do |u|
       Notification.deliver(recipient: u, actor: user, notifiable: self, action: "comment")
     end
   end

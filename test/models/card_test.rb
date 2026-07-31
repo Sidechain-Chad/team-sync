@@ -359,6 +359,67 @@ class CardTest < ActiveSupport::TestCase
 
   # --- #copy_to graceful failure ---
 
+  # --- #subscribers: the audience for card-level notification triggers ---
+
+  # cards(:one) arrives with card_members(:one) already attached, so these build
+  # a fresh card to start from a genuinely empty audience.
+  def bare_card
+    lists(:one).cards.create!(title: "Subscribers fixture")
+  end
+
+  test "subscribers is empty when a card has neither members nor watchers" do
+    assert_empty bare_card.subscribers
+  end
+
+  test "subscribers includes members" do
+    card = bare_card
+    card.members << users(:one)
+
+    assert_equal [users(:one)], card.reload.subscribers
+  end
+
+  test "subscribers includes watchers who are not members" do
+    card = bare_card
+    watcher = User.create!(email: "sub-watcher@example.com", password: "password")
+    CardWatcher.create!(card: card, user: watcher)
+
+    assert_equal [watcher], card.reload.subscribers
+    assert_not_includes card.members, watcher, "a watcher must not become a member"
+  end
+
+  test "subscribers unions members and watchers" do
+    card = bare_card
+    member = users(:one)
+    watcher = User.create!(email: "sub-union@example.com", password: "password")
+    card.members << member
+    CardWatcher.create!(card: card, user: watcher)
+
+    assert_equal [member, watcher].sort_by(&:id), card.reload.subscribers.sort_by(&:id)
+  end
+
+  test "subscribers dedupes someone who is both a member and a watcher" do
+    card = bare_card
+    both = users(:one)
+    card.members << both
+    CardWatcher.create!(card: card, user: both)
+
+    assert_equal [both], card.reload.subscribers
+    assert_equal 1, card.subscribers.count(both), "must appear exactly once"
+  end
+
+  test "watched_by? reflects the join row" do
+    card = bare_card
+    user = users(:one)
+
+    assert_not card.watched_by?(user)
+    CardWatcher.create!(card: card, user: user)
+    assert card.reload.watched_by?(user)
+  end
+
+  test "watched_by? is false for a nil user" do
+    assert_not cards(:one).watched_by?(nil)
+  end
+
   test "copy_to raises RecordInvalid (inside its transaction) when the resulting title is blank" do
     card = cards(:one)
     # update_column bypasses the title-presence validation — simulates a

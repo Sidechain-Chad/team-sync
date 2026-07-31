@@ -7,6 +7,11 @@ class Card < ApplicationRecord
   # NEW: Allow multiple members
   has_many :card_members, dependent: :destroy
   has_many :members, through: :card_members, source: :user
+
+  # Watching: receive this card's notifications without being a member.
+  has_many :card_watchers, dependent: :destroy
+  has_many :watchers, through: :card_watchers, source: :user
+
   has_many :comments, dependent: :destroy
   has_many :activities, dependent: :destroy
   has_many :checklists, -> { order(position: :asc) }, dependent: :destroy
@@ -115,6 +120,34 @@ class Card < ApplicationRecord
 
   def location?
     latitude.present? && longitude.present?
+  end
+
+  # Everyone who should hear about this card: its members plus anyone watching
+  # it. THE audience for card-level notification triggers — `comment` (see
+  # Comment's after_create_commit) and `due_soon` (DueSoonScanJob) both fan out
+  # over this rather than over `members`.
+  #
+  # Deliberately NOT the audience for `added_to_card` (that one is about the
+  # person being added) or `mention` (a mention reaches you whether or not you're
+  # a member or a watcher).
+  #
+  # Deduped, so being both a member and a watcher still means exactly one
+  # notification. `|` on the loaded arrays rather than a UNION query: both
+  # associations are already preloaded everywhere this is called from
+  # (DueSoonScanJob includes both; Comment reaches it through an in-memory card),
+  # and a scope here would issue a query per card in the scan.
+  def subscribers
+    members.to_a | watchers.to_a
+  end
+
+  # Mirrors Board#favorited_by? — same shape for the same kind of thing (a
+  # per-user toggle's current state, read by the toggle's own partial). `exists?`
+  # costs one query per render, which is fine for the single card the modal shows;
+  # it is NOT how the due-soon scan reads watchers (that preloads, see
+  # DueSoonScanJob).
+  def watched_by?(user)
+    return false unless user
+    card_watchers.exists?(user_id: user.id)
   end
 
   def archived?

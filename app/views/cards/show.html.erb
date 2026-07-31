@@ -86,8 +86,15 @@
           </div>
         </div>
 
-        <%# RIGHT: card-actions (⋯) menu, then Close %>
+        <%# RIGHT: watch toggle, card-actions (⋯) menu, then Close %>
         <div class="flex items-center gap-1">
+
+          <%# Watch (eye) — Trello's position: in the header, left of the ⋯ menu,
+              visible rather than buried in a menu. The header already hosts
+              icon-only buttons at exactly these dimensions, and it still fits at
+              375px (measured, not assumed). %>
+          <%= render "cards/watch_button", card: @card %>
+
 
           <%# Card actions — ONE anchored popover under the ⋯ button, with
               two internal panels that are never both visible at once:

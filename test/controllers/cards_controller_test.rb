@@ -1551,6 +1551,95 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
 
   TURBO_STREAM_ONLY = { "Accept" => "text/vnd.turbo-stream.html" }.freeze
 
+  # --- #toggle_watch ---
+  #
+  # Watching is per-user state only, so unlike almost every other card action this
+  # one broadcasts NOTHING: cards/_card goes to the board stream, where every
+  # viewer receives identical HTML, so per-user state must never be rendered into
+  # it. That's asserted below and is also why there's no tile indicator in v1.
+
+  test "toggle_watch starts watching and swaps the control to the watching state" do
+    assert_difference -> { CardWatcher.count }, 1 do
+      patch toggle_watch_card_url(@card), as: :turbo_stream
+    end
+
+    assert_response :success
+    assert @card.reload.watched_by?(@user)
+    assert_includes @card.watchers, @user
+    assert_match(/<turbo-stream action="replace" target="#{ActionView::RecordIdentifier.dom_id(@card, :watch)}"/, response.body)
+    assert_match(/Stop watching this card/, response.body)
+  end
+
+  test "toggle_watch a second time stops watching" do
+    patch toggle_watch_card_url(@card), as: :turbo_stream
+
+    assert_difference -> { CardWatcher.count }, -1 do
+      patch toggle_watch_card_url(@card), as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_not @card.reload.watched_by?(@user)
+    assert_match(/Watch this card/, response.body)
+  end
+
+  test "watching does not make the user a card member" do
+    # A card with no members of its own — @card arrives with card_members(:one)
+    # already attaching @user, which would mask this.
+    bare = @list_three.cards.create!(title: "Watch-only card")
+
+    patch toggle_watch_card_url(bare), as: :turbo_stream
+
+    assert_response :success
+    assert_empty bare.reload.members, "watching must not create a membership"
+    assert_equal [@user], bare.watchers
+    assert_equal [@user], bare.subscribers
+  end
+
+  test "toggle_watch broadcasts NOTHING to the board stream" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream) do
+      patch toggle_watch_card_url(@card), as: :turbo_stream
+    end
+
+    assert_empty broadcasts,
+                 "watching is per-user state — broadcasting it would show one user's state to every viewer"
+  end
+
+  test "toggle_watch is scoped: a card the user cannot reach 404s and is not watched" do
+    other = cards(:two) # boards(:two), which @user has no access to
+
+    assert_no_difference -> { CardWatcher.count } do
+      patch toggle_watch_card_url(other), as: :turbo_stream
+    end
+    assert_response :not_found
+  end
+
+  test "the card modal renders the watch control reflecting the persisted state" do
+    get card_url(@card)
+    assert_response :success
+    assert_select "form##{ActionView::RecordIdentifier.dom_id(@card, :watch)}"
+    assert_select "button[aria-label=?]", "Watch this card"
+    assert_select "button[aria-pressed=?]", "false"
+
+    CardWatcher.create!(card: @card, user: @user)
+
+    get card_url(@card)
+    assert_select "button[aria-label=?]", "Stop watching this card"
+    assert_select "button[aria-pressed=?]", "true"
+  end
+
+  # The board tile deliberately carries no watch state — see #toggle_watch.
+  test "the board tile renders no watch indicator" do
+    CardWatcher.create!(card: @card, user: @user)
+
+    get board_url(@board_one)
+
+    assert_response :success
+    assert_select "turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)} .fa-eye", count: 0
+    assert_no_match(/watch/i, css_select("turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)}").first.to_s)
+  end
+
   private
 
   # broadcast_targets / broadcast_for now live in test_helper — ListsController's

@@ -2,7 +2,7 @@ class CardsController < ApplicationController
   include BroadcastsCardUpdates
 
   before_action :authenticate_user!
-  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :copy, :edit_description, :update_description, :edit_title, :update_title, :archive, :unarchive, :toggle_complete]
+  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :copy, :edit_description, :update_description, :edit_title, :update_title, :archive, :unarchive, :toggle_complete, :toggle_watch]
 
   def show
     # Eager-load everything the card modal needs
@@ -560,6 +560,44 @@ class CardsController < ApplicationController
           redirect_to board_path(@card.list.board)
         end
       end
+    end
+  end
+
+  # Watch / stop watching this card — receive its notifications without being a
+  # member. Same shape as BoardsController#toggle_favorite: find the join row,
+  # destroy it if present, create it if not.
+  #
+  # Authorization is the standard scoped find (set_card → current_user.all_cards),
+  # so a card on a board the user can't reach 404s rather than becoming watchable.
+  #
+  # DELIBERATELY NO BOARD BROADCAST. Watching changes only per-user state; there
+  # is nothing here another viewer of the board should see, and cards/_card is
+  # broadcast to the board stream, so anything per-user rendered into it would be
+  # shown to everyone (the notification-badge / account-row class of bug). The
+  # response replaces the actor's own watch control and nothing else.
+  def toggle_watch
+    watch = current_user.card_watchers.find_by(card: @card)
+
+    if watch
+      watch.destroy
+    else
+      # find_or_create_by, not create!, so a double-submit is a no-op rather than
+      # a RecordNotUnique from the unique index.
+      current_user.card_watchers.find_or_create_by!(card: @card)
+    end
+
+    respond_to do |format|
+      format.turbo_stream do
+        # The partial reads the state itself (card.watched_by?), same as
+        # boards/_star_button — one source of truth, so the response and the
+        # initial modal render can't disagree.
+        render turbo_stream: turbo_stream.replace(
+          helpers.dom_id(@card, :watch),
+          partial: "cards/watch_button",
+          locals: { card: @card }
+        )
+      end
+      format.html { redirect_to @card }
     end
   end
 
