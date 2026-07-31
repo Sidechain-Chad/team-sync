@@ -27,7 +27,30 @@ class ChecklistItemsController < ApplicationController
         format.html { redirect_to @checklist.card.list.board }
       end
     else
-      redirect_to @checklist.card.list.board, alert: "Could not add item"
+      # NOT reachable from the app's own UI today: the "Add an item" field
+      # (checklists/_checklist) carries `required: true`, so the browser blocks an
+      # empty submit. Fixed anyway — it's reachable one markup change away, and it
+      # used to `redirect_to` the board with generic copy, throwing the user out of
+      # the card modal for a validation error.
+      error = @item.errors.full_messages.to_sentence
+
+      respond_to do |format|
+        # 200, not 422: this form is frame-targeted (data-turbo-frame is the
+        # checklist's items frame), and Turbo drops a 4xx turbo-stream response
+        # for a frame-targeted submission — the user would see nothing at all.
+        # Same shape as ChecklistsController#create and CommentsController#create.
+        # Only the flash: a failed create replaced nothing, so there is nothing to
+        # revert, and re-rendering would discard what the user typed.
+        format.turbo_stream do
+          flash.now[:alert] = error
+          render turbo_stream: turbo_stream.replace("flash", partial: "shared/flash")
+        end
+
+        # Non-Turbo fallback — redirect rather than a 422 form re-render, for the
+        # same reason as ChecklistsController#create: there's no template to
+        # re-render, and a bare 422 is a blank page. Message from the model.
+        format.html { redirect_to @checklist.card.list.board, alert: error }
+      end
     end
   end
 

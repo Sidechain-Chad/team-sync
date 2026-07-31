@@ -162,6 +162,53 @@ class ChecklistItemsControllerTest < ActionDispatch::IntegrationTest
     assert_not other_item.reload.completed
   end
 
+  # --- validation failure keeps the user in the card modal ---
+  #
+  # Blank content used to redirect to the board with "Could not add item" — out of
+  # the modal, for a validation error. Not reachable from the app's own UI today
+  # (the "Add an item" field carries `required: true`), but one markup change away,
+  # and the branch existed either way.
+  #
+  # `as: :turbo_stream` does NOT send a turbo-stream request; the raw Accept header
+  # is what exercises the branch the browser hits.
+  TURBO_STREAM_ONLY = { "Accept" => "text/vnd.turbo-stream.html" }.freeze
+
+  test "blank item content conveys the error without redirecting or 500ing" do
+    assert_no_difference("ChecklistItem.count") do
+      post card_checklist_checklist_items_url(@card, @checklist),
+           params: { checklist_item: { content: "" } }, headers: TURBO_STREAM_ONLY
+    end
+
+    # 200, not 422: the form is frame-targeted at the checklist's items frame, and
+    # Turbo drops a 4xx turbo-stream response for a frame-targeted submission.
+    assert_response :success
+    assert_match(/turbo-stream/, response.body)
+    assert_match(/<turbo-stream action="replace" target="flash"/, response.body)
+    assert_match(/can&#39;t be blank|can't be blank/, response.body,
+                 "the error must actually reach the user")
+  end
+
+  test "blank item content does not broadcast a tile" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @card.list.board)
+
+    broadcasts = capture_broadcasts(stream) do
+      post card_checklist_checklist_items_url(@card, @checklist),
+           params: { checklist_item: { content: "" } }, headers: TURBO_STREAM_ONLY
+    end
+
+    assert_empty broadcasts, "a rejected create must not push a tile to other viewers"
+  end
+
+  test "blank item content falls back to a redirect carrying the model's error for HTML" do
+    assert_no_difference("ChecklistItem.count") do
+      post card_checklist_checklist_items_url(@card, @checklist),
+           params: { checklist_item: { content: "" } }, headers: { "Accept" => "text/html" }
+    end
+
+    assert_redirected_to board_url(@card.list.board)
+    assert_match(/can't be blank/, flash[:alert], "not the old generic copy")
+  end
+
   test "should not destroy a checklist_item id that belongs to a different checklist than the one in the path" do
     foreign_item = checklist_items(:two) # belongs to checklists(:two)
 

@@ -77,6 +77,50 @@ class ChecklistsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to board_url(@card.list.board)
   end
 
+  # --- validation failure keeps the user in the card modal ---
+  #
+  # A blank title used to redirect to the board with "Could not add checklist" —
+  # out of the modal the user was working in, for a validation error. Reachable
+  # from the real UI: the title field is prefilled but carries no `required`.
+  #
+  # `as: :turbo_stream` does NOT send a turbo-stream request, so the raw Accept
+  # header is what exercises the branch the browser actually hits.
+  TURBO_STREAM_ONLY = { "Accept" => "text/vnd.turbo-stream.html" }.freeze
+
+  test "a blank checklist title conveys the error without redirecting or 500ing" do
+    assert_no_difference("Checklist.count") do
+      post card_checklists_url(@card), params: { checklist: { title: "" } },
+           headers: TURBO_STREAM_ONLY
+    end
+
+    # 200, not 422: the form submits from inside the "modal" frame, and Turbo
+    # drops a 4xx turbo-stream response for a frame-targeted submission.
+    assert_response :success
+    assert_match(/turbo-stream/, response.body)
+    assert_match(/<turbo-stream action="replace" target="flash"/, response.body)
+    assert_match(/can&#39;t be blank|can't be blank/, response.body,
+                 "the error must actually reach the user")
+  end
+
+  test "a blank checklist title does not broadcast a tile" do
+    broadcasts = capture_broadcasts(board_stream) do
+      post card_checklists_url(@card), params: { checklist: { title: "" } },
+           headers: TURBO_STREAM_ONLY
+    end
+
+    assert_empty broadcasts, "a rejected create must not push a tile to other viewers"
+  end
+
+  test "a blank checklist title falls back to a redirect carrying the model's error for HTML" do
+    assert_no_difference("Checklist.count") do
+      post card_checklists_url(@card), params: { checklist: { title: "" } },
+           headers: { "Accept" => "text/html" }
+    end
+
+    assert_redirected_to board_url(@card.list.board)
+    assert_match(/can't be blank/, flash[:alert], "not the old generic copy")
+  end
+
   test "should not create checklist on a card the user has no access to" do
     other_card = cards(:two)
 

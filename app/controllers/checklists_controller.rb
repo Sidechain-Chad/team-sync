@@ -27,7 +27,37 @@ class ChecklistsController < ApplicationController
         format.html { redirect_to @card.list.board }
       end
     else
-      redirect_to @card.list.board, alert: "Could not add checklist"
+      # REACHABLE from the app's own UI: the title field (cards/show, the
+      # Checklist quick-add popover) is prefilled with "Checklist" but carries no
+      # `required` attribute, so clearing it and pressing Add posts a blank title.
+      # This used to `redirect_to` the board with generic copy — throwing the user
+      # out of the card modal they were working in, for a validation error, and
+      # not even saying which field was wrong.
+      error = @checklist.errors.full_messages.to_sentence
+
+      respond_to do |format|
+        # 200, not 422: this form submits from inside the "modal" turbo frame, and
+        # Turbo does NOT apply a turbo-stream response to a frame-targeted
+        # submission when the status is 4xx — the body would be correct and the
+        # user would see nothing at all. Same 200 + flash.now shape
+        # ListsController#update, CommentsController#create and
+        # CardsController#update_description already use.
+        #
+        # Only the flash. Nothing on screen needs reverting (a failed create
+        # replaced nothing), and re-rendering the popover would throw away what
+        # the user typed — they stay in the modal, with their input, and can fix
+        # it. Same "only the flash" reasoning as CommentsController#create.
+        format.turbo_stream do
+          flash.now[:alert] = error
+          render turbo_stream: turbo_stream.replace("flash", partial: "shared/flash")
+        end
+
+        # Non-Turbo fallback. Still a redirect rather than a 422 form re-render:
+        # there is no checklists/new template to render, and a bare 422 would show
+        # a blank page (exactly the silent failure CommentsController#create was
+        # fixed out of). The message is now the model's, not generic copy.
+        format.html { redirect_to @card.list.board, alert: error }
+      end
     end
   end
 
