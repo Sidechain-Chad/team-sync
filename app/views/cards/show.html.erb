@@ -225,8 +225,17 @@
                 <% end %>
               <% end %>
 
-              <div class="w-full">
-                <h2 id="card_modal_title_<%= @card.id %>" class="font-display text-xl font-bold text-ink-700 leading-tight"><%= @card.title %></h2>
+              <%# card_modal_title_<id> is what this dialog's aria-labelledby
+                  (line 28) points at, and it lives HERE — on the wrapper,
+                  outside the title frame — not on the <h2> where it used to be.
+                  The frame below swaps the heading for an edit form, so an id
+                  carried by the <h2> would disappear with it and leave
+                  role="dialog" with no accessible name in edit mode. This
+                  wrapper survives both modes: in display mode the name comes
+                  from the <h2>, in edit mode from the input's value. Verified in
+                  the browser's accessibility tree, both modes. %>
+              <div class="w-full min-w-0" id="card_modal_title_<%= @card.id %>">
+                <%= render "cards/modal_title", card: @card %>
               </div>
             </div>
 

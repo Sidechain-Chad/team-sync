@@ -1275,6 +1275,282 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/fa-paperclip/, broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card)))
   end
 
+  # --- inline title edit (#edit_title / #update_title) ---
+  #
+  # The tile and the modal can both be showing the same card at once (the modal
+  # opens over the board), so they render into SEPARATE frames and the two
+  # responses are deliberately different shapes: from the tile the broadcast
+  # already brings the title back to display mode for the actor, so the actor's
+  # own response must render nothing; from the modal the response replaces the
+  # modal title frame, a different target from the broadcast's tile.
+
+  TILE_TITLE_FRAME  = ->(card) { ActionView::RecordIdentifier.dom_id(card, :tile_title) }
+  MODAL_TITLE_FRAME = ->(card) { ActionView::RecordIdentifier.dom_id(card, :modal_title) }
+
+  test "edit_title renders the form into the TILE title frame" do
+    get edit_title_card_url(@card, context: "tile")
+
+    assert_response :success
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} input[name=?]", "card[title]"
+    assert_select "turbo-frame##{MODAL_TITLE_FRAME.call(@card)}", count: 0
+    # Blur saves, mirroring the list-rename pattern.
+    assert_match(/blur-&gt;autosubmit#submit|blur->autosubmit#submit/, response.body)
+  end
+
+  test "edit_title renders the form into the MODAL title frame" do
+    get edit_title_card_url(@card, context: "modal")
+
+    assert_response :success
+    assert_select "turbo-frame##{MODAL_TITLE_FRAME.call(@card)} input[name=?]", "card[title]"
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)}", count: 0
+  end
+
+  test "edit_title with an unrecognised context falls back to the tile frame" do
+    get edit_title_card_url(@card, context: "bogus")
+
+    assert_response :success
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} input[name=?]", "card[title]"
+  end
+
+  test "edit_title is scoped: another user's card 404s" do
+    other = cards(:two) # lives on boards(:two), which @user cannot access
+
+    get edit_title_card_url(other, context: "tile")
+
+    assert_response :not_found
+  end
+
+  test "update_title saves and broadcasts exactly one tile replace carrying the NEW title" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+    original = @card.title
+
+    broadcasts = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: "Renamed Inline" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal "Renamed Inline", @card.reload.title
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+    # Not merely "a broadcast fired" — the BODY has to carry the new title. A
+    # broadcast rendered from a stale record passes a naive count assertion
+    # while showing every other viewer the old value (the attachment-destroy
+    # lesson).
+    body = broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card))
+    assert_match(/Renamed Inline/, body)
+    assert_no_match(/#{Regexp.escape(original)}<\/h4>/, body)
+  end
+
+  test "update_title from the MODAL also broadcasts exactly one tile replace with the new title" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "modal"),
+            params: { card: { title: "Renamed From Modal" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal "Renamed From Modal", @card.reload.title
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+    assert_match(/Renamed From Modal/, broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card)))
+  end
+
+  test "the actor's own TILE response renders no tile markup (anti double-render)" do
+    patch update_title_card_url(@card, context: "tile"),
+          params: { card: { title: "Tile Actor" } }, as: :turbo_stream
+
+    assert_response :success
+    # The broadcast replaces the whole tile for everyone including the actor, so
+    # this response deliberately carries nothing — not the tile, not the
+    # tile-title frame. Swapping the frame back here too would replace it twice.
+    assert_no_match(/turbo-stream/, response.body)
+    assert_no_match(/#{TILE_TITLE_FRAME.call(@card)}/, response.body)
+    assert_no_match(/id="#{ActionView::RecordIdentifier.dom_id(@card)}"/, response.body)
+  end
+
+  test "the actor's own MODAL response replaces the modal title frame" do
+    patch update_title_card_url(@card, context: "modal"),
+          params: { card: { title: "Modal Actor" } }, as: :turbo_stream
+
+    assert_response :success
+    assert_match(/<turbo-stream action="replace" target="#{MODAL_TITLE_FRAME.call(@card)}"/, response.body)
+    assert_match(/Modal Actor/, response.body)
+    # A different target from the broadcast's tile, so the two never collide.
+    assert_no_match(/target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, response.body)
+  end
+
+  test "update_title logs a renamed activity, but not for a no-op blur save" do
+    assert_difference -> { @card.activities.where(action: "renamed").count }, 1 do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: "Logged Rename" } }, as: :turbo_stream
+    end
+    assert_equal "Logged Rename", @card.reload.activities.where(action: "renamed").last.description
+
+    # Blur saves, so "open the editor, click away" re-submits the same title
+    # constantly — those must not each write a history row.
+    assert_no_difference -> { @card.activities.where(action: "renamed").count } do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: "Logged Rename" } }, as: :turbo_stream
+    end
+  end
+
+  test "a no-op title save still broadcasts, so the tile leaves edit mode" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: @card.title } }, as: :turbo_stream
+    end
+
+    # In the tile context the broadcast is the ONLY thing that swaps the input
+    # back for the heading, so it cannot be conditional on the title changing.
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+  end
+
+  # Blank title. Validation is `presence`, and the real UI submits from inside a
+  # turbo frame — note `as: :turbo_stream` does NOT send a turbo-stream request,
+  # so these use the raw Accept header where that path matters.
+
+  test "a blank title from the TILE is rejected, keeps the old title, and surfaces the error" do
+    original = @card.title
+
+    patch update_title_card_url(@card, context: "tile"),
+          params: { card: { title: "" } }, headers: TURBO_STREAM_ONLY
+
+    # 200, not 422: Turbo drops a 4xx turbo-stream response for a
+    # frame-targeted submission, so the error would never be seen.
+    assert_response :success
+    assert_equal original, @card.reload.title
+    # Reverted to display mode with the OLD title, rejected value discarded.
+    assert_match(/<turbo-stream action="replace" target="#{TILE_TITLE_FRAME.call(@card)}"/, response.body)
+    assert_match(/<turbo-stream action="replace" target="flash"/, response.body)
+    assert_match(/can&#39;t be blank|can't be blank/, response.body)
+  end
+
+  test "a blank title from the MODAL is rejected and surfaces the error" do
+    original = @card.title
+
+    patch update_title_card_url(@card, context: "modal"),
+          params: { card: { title: "" } }, headers: TURBO_STREAM_ONLY
+
+    assert_response :success
+    assert_equal original, @card.reload.title
+    assert_match(/<turbo-stream action="replace" target="#{MODAL_TITLE_FRAME.call(@card)}"/, response.body)
+    assert_match(/can&#39;t be blank|can't be blank/, response.body)
+  end
+
+  test "a blank title broadcasts nothing" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: "" } }, headers: TURBO_STREAM_ONLY
+    end
+
+    assert_empty broadcasts, "a rejected rename must not push a tile to other viewers"
+  end
+
+  test "a blank title re-renders the form with 422 for an HTML request" do
+    original = @card.title
+
+    patch update_title_card_url(@card, context: "tile"),
+          params: { card: { title: "" } }, headers: { "Accept" => "text/html" }
+
+    # HTML form re-render keeps 422 — Turbo needs a 4xx to re-render a form.
+    assert_response :unprocessable_entity
+    assert_equal original, @card.reload.title
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} input[name=?]", "card[title]"
+  end
+
+  test "update_title is scoped: another user's card 404s" do
+    other = cards(:two)
+    original = other.title
+
+    patch update_title_card_url(other, context: "tile"), params: { card: { title: "Hijacked" } }
+
+    # Cross-tenant requests 404 (RecordNotFound), never 403.
+    assert_response :not_found
+    assert_equal original, other.reload.title
+  end
+
+  # --- the aria-labelledby target must survive BOTH modes ---
+  #
+  # cards/show.html.erb's dialog is labelled by card_modal_title_<id>. That id
+  # used to live on the <h2>, which the title frame replaces with a form in edit
+  # mode — the dialog would have lost its accessible name. It now lives on the
+  # enclosing wrapper, outside the frame.
+
+  test "the modal's aria-labelledby target exists in display mode" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_match(/aria-labelledby="card_modal_title_#{@card.id}"/, response.body)
+    assert_match(/id="card_modal_title_#{@card.id}"/, response.body)
+    # The id is on the wrapper, NOT on the heading the frame swaps out.
+    assert_no_match(/<h2 id="card_modal_title_#{@card.id}"/, response.body)
+  end
+
+  # Found in the accessibility tree, not by reading the markup: the title link
+  # first carried aria-label="Edit card title", and because aria-labelledby
+  # computes the dialog's name from the wrapper's SUBTREE — where a descendant's
+  # aria-label beats its own text content — the dialog announced as "Edit card
+  # title" instead of the card's title. The link wraps the heading text, so it is
+  # not icon-only and needs no label; `title` carries the hint instead.
+  test "the modal title link has no aria-label, so it can't hijack the dialog's name" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "turbo-frame##{MODAL_TITLE_FRAME.call(@card)} a" do |links|
+      assert_equal 1, links.size
+      assert_nil links.first["aria-label"],
+                 "an aria-label here overrides the heading text in the dialog's accessible name"
+      assert_equal "Rename card", links.first["title"]
+    end
+    # The name the dialog resolves to is the heading text inside the wrapper.
+    assert_select "##{"card_modal_title_#{@card.id}"} h2", text: @card.title
+  end
+
+  test "the aria-labelledby target is outside the title frame, so edit mode keeps it" do
+    get card_url(@card)
+    body = response.body
+
+    wrapper_at = body.index(%(id="card_modal_title_#{@card.id}"))
+    frame_at   = body.index(%(id="#{MODAL_TITLE_FRAME.call(@card)}"))
+
+    assert wrapper_at, "the aria-labelledby target must be rendered"
+    assert frame_at, "the modal title frame must be rendered"
+    assert wrapper_at < frame_at,
+           "the labelling id must enclose the title frame, or it vanishes in edit mode"
+
+    # And the edit render (which replaces only the frame) must not carry it —
+    # proof the id is untouched by the swap rather than duplicated.
+    get edit_title_card_url(@card, context: "modal")
+    assert_no_match(/id="card_modal_title_#{@card.id}"/, response.body)
+  end
+
+  test "the tile's title still links to the card in display mode" do
+    get board_url(@board_one)
+
+    assert_response :success
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} a[href=?]", card_path(@card)
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} h4", text: @card.title
+  end
+
+  test "the tile's pencil enters inline rename rather than opening the modal" do
+    get board_url(@board_one)
+
+    assert_response :success
+    assert_select "a[href=?][data-turbo-frame=?]",
+                  edit_title_card_path(@card, context: "tile"),
+                  TILE_TITLE_FRAME.call(@card)
+    assert_select "a[aria-label=?]", "Rename card"
+    # The old redundant "Edit card" pencil (which just opened the modal, the
+    # same as clicking the card body) is gone.
+    assert_select "a[aria-label=?]", "Edit card", count: 0
+  end
+
+  TURBO_STREAM_ONLY = { "Accept" => "text/vnd.turbo-stream.html" }.freeze
+
   private
 
   # broadcast_targets / broadcast_for now live in test_helper — ListsController's

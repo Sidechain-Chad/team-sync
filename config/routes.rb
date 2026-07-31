@@ -91,6 +91,8 @@ Rails.application.routes.draw do
       post  :copy
       get   :edit_description
       patch :update_description
+      get   :edit_title
+      patch :update_title
       patch :archive
       patch :unarchive
       patch :toggle_complete

@@ -75,11 +75,17 @@
           data: { role: "keyboard-archive" } do %>
       <% end %>
 
-      <%= link_to card_path(card),
-          data: { turbo_frame: "modal" },
+      <%# Inline rename. This pencil used to point at card_path with
+          data-turbo-frame="modal" and was labelled "Edit card" — i.e. it did
+          exactly what clicking the card body already does (open the modal), so
+          it earned no room of its own. It now enters inline title edit instead,
+          targeting the tile's OWN title frame; clicking the card body/title
+          still opens the modal. %>
+      <%= link_to edit_title_card_path(card, context: "tile"),
+          data: { turbo_frame: dom_id(card, :tile_title) },
           class: "h-7 w-7 rounded-md bg-ink-900/40 hover:bg-ink-900/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
-          title: "Edit card",
-          "aria-label": "Edit card" do %>
+          title: "Rename card",
+          "aria-label": "Rename card" do %>
         <i class="fa-solid fa-pencil text-[11px]" aria-hidden="true"></i>
       <% end %>
     </div>
@@ -148,12 +154,9 @@
           </div>
         <% end %>
 
-        <%# Title — flex-1 so it fills the rest of the row %>
-        <%= link_to card_path(card),
-            data: { turbo_frame: "modal" },
-            class: "flex-1 no-underline text-inherit min-w-0" do %>
-          <h4 class="text-sm font-medium text-ink-700 leading-tight"><%= card.title %></h4>
-        <% end %>
+        <%# Title — its own turbo frame (flex-1 so it fills the rest of the row),
+            swapped for an inline edit form by the pencil above. %>
+        <%= render "cards/tile_title", card: card %>
       </div>
 
       <%# Description + bottom strip (separate link) %>
