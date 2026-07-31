@@ -148,14 +148,16 @@ class CardsController < ApplicationController
       else
         # Broadcast the freshly-rendered card to anyone viewing this board so
         # the preview reflects changes (location pin, attachment count, due
-        # pill, title) in real time. Same pattern as toggle_complete. This is
-        # the common edit path — one card replace, exactly as before.
-        Turbo::StreamsChannel.broadcast_replace_to(
-          @card.list.board,
-          target: @card,
-          partial: "cards/card",
-          locals: { card: @card }
-        )
+        # pill, title) in real time. This is the common edit path — one card
+        # replace, exactly as before.
+        #
+        # broadcast_card_update (BroadcastsCardUpdates) — this used to be an
+        # inline copy of the concern's body, byte for byte, in a controller that
+        # already included the concern. Two paths that had to stay in step for no
+        # reason. #toggle_complete's own broadcast stays inline on purpose: it
+        # passes a just_completed local for the one-shot pop animation, and the
+        # concern deliberately takes no flags (see its comment).
+        broadcast_card_update
       end
 
       if result.success?
