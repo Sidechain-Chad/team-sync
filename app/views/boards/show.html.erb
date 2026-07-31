@@ -75,6 +75,25 @@
           <% end %>
         </div>
 
+        <%# Copy board — NOT owner-gated (matching BoardsController#copy): anyone
+            who can see a board may take their own copy, and the copy belongs to
+            whoever made it. Inline name field rather than a nested popover, same
+            shape as the list menu's Copy list and WIP-limit forms. The copy can be
+            slow on a big board (hundreds of synchronous inserts), so the button
+            carries data-turbo-submits-with to show it's working. %>
+        <div class="py-1 border-t border-line">
+          <div class="px-4 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-ink-500">Copy board</div>
+          <%= form_with url: copy_board_path(@board), method: :post, class: "px-4 pt-1 pb-3 flex items-center gap-2" do |f| %>
+            <%= text_field_tag :name, "Copy of #{@board.name}",
+                class: "w-full text-sm border-line rounded focus:ring-brand-700 focus:border-brand-700",
+                aria: { label: "Name for the copied board" } %>
+            <%= f.submit "Copy",
+                data: { turbo_submits_with: "Copying…" },
+                class: "flex-shrink-0 bg-brand-600 hover:bg-brand-700 text-white font-medium px-3 py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
+          <% end %>
+          <p class="px-4 pb-2 text-[11px] text-ink-500">Copies lists, cards, labels and members. Archived cards and favourites aren't copied.</p>
+        </div>
+
         <%# Close board — reversible, so it sits with the ordinary actions and
             is styled like them, NOT with Delete below. Owner-only, matching
             boards#close's set_owned_board guard. The confirm copy leads with

@@ -224,6 +224,33 @@ class BoardsController < ApplicationController
     redirect_to board_path(@board), notice: "\"#{@board.name}\" is open again."
   end
 
+  # Duplicate the whole board — see Board#copy_to for exactly what comes across
+  # and what deliberately doesn't (labels are remapped to NEW rows on the copy;
+  # favourites, archived cards and card watchers are left behind).
+  #
+  # Scoped through all_boards, NOT set_owned_board: anyone who can see a board may
+  # take their own copy of it. Destroy/close/reopen are owner-only because they
+  # affect everyone else's board; copying affects nobody, and the copy belongs to
+  # whoever made it.
+  #
+  # No broadcast: the boards index isn't a Turbo stream target, and the copy is
+  # only visible to its owner and the members carried across. Redirect to the copy.
+  def copy
+    source = current_user.all_boards.find(params[:id])
+
+    begin
+      new_board = source.copy_to(user: current_user, name: params[:name])
+    rescue ActiveRecord::RecordInvalid => e
+      # copy_to's transaction already rolled back — nothing persisted. Same shape
+      # as CardsController#copy and ListsController#copy: a real page and a flash,
+      # never a raw 500.
+      return redirect_to board_path(source),
+                         alert: "Couldn't copy this board: #{e.record.errors.full_messages.to_sentence}"
+    end
+
+    redirect_to board_path(new_board), notice: "Copied to \"#{new_board.name}\"."
+  end
+
   # Toggle the board's favorite state. Stores the timestamp when starred
   # so we can later sort favorites by most-recently-starred. Responds with
   # turbo_stream so the star icon flips in place without a full reload.

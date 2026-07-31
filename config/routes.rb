@@ -58,6 +58,9 @@ Rails.application.routes.draw do
       # already exists above and means "show this board's archived CARDS".
       patch :close
       patch :reopen
+      # Duplicate the whole board. POST (it creates), and available to anyone with
+      # access to the source, not just its owner — see BoardsController#copy.
+      post  :copy
     end
   end
 
