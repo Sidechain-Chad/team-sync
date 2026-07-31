@@ -71,6 +71,7 @@ Rails.application.routes.draw do
       patch :move
       patch :sort
       patch :archive_all_cards
+      post  :copy
     end
     resources :cards, only: [:new, :create]
   end

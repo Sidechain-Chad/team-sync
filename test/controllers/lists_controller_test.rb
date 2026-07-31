@@ -435,4 +435,205 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/turbo-stream action="replace" target="new_list_form"/, response.body)
     assert_match "Add another list", response.body
   end
+
+  # --- #copy (list ⋯ menu) ---
+  #
+  # Same board only. Active cards only. One broadcast for the whole populated
+  # column, and no per-card activity (see the note above Card#copy_to).
+
+  def populated_list
+    list = @board.lists.create!(name: "Source", card_limit: 4)
+    card = list.cards.create!(title: "Rich card", description: "Body")
+    card.labels << labels(:one)
+    card.members << @user
+    cl = card.checklists.create!(title: "Steps", position: 1)
+    cl.checklist_items.create!(content: "Done item", completed: true, position: 1)
+    cl.checklist_items.create!(content: "Open item", completed: false, position: 2)
+    card.attachments.attach(io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+                            filename: "test.png", content_type: "image/png")
+    archived = list.cards.create!(title: "Archived card")
+    archived.archive!
+    [list, card, archived]
+  end
+
+  test "copy duplicates the list name from the submitted value" do
+    list, = populated_list
+
+    assert_difference -> { @board.lists.count }, 1 do
+      post copy_list_url(list), params: { name: "Renamed copy" }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal "Renamed copy", @board.lists.order(:position).last.name
+  end
+
+  test "copy falls back to the source name when none is submitted" do
+    list, = populated_list
+
+    post copy_list_url(list), as: :turbo_stream
+
+    assert_equal "Source", @board.lists.order(:position).last.name
+  end
+
+  test "copy carries the card_limit across" do
+    list, = populated_list
+
+    post copy_list_url(list), params: { name: "With limit" }, as: :turbo_stream
+
+    assert_equal 4, @board.lists.order(:position).last.card_limit
+  end
+
+  test "copy duplicates every active card with its full association tree" do
+    list, source_card, = populated_list
+
+    post copy_list_url(list), params: { name: "Full copy" }, as: :turbo_stream
+
+    copy = @board.lists.order(:position).last
+    assert_equal 1, copy.cards.count, "only the active card comes across"
+    copied = copy.cards.first
+
+    assert_equal source_card.title, copied.title
+    assert_equal source_card.description, copied.description
+    assert_equal source_card.label_ids.sort, copied.label_ids.sort
+    assert_equal source_card.member_ids.sort, copied.member_ids.sort
+
+    assert_equal 1, copied.checklists.count
+    items = copied.checklists.first.checklist_items
+    assert_equal ["Done item", "Open item"].sort, items.map(&:content).sort
+    assert items.all? { |i| i.completed == false }, "checklist items reset to incomplete"
+
+    assert copied.attachments.attached?
+    assert_equal source_card.attachments.first.blob_id, copied.attachments.first.blob_id,
+                 "attachments share the source's blob — no re-upload"
+  end
+
+  test "copy excludes archived cards" do
+    list, _source_card, archived = populated_list
+
+    post copy_list_url(list), params: { name: "No archive" }, as: :turbo_stream
+
+    copy = @board.lists.order(:position).last
+    assert_not_includes copy.cards.map(&:title), archived.title
+    assert_equal 1, copy.cards.count
+  end
+
+  # The join-stealing failure mode: building the copy's joins must never move the
+  # source's rows.
+  test "copy leaves the SOURCE list completely unchanged" do
+    list, source_card, archived = populated_list
+    before = {
+      cards: list.cards.order(:id).pluck(:id),
+      labels: source_card.label_ids.sort,
+      members: source_card.member_ids.sort,
+      card_labels: source_card.card_labels.pluck(:id).sort,
+      card_members: source_card.card_members.pluck(:id).sort,
+      checklists: source_card.checklists.pluck(:id).sort,
+      items: source_card.checklists.flat_map { |c| c.checklist_items.pluck(:id) }.sort,
+      item_completed: source_card.checklists.flat_map { |c| c.checklist_items.order(:position).pluck(:completed) },
+      blobs: source_card.attachments.map(&:blob_id).sort,
+      name: list.name,
+      limit: list.card_limit
+    }
+
+    post copy_list_url(list), params: { name: "Copy" }, as: :turbo_stream
+
+    list.reload
+    source_card.reload
+    assert_equal before[:cards], list.cards.order(:id).pluck(:id)
+    assert_equal before[:labels], source_card.label_ids.sort
+    assert_equal before[:members], source_card.member_ids.sort
+    assert_equal before[:card_labels], source_card.card_labels.pluck(:id).sort,
+                 "the copy must own NEW card_labels, not steal the source's"
+    assert_equal before[:card_members], source_card.card_members.pluck(:id).sort
+    assert_equal before[:checklists], source_card.checklists.pluck(:id).sort
+    assert_equal before[:items], source_card.checklists.flat_map { |c| c.checklist_items.pluck(:id) }.sort
+    assert_equal before[:item_completed],
+                 source_card.checklists.flat_map { |c| c.checklist_items.order(:position).pluck(:completed) },
+                 "resetting the COPY's items must not reset the source's"
+    assert_equal before[:blobs], source_card.attachments.map(&:blob_id).sort
+    assert_equal before[:name], list.name
+    assert_equal before[:limit], list.card_limit
+    assert archived.reload.archived?
+  end
+
+  test "the copy lands last on the board" do
+    list, = populated_list
+    @board.lists.create!(name: "Someone else's list")
+
+    post copy_list_url(list), params: { name: "Should be last" }, as: :turbo_stream
+
+    assert_equal "Should be last", @board.lists.order(:position).last.name
+  end
+
+  test "copy broadcasts exactly ONE list insert, not one per card" do
+    list, = populated_list
+    list.cards.create!(title: "Second card")
+    list.cards.create!(title: "Third card")
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      post copy_list_url(list), params: { name: "One broadcast" }, as: :turbo_stream
+    end
+
+    assert_equal [["before", "new_list_form"]], broadcast_targets(broadcasts)
+    body = broadcast_for(broadcasts, "new_list_form")
+    assert_match(/One broadcast/, body)
+    # The single insert carries the cards with it — that's why one is enough.
+    assert_match(/Rich card/, body)
+    assert_match(/Second card/, body)
+    assert_match(/Third card/, body)
+  end
+
+  test "the actor's own copy response contains no list markup (anti double-render)" do
+    list, = populated_list
+
+    post copy_list_url(list), params: { name: "Actor check" }, as: :turbo_stream
+
+    assert_response :success
+    assert_no_match(/Actor check/, response.body)
+    assert_no_match(/turbo-stream/, response.body)
+  end
+
+  # A 20-card list copy writing 20 "copied this card from…" rows would flood the
+  # board feed. Consequence accepted: a bulk copy leaves no activity trail at all,
+  # since Activity is card-scoped — the known board/list-level-events gap.
+  test "copy creates NO per-card activities" do
+    list, = populated_list
+    list.cards.create!(title: "Second card")
+
+    assert_no_difference -> { Activity.count } do
+      post copy_list_url(list), params: { name: "Quiet copy" }, as: :turbo_stream
+    end
+  end
+
+  test "copying an empty list works" do
+    empty = @board.lists.create!(name: "Empty")
+
+    assert_difference -> { @board.lists.count }, 1 do
+      post copy_list_url(empty), params: { name: "Empty copy" }, as: :turbo_stream
+    end
+
+    assert_response :success
+    copy = @board.lists.order(:position).last
+    assert_equal "Empty copy", copy.name
+    assert_equal 0, copy.cards.count
+  end
+
+  test "copy is scoped: a list on a board the user cannot reach 404s" do
+    foreign = lists(:two)
+
+    assert_no_difference -> { List.count } do
+      post copy_list_url(foreign), params: { name: "Hijacked" }, as: :turbo_stream
+    end
+    assert_response :not_found
+  end
+
+  test "copy stays on the same board" do
+    list, = populated_list
+
+    post copy_list_url(list), params: { name: "Same board" }, as: :turbo_stream
+
+    copy = List.find_by!(name: "Same board")
+    assert_equal @board.id, copy.board_id
+  end
 end

@@ -149,6 +149,43 @@ class ListsController < ApplicationController
     end
   end
 
+  # "Copy list" (list ⋯ menu). Duplicates the list and its active cards onto the
+  # SAME board — see List#copy_to for what does and doesn't come across.
+  #
+  # Same board only, so no label remapping is needed here (labels belong to the
+  # board, and the copy stays on it). Cross-board list copy would need board
+  # copy's label_map machinery and is deliberately not offered.
+  def copy
+    @list = current_user.all_lists.find(params[:id])
+
+    begin
+      new_list = @list.copy_to(board: @list.board, name: params[:name], user: current_user)
+    rescue ActiveRecord::RecordInvalid => e
+      # copy_to's transaction already rolled back — nothing was persisted. Same
+      # shape as CardsController#copy's failure branch: back to a real page with a
+      # flash, not a raw 500.
+      return redirect_to board_path(@list.board),
+                         alert: "Couldn't copy this list: #{e.record.errors.full_messages.to_sentence}"
+    end
+
+    # ONE broadcast, not one per card: lists/_list renders its own cards, so the
+    # whole populated column arrives in a single insert. Broadcast-only — the
+    # actor is subscribed to this board's stream too, so rendering the list in
+    # this response as well would insert it twice (the same convention #create
+    # and CardsController#create follow).
+    #
+    # Re-read with BOARD_PAGE_INCLUDES first. #create broadcasts a brand-new
+    # (therefore empty) list and needs no preload, but a COPY arrives full of
+    # cards, and rendering lists/_list without the preload is an N+1 across every
+    # one of them. Same preload broadcast_list_replace uses.
+    broadcast_list_insert(list_with_cards_preloaded(new_list))
+
+    respond_to do |format|
+      format.turbo_stream { head :ok }
+      format.html { redirect_to board_path(@list.board) }
+    end
+  end
+
   # "Sort by" (list ⋯ menu). Persists the new order by renumbering positions
   # (see List#sort_cards!) — a one-time reorder, not a sticky sort mode.
   def sort
@@ -184,16 +221,22 @@ class ListsController < ApplicationController
   # list's cards (lists/list -> cards/card), so without it this is an N+1
   # across the list. Same reasoning as #move's per-list broadcast.
   def broadcast_list_replace(list)
-    list_for_broadcast = current_user.all_lists
-                                     .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
-                                     .find(list.id)
-
     Turbo::StreamsChannel.broadcast_replace_to(
       list.board,
       target: helpers.dom_id(list),
       partial: "lists/list",
-      locals: { list: list_for_broadcast }
+      locals: { list: list_with_cards_preloaded(list) }
     )
+  end
+
+  # Re-reads a list with everything lists/_list needs to render every one of its
+  # cards. Mandatory before broadcasting a list that HAS cards — without it,
+  # rendering the column is an N+1 across the list. #create's brand-new list is
+  # empty so it doesn't need this; #copy's very much does.
+  def list_with_cards_preloaded(list)
+    current_user.all_lists
+                .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
+                .find(list.id)
   end
 
   # Mirror of CardsController#broadcast_card_insert, one level up: a list

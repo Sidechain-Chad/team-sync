@@ -202,7 +202,25 @@ class Card < ApplicationRecord
   # No explicit position is set on the copy or its checklists/items —
   # acts_as_list's create callback appends each to the bottom of its scope,
   # which is exactly "land last in the target list" for the card itself.
-  def copy_to(list:, title:, user:)
+  # `log_activity:` — false for BULK copies (list copy, board copy). A 20-card
+  # list copy would otherwise write 20 "copied this card from…" rows into the
+  # board's activity feed in one click, and a 200-card board copy is far worse.
+  # Single-card copy (CardsController#copy) keeps its activity.
+  #
+  # Consequence, accepted rather than fixed here: a bulk copy leaves NO activity
+  # trail at all, because Activity belongs_to :card — there is no list-level or
+  # board-level activity row to write instead. That's the already-known
+  # "board- and list-level events in the activity feed" gap, not something this
+  # introduces.
+  #
+  # `label_map:` — {source_label_id => new_label_id}, for copying onto a
+  # DIFFERENT board. Labels belong_to :board, so the default
+  # `copy.label_ids = label_ids` is only correct within one board; on a new board
+  # it would attach the SOURCE board's label rows to cards on the copy, which
+  # renders the wrong labels and breaks when the source's labels change or are
+  # deleted. Board copy builds the map (see Board#copy_to) and passes it; list
+  # copy is same-board only and passes nil.
+  def copy_to(list:, title:, user:, log_activity: true, label_map: nil)
     new_title = title.presence || self.title
     copy = nil
 
@@ -221,7 +239,10 @@ class Card < ApplicationRecord
         due_reminder_sent_at: nil
       )
 
-      copy.label_ids = label_ids
+      # compact: a source label with no entry in the map is dropped rather than
+      # carried across as a cross-board reference. Can't happen with a map built
+      # from the whole source board, but silently dropping beats silently leaking.
+      copy.label_ids = label_map ? label_ids.filter_map { |id| label_map[id] } : label_ids
       copy.member_ids = member_ids
       copy.attachments.attach(attachments.map(&:blob)) if attachments.attached?
 
@@ -232,7 +253,7 @@ class Card < ApplicationRecord
         end
       end
 
-      copy.log_activity(user, "copied", self.title)
+      copy.log_activity(user, "copied", self.title) if log_activity
     end
 
     copy

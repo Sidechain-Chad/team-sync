@@ -85,6 +85,23 @@
             <p class="px-4 pb-2 text-[11px] text-ink-500">Leave blank for no limit. Going over only warns — it never blocks.</p>
           </div>
 
+          <%# --- Copy list --- same board only (labels belong to the board, so a
+              cross-board list copy would need board copy's remapping). Same
+              inline-form-inside-the-menu shape as the WIP limit above rather than
+              a second popover: one dropdown, one interaction model. Active cards
+              only; the archived ones stay with the source. %>
+          <div class="py-1 border-t border-line">
+            <div class="px-4 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-ink-500">Copy list</div>
+            <%= form_with url: copy_list_path(list), method: :post, class: "px-4 pt-1 pb-3 flex items-center gap-2" do |f| %>
+              <%= text_field_tag :name, "#{list.name} (copy)",
+                  class: "w-full text-sm border-line rounded focus:ring-brand-700 focus:border-brand-700",
+                  aria: { label: "Name for the copied list" } %>
+              <%= f.submit "Copy",
+                  class: "flex-shrink-0 bg-brand-600 hover:bg-brand-700 text-white font-medium px-3 py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
+            <% end %>
+            <p class="px-4 pb-2 text-[11px] text-ink-500">Copies this list's cards to the end of the board. Archived cards aren't copied.</p>
+          </div>
+
           <%# --- Archive all cards --- one activity per card, and a single
               full-list broadcast rather than N removes. %>
           <div class="py-1 border-t border-line">
