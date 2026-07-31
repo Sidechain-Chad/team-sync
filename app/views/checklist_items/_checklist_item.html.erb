@@ -1,5 +1,10 @@
 <%= turbo_frame_tag dom_id(checklist_item) do %>
   <div class="flex items-center gap-3 group">
+    <%# Deliberately NO autosubmit_once_value here — do not add it. This is the
+        one autosubmit call site with a single trigger (change, no blur, no
+        Enter), so it has no double-submit to fix, and toggling the checkbox
+        twice in a row is two legitimate changes. A one-shot guard would swallow
+        the second toggle. That's why `once` is opt-in rather than the default. %>
     <%= form_with model: [checklist_item.checklist.card, checklist_item.checklist, checklist_item],
         method: :patch,
         data: { turbo_frame: dom_id(checklist_item), controller: "autosubmit" },

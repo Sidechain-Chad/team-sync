@@ -7,8 +7,14 @@
 
     Both branches mirror lists/edit.html.erb, the established inline-rename
     shape in this app: autofocused field, blur saves via the `autosubmit`
-    Stimulus controller, hidden submit button so Enter submits. No cancel — list
-    rename has none either, and diverging here would make the two inconsistent.
+    Stimulus controller, Enter submits through that same controller. No cancel —
+    list rename has none either, and diverging here would make the two
+    inconsistent. (Esc-cancel now has a clean hook here, but adding it should
+    change card AND list rename together as its own decision.)
+
+    No hidden submit button, and `once` on both forms: Enter used to fire the
+    browser's implicit submission AND a blur, writing twice per keystroke. See
+    autosubmit_controller.js.
 
     The `n`/`c`/`?` board shortcuts don't fire while this field has focus:
     keyboard_controller.js#isTypingTarget already bails on any `input`. %>
@@ -17,17 +23,14 @@
     <%= form_with(model: @card,
                   url: update_title_card_path(@card, context: "modal"),
                   method: :patch,
-                  data: { controller: "autosubmit" }) do |f| %>
+                  data: { controller: "autosubmit", autosubmit_once_value: true }) do |f| %>
       <%# Matches the heading's own type scale so the swap doesn't reflow the
           modal header. w-full + the wrapper's min-w-0 keep it inside the modal
           at 375px. %>
       <%= f.text_field :title,
           class: "w-full font-display text-xl font-bold text-ink-700 leading-tight bg-white border-2 border-brand-700 rounded-md px-2 py-1 focus:outline-none focus:ring-0",
           autofocus: true,
-          data: { action: "blur->autosubmit#submit" } %>
-
-      <%# Hidden submit button for the Enter key %>
-      <%= f.submit class: "hidden" %>
+          data: { action: "blur->autosubmit#submit keydown.enter->autosubmit#submit:prevent" } %>
     <% end %>
   <% end %>
 <% else %>
@@ -35,17 +38,14 @@
     <%= form_with(model: @card,
                   url: update_title_card_path(@card, context: "tile"),
                   method: :patch,
-                  data: { controller: "autosubmit" }) do |f| %>
+                  data: { controller: "autosubmit", autosubmit_once_value: true }) do |f| %>
       <%# Same type scale as the tile's <h4>, so entering edit mode doesn't
           resize the tile. w-full + the frame's own min-w-0 keep a long title
           from widening the list column. %>
       <%= f.text_field :title,
           class: "w-full text-sm font-medium text-ink-700 leading-tight bg-white border-2 border-brand-700 rounded px-1 py-0.5 focus:outline-none focus:ring-0",
           autofocus: true,
-          data: { action: "blur->autosubmit#submit" } %>
-
-      <%# Hidden submit button for the Enter key %>
-      <%= f.submit class: "hidden" %>
+          data: { action: "blur->autosubmit#submit keydown.enter->autosubmit#submit:prevent" } %>
     <% end %>
   <% end %>
 <% end %>
