@@ -435,4 +435,330 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/turbo-stream action="replace" target="new_list_form"/, response.body)
     assert_match "Add another list", response.body
   end
+
+  # --- #copy (list ⋯ menu) ---
+  #
+  # Same board only. Active cards only. One broadcast for the whole populated
+  # column, and no per-card activity (see the note above Card#copy_to).
+
+  def populated_list
+    list = @board.lists.create!(name: "Source", card_limit: 4)
+    card = list.cards.create!(title: "Rich card", description: "Body")
+    card.labels << labels(:one)
+    card.members << @user
+    cl = card.checklists.create!(title: "Steps", position: 1)
+    cl.checklist_items.create!(content: "Done item", completed: true, position: 1)
+    cl.checklist_items.create!(content: "Open item", completed: false, position: 2)
+    card.attachments.attach(io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+                            filename: "test.png", content_type: "image/png")
+    archived = list.cards.create!(title: "Archived card")
+    archived.archive!
+    [list, card, archived]
+  end
+
+  test "copy duplicates the list name from the submitted value" do
+    list, = populated_list
+
+    assert_difference -> { @board.lists.count }, 1 do
+      post copy_list_url(list), params: { name: "Renamed copy" }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal "Renamed copy", @board.lists.order(:position).last.name
+  end
+
+  test "copy falls back to the source name when none is submitted" do
+    list, = populated_list
+
+    post copy_list_url(list), as: :turbo_stream
+
+    assert_equal "Source", @board.lists.order(:position).last.name
+  end
+
+  test "copy carries the card_limit across" do
+    list, = populated_list
+
+    post copy_list_url(list), params: { name: "With limit" }, as: :turbo_stream
+
+    assert_equal 4, @board.lists.order(:position).last.card_limit
+  end
+
+  test "copy duplicates every active card with its full association tree" do
+    list, source_card, = populated_list
+
+    post copy_list_url(list), params: { name: "Full copy" }, as: :turbo_stream
+
+    copy = @board.lists.order(:position).last
+    assert_equal 1, copy.cards.count, "only the active card comes across"
+    copied = copy.cards.first
+
+    assert_equal source_card.title, copied.title
+    assert_equal source_card.description, copied.description
+    assert_equal source_card.label_ids.sort, copied.label_ids.sort
+    assert_equal source_card.member_ids.sort, copied.member_ids.sort
+
+    assert_equal 1, copied.checklists.count
+    items = copied.checklists.first.checklist_items
+    assert_equal ["Done item", "Open item"].sort, items.map(&:content).sort
+    assert items.all? { |i| i.completed == false }, "checklist items reset to incomplete"
+
+    assert copied.attachments.attached?
+    assert_equal source_card.attachments.first.blob_id, copied.attachments.first.blob_id,
+                 "attachments share the source's blob — no re-upload"
+  end
+
+  test "copy excludes archived cards" do
+    list, _source_card, archived = populated_list
+
+    post copy_list_url(list), params: { name: "No archive" }, as: :turbo_stream
+
+    copy = @board.lists.order(:position).last
+    assert_not_includes copy.cards.map(&:title), archived.title
+    assert_equal 1, copy.cards.count
+  end
+
+  # The join-stealing failure mode: building the copy's joins must never move the
+  # source's rows.
+  test "copy leaves the SOURCE list completely unchanged" do
+    list, source_card, archived = populated_list
+    before = {
+      cards: list.cards.order(:id).pluck(:id),
+      labels: source_card.label_ids.sort,
+      members: source_card.member_ids.sort,
+      card_labels: source_card.card_labels.pluck(:id).sort,
+      card_members: source_card.card_members.pluck(:id).sort,
+      checklists: source_card.checklists.pluck(:id).sort,
+      items: source_card.checklists.flat_map { |c| c.checklist_items.pluck(:id) }.sort,
+      item_completed: source_card.checklists.flat_map { |c| c.checklist_items.order(:position).pluck(:completed) },
+      blobs: source_card.attachments.map(&:blob_id).sort,
+      name: list.name,
+      limit: list.card_limit
+    }
+
+    post copy_list_url(list), params: { name: "Copy" }, as: :turbo_stream
+
+    list.reload
+    source_card.reload
+    assert_equal before[:cards], list.cards.order(:id).pluck(:id)
+    assert_equal before[:labels], source_card.label_ids.sort
+    assert_equal before[:members], source_card.member_ids.sort
+    assert_equal before[:card_labels], source_card.card_labels.pluck(:id).sort,
+                 "the copy must own NEW card_labels, not steal the source's"
+    assert_equal before[:card_members], source_card.card_members.pluck(:id).sort
+    assert_equal before[:checklists], source_card.checklists.pluck(:id).sort
+    assert_equal before[:items], source_card.checklists.flat_map { |c| c.checklist_items.pluck(:id) }.sort
+    assert_equal before[:item_completed],
+                 source_card.checklists.flat_map { |c| c.checklist_items.order(:position).pluck(:completed) },
+                 "resetting the COPY's items must not reset the source's"
+    assert_equal before[:blobs], source_card.attachments.map(&:blob_id).sort
+    assert_equal before[:name], list.name
+    assert_equal before[:limit], list.card_limit
+    assert archived.reload.archived?
+  end
+
+  # Was "lands last on the board". Appending put the copy at the far end, which on a
+  # board with several lists is off-screen — so a user had no visible evidence the
+  # copy happened. It now lands immediately after the source (Trello's behaviour),
+  # via acts_as_list's insert_at.
+  test "the copy is positioned immediately after the source list" do
+    list, = populated_list
+    after = @board.lists.create!(name: "Comes after")
+    last  = @board.lists.create!(name: "Comes last")
+    before_order = @board.lists.order(:position).map(&:name)
+    assert_equal ["MyString", "Source", "Comes after", "Comes last"], before_order,
+                 "fixture order assumption for this test"
+
+    post copy_list_url(list), params: { name: "The copy" }, as: :turbo_stream
+
+    order = @board.lists.order(:position).map(&:name)
+    assert_equal "The copy", order[order.index("Source") + 1],
+                 "the copy must sit directly after its source"
+    assert_equal ["MyString", "Source", "The copy", "Comes after", "Comes last"], order
+    # The lists that were already there keep their relative order — insert_at must
+    # shift them down, not reshuffle them.
+    assert_equal before_order, order - ["The copy"]
+    assert_equal [1, 2, 3, 4, 5], @board.lists.order(:position).map(&:position),
+                 "positions stay a clean 1..n sequence after the shift"
+    assert_equal after.id, @board.lists.order(:position).to_a[3].id
+    assert_equal last.id, @board.lists.order(:position).to_a[4].id
+  end
+
+  test "copying the LAST list still lands the copy right after it" do
+    list, = populated_list
+    @board.lists.create!(name: "Middle")
+    list.update!(position: @board.lists.maximum(:position) + 1)
+
+    post copy_list_url(list), params: { name: "Trailing copy" }, as: :turbo_stream
+
+    order = @board.lists.order(:position).map(&:name)
+    assert_equal "Trailing copy", order.last
+    assert_equal "Source", order[-2]
+  end
+
+  test "copy broadcasts exactly ONE list insert, not one per card" do
+    list, = populated_list
+    list.cards.create!(title: "Second card")
+    list.cards.create!(title: "Third card")
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      post copy_list_url(list), params: { name: "One broadcast" }, as: :turbo_stream
+    end
+
+    # AFTER the source, not before new_list_form (the far end of the board). The
+    # DB position and the broadcast insertion point have to agree, or a reload
+    # shows the copy in one place and every live viewer sees it in another — which
+    # is exactly what shipped before this was caught in the browser.
+    target = ActionView::RecordIdentifier.dom_id(list)
+    assert_equal [["after", target]], broadcast_targets(broadcasts)
+    body = broadcast_for(broadcasts, target)
+    assert_match(/One broadcast/, body)
+    # The single insert carries the cards with it — that's why one is enough.
+    assert_match(/Rich card/, body)
+    assert_match(/Second card/, body)
+    assert_match(/Third card/, body)
+  end
+
+  # The DOM insertion point must agree with the persisted position. This asserts the
+  # pairing directly rather than trusting each half separately.
+  test "the broadcast inserts after the same list the copy is positioned after" do
+    list, = populated_list
+    @board.lists.create!(name: "Follows the source")
+    stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream_name) do
+      post copy_list_url(list), params: { name: "Agreement check" }, as: :turbo_stream
+    end
+
+    action, target = broadcast_targets(broadcasts).first
+    assert_equal "after", action
+    assert_equal ActionView::RecordIdentifier.dom_id(list), target
+
+    order = @board.lists.order(:position).to_a
+    copy = List.find_by!(name: "Agreement check")
+    assert_equal list.id, order[order.index(copy) - 1].id,
+                 "the row the broadcast inserts after must be the row the copy follows in the DB"
+  end
+
+  # The anti-double-render property has to survive the flash being added. It used to
+  # be asserted as "the new list's NAME doesn't appear", which the flash now
+  # legitimately breaks (it names the copy — that's the point). Tightened to what
+  # the property actually means: no list markup and no card markup, only the flash.
+  test "the actor's own copy response contains the flash and NO list markup" do
+    list, = populated_list
+    list.cards.create!(title: "Second card")
+
+    post copy_list_url(list), params: { name: "Actor check" }, as: :turbo_stream
+
+    assert_response :success
+
+    # Exactly one stream, and it targets the flash slot.
+    assert_equal 1, response.body.scan(/<turbo-stream /).size
+    assert_match(/<turbo-stream action="replace" target="flash"/, response.body)
+
+    # No list column, no list header, no cards — the broadcast delivers all of that,
+    # and rendering it here too would insert the list twice for the actor.
+    assert_no_match(/turbo-frame id="list_/, response.body)
+    assert_no_match(/turbo-frame id="header_list_/, response.body)
+    assert_no_match(/turbo-frame id="card_/, response.body)
+    assert_no_match(/Rich card/, response.body)
+    assert_no_match(/Second card/, response.body)
+  end
+
+  test "the actor's copy response flash names the new list" do
+    list, = populated_list
+
+    post copy_list_url(list), params: { name: "Named in the flash" }, as: :turbo_stream
+
+    assert_response :success
+    assert_match(/List copied as &quot;Named in the flash&quot;\./, response.body)
+    # notice, not alert — so it inherits shared/_flash's 5s auto-dismiss.
+    assert_match(/data-flash-timeout-value="5000"/, response.body)
+    assert_no_match(/role="alert"/, response.body)
+  end
+
+  # The thing the user thought was broken. It was always working; confirm it still is
+  # now that the confirmation exists.
+  test "the submitted name really is applied to the copy" do
+    list, = populated_list
+
+    post copy_list_url(list), params: { name: "Definitely renamed" }, as: :turbo_stream
+
+    assert List.exists?(board: @board, name: "Definitely renamed")
+    assert_equal "Source", list.reload.name, "the source keeps its own name"
+  end
+
+  # A 20-card list copy writing 20 "copied this card from…" rows would flood the
+  # board feed. Consequence accepted: a bulk copy leaves no activity trail at all,
+  # since Activity is card-scoped — the known board/list-level-events gap.
+  test "copy creates NO per-card activities" do
+    list, = populated_list
+    list.cards.create!(title: "Second card")
+
+    assert_no_difference -> { Activity.count } do
+      post copy_list_url(list), params: { name: "Quiet copy" }, as: :turbo_stream
+    end
+  end
+
+  test "copying an empty list works" do
+    empty = @board.lists.create!(name: "Empty")
+
+    assert_difference -> { @board.lists.count }, 1 do
+      post copy_list_url(empty), params: { name: "Empty copy" }, as: :turbo_stream
+    end
+
+    assert_response :success
+    copy = @board.lists.order(:position).last
+    assert_equal "Empty copy", copy.name
+    assert_equal 0, copy.cards.count
+  end
+
+  test "copy is scoped: a list on a board the user cannot reach 404s" do
+    foreign = lists(:two)
+
+    assert_no_difference -> { List.count } do
+      post copy_list_url(foreign), params: { name: "Hijacked" }, as: :turbo_stream
+    end
+    assert_response :not_found
+  end
+
+  test "copy stays on the same board" do
+    list, = populated_list
+
+    post copy_list_url(list), params: { name: "Same board" }, as: :turbo_stream
+
+    copy = List.find_by!(name: "Same board")
+    assert_equal @board.id, copy.board_id
+  end
+
+  # --- TRAP 2: bulk archive must not notify ---
+  #
+  # cards#archive notifies the card's subscribers. This action archives every card
+  # in the list by calling card.archive! on the MODEL, so it never reaches that
+  # controller action — N cards would otherwise mean N notifications per subscriber
+  # for one click. This test is what pins the trigger's placement: move it into
+  # Card#archive! or a model callback and this fails.
+  test "archive_all_cards notifies nobody, however many cards and subscribers" do
+    list = @board.lists.create!(name: "Bulk archive")
+    member = User.create!(email: "bulk-member@example.com", password: "password")
+    watcher = User.create!(email: "bulk-watcher@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    @board.board_users.create!(user: watcher)
+
+    3.times do |i|
+      card = list.cards.create!(title: "Bulk #{i}")
+      card.members << member
+      CardWatcher.create!(card: card, user: watcher)
+    end
+
+    assert_no_difference -> { Notification.count } do
+      patch archive_all_cards_list_url(list), as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal 0, list.reload.active_cards.count, "the bulk archive itself must still have happened"
+    assert_equal 3, list.archived_cards.count
+    # The per-card activity trail is unchanged — that IS wanted for bulk archive.
+    assert_equal 3, Activity.where(action: "archived").count
+  end
 end

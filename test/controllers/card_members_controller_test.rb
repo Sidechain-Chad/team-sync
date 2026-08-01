@@ -126,4 +126,69 @@ class CardMembersControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_not_includes @card.reload.members, member
   end
+
+  # --- removed_from_card ---
+  #
+  # Mirrors added_to_card: the removed user is the only recipient, not the card's
+  # subscribers. This is about them, not about the card changing.
+
+  test "removing a member notifies THAT member" do
+    other = User.create!(email: "removed-member@example.com", password: "password")
+    @board.board_users.create!(user: other)
+    @card.members << other
+
+    assert_difference -> { Notification.where(action: "removed_from_card").count }, 1 do
+      delete card_member_url(@card, user_id: other.id), as: :turbo_stream
+    end
+
+    notification = Notification.where(action: "removed_from_card").last
+    assert_equal other, notification.recipient
+    assert_equal @user, notification.actor
+    assert_equal @card, notification.notifiable
+    assert_not_includes @card.reload.members, other
+  end
+
+  test "removing YOURSELF notifies nobody" do
+    @card.members << @user unless @card.members.include?(@user)
+
+    assert_no_difference -> { Notification.count } do
+      delete card_member_url(@card, user_id: @user.id), as: :turbo_stream
+    end
+    assert_not_includes @card.reload.members, @user
+  end
+
+  test "a member with the removal preference off is not notified" do
+    other = User.create!(email: "removed-pref-off@example.com", password: "password",
+                         notification_preferences: { "removed_from_card" => false })
+    @board.board_users.create!(user: other)
+    @card.members << other
+
+    assert_no_difference -> { Notification.count } do
+      delete card_member_url(@card, user_id: other.id), as: :turbo_stream
+    end
+  end
+
+  # The join row is looked up with find_by + safe-nav so a second tab doesn't
+  # raise; the notification is gated on a row having actually been destroyed, so
+  # the already-removed case doesn't notify twice.
+  test "removing someone who is not a member notifies nobody" do
+    other = User.create!(email: "never-a-member@example.com", password: "password")
+    @board.board_users.create!(user: other)
+
+    assert_no_difference -> { Notification.count } do
+      delete card_member_url(@card, user_id: other.id), as: :turbo_stream
+    end
+  end
+
+  test "removal does not notify the card's other subscribers" do
+    other = User.create!(email: "removed-target@example.com", password: "password")
+    bystander = User.create!(email: "removal-bystander@example.com", password: "password")
+    @board.board_users.create!(user: other)
+    @board.board_users.create!(user: bystander)
+    @card.members << other << bystander
+
+    delete card_member_url(@card, user_id: other.id), as: :turbo_stream
+
+    assert_equal [other], Notification.where(action: "removed_from_card").map(&:recipient)
+  end
 end

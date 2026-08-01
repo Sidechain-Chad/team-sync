@@ -13,6 +13,87 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  # --- cards on a closed board are absent from every planner aggregation ---
+  #
+  # The grid, the agenda panel and the map are three separate queries over
+  # current_user.open_lists. One test each, deliberately: they're the call sites
+  # where a missed closed-board filter would hide, and a single combined test
+  # would pass while two of the three still leaked.
+
+  # A dated, located card on its own board, so its title can't collide with a
+  # fixture. Due tomorrow: inside the current month's grid, inside the agenda's
+  # 21-day window, and inside the map's month range.
+  def closable_board_with_dated_card(title)
+    board = @user.boards.create!(name: "Planner Closable #{title}")
+    list  = board.lists.create!(name: "L", position: 1)
+    card  = list.cards.create!(
+      title: title,
+      position: 1,
+      due_date: Date.current.tomorrow.noon,
+      location_name: "Somewhere",
+      latitude: 51.5,
+      longitude: -0.12
+    )
+    [board, card]
+  end
+
+  test "a card on a closed board is absent from the planner grid" do
+    board, card = closable_board_with_dated_card("Grimsby Grid Card")
+
+    get planner_url
+    assert_response :success
+    assert_match card.title, response.body
+
+    board.close!
+    get planner_url
+
+    assert_response :success
+    assert_no_match card.title, response.body
+  end
+
+  test "a card on a closed board is absent from the planner agenda panel" do
+    board, card = closable_board_with_dated_card("Grimsby Agenda Card")
+
+    get planner_panel_url
+    assert_response :success
+    assert_match card.title, response.body
+
+    board.close!
+    get planner_panel_url
+
+    assert_response :success
+    assert_no_match card.title, response.body
+  end
+
+  test "a card on a closed board is absent from the map" do
+    board, card = closable_board_with_dated_card("Grimsby Map Card")
+
+    get planner_map_url
+    assert_response :success
+    assert_match card.title, response.body
+
+    board.close!
+    get planner_map_url
+
+    assert_response :success
+    assert_no_match card.title, response.body
+  end
+
+  test "a closed board is not offered as the planner's back-to-board link" do
+    board, _card = closable_board_with_dated_card("Grimsby Back Link Card")
+
+    get board_url(board) # seeds session[:last_board_id]
+    get planner_url
+    assert_response :success
+    assert_select "a[href=?]", board_path(board), minimum: 1
+
+    board.close!
+    get planner_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(board), count: 0
+  end
+
   test "should get index with year and month" do
     get planner_url(year: 2026, month: 4)
     assert_response :success

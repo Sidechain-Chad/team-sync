@@ -7,6 +7,11 @@ class Card < ApplicationRecord
   # NEW: Allow multiple members
   has_many :card_members, dependent: :destroy
   has_many :members, through: :card_members, source: :user
+
+  # Watching: receive this card's notifications without being a member.
+  has_many :card_watchers, dependent: :destroy
+  has_many :watchers, through: :card_watchers, source: :user
+
   has_many :comments, dependent: :destroy
   has_many :activities, dependent: :destroy
   has_many :checklists, -> { order(position: :asc) }, dependent: :destroy
@@ -117,6 +122,34 @@ class Card < ApplicationRecord
     latitude.present? && longitude.present?
   end
 
+  # Everyone who should hear about this card: its members plus anyone watching
+  # it. THE audience for card-level notification triggers — `comment` (see
+  # Comment's after_create_commit) and `due_soon` (DueSoonScanJob) both fan out
+  # over this rather than over `members`.
+  #
+  # Deliberately NOT the audience for `added_to_card` (that one is about the
+  # person being added) or `mention` (a mention reaches you whether or not you're
+  # a member or a watcher).
+  #
+  # Deduped, so being both a member and a watcher still means exactly one
+  # notification. `|` on the loaded arrays rather than a UNION query: both
+  # associations are already preloaded everywhere this is called from
+  # (DueSoonScanJob includes both; Comment reaches it through an in-memory card),
+  # and a scope here would issue a query per card in the scan.
+  def subscribers
+    members.to_a | watchers.to_a
+  end
+
+  # Mirrors Board#favorited_by? — same shape for the same kind of thing (a
+  # per-user toggle's current state, read by the toggle's own partial). `exists?`
+  # costs one query per render, which is fine for the single card the modal shows;
+  # it is NOT how the due-soon scan reads watchers (that preloads, see
+  # DueSoonScanJob).
+  def watched_by?(user)
+    return false unless user
+    card_watchers.exists?(user_id: user.id)
+  end
+
   def archived?
     archived_at.present?
   end
@@ -169,7 +202,25 @@ class Card < ApplicationRecord
   # No explicit position is set on the copy or its checklists/items —
   # acts_as_list's create callback appends each to the bottom of its scope,
   # which is exactly "land last in the target list" for the card itself.
-  def copy_to(list:, title:, user:)
+  # `log_activity:` — false for BULK copies (list copy, board copy). A 20-card
+  # list copy would otherwise write 20 "copied this card from…" rows into the
+  # board's activity feed in one click, and a 200-card board copy is far worse.
+  # Single-card copy (CardsController#copy) keeps its activity.
+  #
+  # Consequence, accepted rather than fixed here: a bulk copy leaves NO activity
+  # trail at all, because Activity belongs_to :card — there is no list-level or
+  # board-level activity row to write instead. That's the already-known
+  # "board- and list-level events in the activity feed" gap, not something this
+  # introduces.
+  #
+  # `label_map:` — {source_label_id => new_label_id}, for copying onto a
+  # DIFFERENT board. Labels belong_to :board, so the default
+  # `copy.label_ids = label_ids` is only correct within one board; on a new board
+  # it would attach the SOURCE board's label rows to cards on the copy, which
+  # renders the wrong labels and breaks when the source's labels change or are
+  # deleted. Board copy builds the map (see Board#copy_to) and passes it; list
+  # copy is same-board only and passes nil.
+  def copy_to(list:, title:, user:, log_activity: true, label_map: nil)
     new_title = title.presence || self.title
     copy = nil
 
@@ -188,7 +239,10 @@ class Card < ApplicationRecord
         due_reminder_sent_at: nil
       )
 
-      copy.label_ids = label_ids
+      # compact: a source label with no entry in the map is dropped rather than
+      # carried across as a cross-board reference. Can't happen with a map built
+      # from the whole source board, but silently dropping beats silently leaking.
+      copy.label_ids = label_map ? label_ids.filter_map { |id| label_map[id] } : label_ids
       copy.member_ids = member_ids
       copy.attachments.attach(attachments.map(&:blob)) if attachments.attached?
 
@@ -199,7 +253,7 @@ class Card < ApplicationRecord
         end
       end
 
-      copy.log_activity(user, "copied", self.title)
+      copy.log_activity(user, "copied", self.title) if log_activity
     end
 
     copy

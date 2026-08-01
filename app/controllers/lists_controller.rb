@@ -149,6 +149,60 @@ class ListsController < ApplicationController
     end
   end
 
+  # "Copy list" (list ⋯ menu). Duplicates the list and its active cards onto the
+  # SAME board — see List#copy_to for what does and doesn't come across.
+  #
+  # Same board only, so no label remapping is needed here (labels belong to the
+  # board, and the copy stays on it). Cross-board list copy would need board
+  # copy's label_map machinery and is deliberately not offered.
+  def copy
+    @list = current_user.all_lists.find(params[:id])
+
+    begin
+      new_list = @list.copy_to(board: @list.board, name: params[:name], user: current_user)
+    rescue ActiveRecord::RecordInvalid => e
+      # copy_to's transaction already rolled back — nothing was persisted. Same
+      # shape as CardsController#copy's failure branch: back to a real page with a
+      # flash, not a raw 500.
+      return redirect_to board_path(@list.board),
+                         alert: "Couldn't copy this list: #{e.record.errors.full_messages.to_sentence}"
+    end
+
+    # ONE broadcast, not one per card: lists/_list renders its own cards, so the
+    # whole populated column arrives in a single insert. Broadcast-only — the
+    # actor is subscribed to this board's stream too, so rendering the list in
+    # this response as well would insert it twice (the same convention #create
+    # and CardsController#create follow).
+    #
+    # Inserted AFTER the source, matching where List#copy_to just positioned it.
+    #
+    # Re-read with BOARD_PAGE_INCLUDES first. #create broadcasts a brand-new
+    # (therefore empty) list and needs no preload, but a COPY arrives full of
+    # cards, and rendering lists/_list without the preload is an N+1 across every
+    # one of them. Same preload broadcast_list_replace uses.
+    broadcast_list_insert_after(list_with_cards_preloaded(new_list), after: @list)
+
+    respond_to do |format|
+      # The response used to be `head :ok`. "Render nothing for the LIST" (correct —
+      # the broadcast delivers it, and rendering it here too would insert it twice)
+      # had been over-applied into "render nothing at all", so submitting the form
+      # produced no flash, left the dropdown open still showing the typed name, and
+      # looked exactly like nothing had happened. The name was always being applied;
+      # this is purely the missing confirmation.
+      #
+      # Still NO list markup here — only the flash slot, which is a different
+      # target, so the one-broadcast / no-double-render property is untouched.
+      # notice rather than alert so it inherits shared/_flash's 5-second
+      # auto-dismiss; errors are the ones that persist.
+      format.turbo_stream do
+        flash.now[:notice] = "List copied as \"#{new_list.name}\"."
+        render turbo_stream: turbo_stream.replace("flash", partial: "shared/flash")
+      end
+
+      format.html { redirect_to board_path(@list.board), notice: "List copied as \"#{new_list.name}\"." }
+    end
+  end
+
   # "Sort by" (list ⋯ menu). Persists the new order by renumbering positions
   # (see List#sort_cards!) — a one-time reorder, not a sticky sort mode.
   def sort
@@ -184,16 +238,22 @@ class ListsController < ApplicationController
   # list's cards (lists/list -> cards/card), so without it this is an N+1
   # across the list. Same reasoning as #move's per-list broadcast.
   def broadcast_list_replace(list)
-    list_for_broadcast = current_user.all_lists
-                                     .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
-                                     .find(list.id)
-
     Turbo::StreamsChannel.broadcast_replace_to(
       list.board,
       target: helpers.dom_id(list),
       partial: "lists/list",
-      locals: { list: list_for_broadcast }
+      locals: { list: list_with_cards_preloaded(list) }
     )
+  end
+
+  # Re-reads a list with everything lists/_list needs to render every one of its
+  # cards. Mandatory before broadcasting a list that HAS cards — without it,
+  # rendering the column is an N+1 across the list. #create's brand-new list is
+  # empty so it doesn't need this; #copy's very much does.
+  def list_with_cards_preloaded(list)
+    current_user.all_lists
+                .includes(active_cards: Card::BOARD_PAGE_INCLUDES)
+                .find(list.id)
   end
 
   # Mirror of CardsController#broadcast_card_insert, one level up: a list
@@ -208,6 +268,27 @@ class ListsController < ApplicationController
     Turbo::StreamsChannel.broadcast_before_to(
       list.board,
       target: "new_list_form",
+      partial: "lists/list",
+      locals: { list: list }
+    )
+  end
+
+  # #copy's insert, which must land the new column in the SAME place the DB now
+  # says it is: immediately after the source. broadcast_list_insert always targets
+  # `before: new_list_form`, i.e. the far right end of the board — correct for
+  # #create (a new list does belong at the end) but wrong here, and wrong in a
+  # particularly misleading way: the row order in the database was right, so a
+  # reload showed the copy in the right place while every live viewer, the actor
+  # included, watched it appear off-screen at the end. Caught in the browser, not
+  # by the position test.
+  #
+  # `after` the source rather than `before` the following list: the source is a
+  # stable target that always exists, whereas "the list that now follows" may be
+  # nothing at all when the source was last.
+  def broadcast_list_insert_after(list, after:)
+    Turbo::StreamsChannel.broadcast_after_to(
+      list.board,
+      target: helpers.dom_id(after),
       partial: "lists/list",
       locals: { list: list }
     )

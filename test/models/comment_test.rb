@@ -159,4 +159,108 @@ class CommentTest < ActiveSupport::TestCase
       card.comments.create!(content: "ping john@Bob.com about this", user: commenter)
     end
   end
+
+  # --- watching: a comment reaches the card's SUBSCRIBERS, not just its members ---
+  #
+  # Watching widens the audience of the existing `comment` trigger. It adds no new
+  # event type and no Notification::PREFERENCE_TYPES entry — a watcher's comment
+  # notification is gated by their own existing `comment` preference, which
+  # Notification.deliver already enforces. The "watching turned off" test below is
+  # the proof of that, in place of a toggle.
+
+  # A watcher need not be a board member for the notification itself to be
+  # delivered (delivery doesn't consult board membership), but in the real app
+  # they always are, since watching goes through a board-scoped find. Keep the
+  # fixtures honest about that.
+  def watcher_on(card, email:)
+    user = User.create!(email: email, password: "password")
+    card.list.board.board_users.create!(user: user)
+    CardWatcher.create!(card: card, user: user)
+    user
+  end
+
+  test "a WATCHER who is not a card member is notified of a new comment" do
+    card = cards(:one)
+    commenter = users(:one)
+    watcher = watcher_on(card, email: "comment-watcher@example.com")
+
+    assert_difference "Notification.count", 1 do
+      card.comments.create!(content: "Something worth watching", user: commenter)
+    end
+
+    notification = Notification.last
+    assert_equal watcher, notification.recipient
+    assert_equal commenter, notification.actor
+    assert_equal "comment", notification.action
+    assert_not_includes card.members, watcher, "watching must not imply membership"
+  end
+
+  test "card members are still notified once watchers are in the mix (no regression)" do
+    card = cards(:one)
+    commenter = users(:one)
+    member = users(:two)
+    card.list.board.board_users.create!(user: member)
+    card.members << member
+    watcher = watcher_on(card, email: "comment-both-audiences@example.com")
+
+    assert_difference "Notification.count", 2 do
+      card.comments.create!(content: "Everyone hears this", user: commenter)
+    end
+
+    assert_equal [member, watcher].sort_by(&:id),
+                 Notification.last(2).map(&:recipient).sort_by(&:id)
+  end
+
+  test "the comment author gets nothing even if they are watching the card" do
+    card = cards(:one)
+    commenter = users(:one)
+    CardWatcher.create!(card: card, user: commenter)
+
+    assert_no_difference "Notification.count" do
+      card.comments.create!(content: "Talking to myself", user: commenter)
+    end
+    assert_equal 0, commenter.notifications.count
+  end
+
+  test "a watcher with the comment preference OFF gets nothing (no new preference type needed)" do
+    card = cards(:one)
+    commenter = users(:one)
+    watcher = watcher_on(card, email: "comment-pref-off@example.com")
+    watcher.update!(notification_preferences: { "comment" => false })
+
+    assert_no_difference "Notification.count" do
+      card.comments.create!(content: "Muted for this watcher", user: commenter)
+    end
+  end
+
+  test "a watcher who is also mentioned gets exactly one notification, the mention" do
+    card = cards(:one)
+    commenter = users(:one)
+    watcher = watcher_on(card, email: "comment-mentioned-watcher@example.com")
+    watcher.update!(name: "Wanda")
+
+    assert_difference "Notification.count", 1 do
+      card.comments.create!(content: "@Wanda take a look", user: commenter)
+    end
+
+    notification = Notification.last
+    assert_equal watcher, notification.recipient
+    assert_equal "mention", notification.action, "the mention must win over the plain comment"
+  end
+
+  test "someone who is BOTH a member and a watcher is notified exactly once" do
+    card = cards(:one)
+    commenter = users(:one)
+    both = users(:two)
+    card.list.board.board_users.create!(user: both)
+    card.members << both
+    CardWatcher.create!(card: card, user: both)
+
+    assert_difference "Notification.count", 1 do
+      card.comments.create!(content: "Only one of these, please", user: commenter)
+    end
+
+    assert_equal both, Notification.last.recipient
+    assert_equal 1, both.notifications.where(action: "comment").count
+  end
 end

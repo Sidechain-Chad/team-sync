@@ -1,7 +1,10 @@
 class BoardsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_board, only: [:show, :edit, :update, :archive, :activity, :map]
-  before_action :set_owned_board, only: [:destroy]
+  # Closing/reopening a board is owner-only, the same policy #destroy uses — a
+  # shared member can view and use a board but not close it out from under its
+  # owner.
+  before_action :set_owned_board, only: [:destroy, :close, :reopen]
 
   def index
     # Per-user favorites first (most-recently-starred at top), then the rest
@@ -11,17 +14,22 @@ class BoardsController < ApplicationController
     # fast even with many favorites per user.
     favorites_join = "LEFT JOIN board_favorites ON board_favorites.board_id = boards.id AND board_favorites.user_id = #{current_user.id.to_i}"
 
-    @owned_boards = current_user.boards
+    # Every section here is `.open` — a closed board vanishes from the index
+    # entirely (owned, shared, starred and recently-viewed alike) and is reached
+    # only via #closed or its direct URL.
+    @owned_boards = current_user.boards.open
                                 .joins(favorites_join)
                                 .order(Arel.sql("board_favorites.created_at DESC NULLS LAST, boards.name ASC"))
 
-    @shared_boards = current_user.shared_boards
+    @shared_boards = current_user.shared_boards.open
                                  .joins(favorites_join)
                                  .order(Arel.sql("board_favorites.created_at DESC NULLS LAST, boards.name ASC"))
 
     # Starred boards (owned or shared) shown in their own section up top.
     # They still appear in their home section below too — same as Trello.
-    @starred_boards = current_user.favorited_boards.order("board_favorites.created_at DESC")
+    # `.open` matters here specifically: favouriting is independent of closing,
+    # so a starred board that gets closed would otherwise keep its Starred tile.
+    @starred_boards = starred_boards_scope
 
     @recent_boards = recent_boards_from_session
   end
@@ -191,9 +199,56 @@ class BoardsController < ApplicationController
   end
 
   def switcher
-    @owned_boards  = current_user.boards.order(:name)
-    @shared_boards = current_user.shared_boards.order(:name)
+    @owned_boards  = current_user.boards.open.order(:name)
+    @shared_boards = current_user.shared_boards.open.order(:name)
     render layout: false
+  end
+
+  # Closed boards, newest-closed first — the one place they're listed, and the
+  # route the closing flash points at so a board is never closed into nowhere.
+  # Owned AND shared: a member can't close or reopen a board, but they should
+  # still be able to see that one they had access to is now closed rather than
+  # have it silently vanish. The Reopen button is owner-gated in the view.
+  def closed
+    @closed_boards = current_user.all_boards.closed.order(closed_at: :desc)
+  end
+
+  def close
+    @board.close!
+    redirect_to boards_path,
+                notice: "\"#{@board.name}\" is closed. You can reopen it any time from Closed boards."
+  end
+
+  def reopen
+    @board.reopen!
+    redirect_to board_path(@board), notice: "\"#{@board.name}\" is open again."
+  end
+
+  # Duplicate the whole board — see Board#copy_to for exactly what comes across
+  # and what deliberately doesn't (labels are remapped to NEW rows on the copy;
+  # favourites, archived cards and card watchers are left behind).
+  #
+  # Scoped through all_boards, NOT set_owned_board: anyone who can see a board may
+  # take their own copy of it. Destroy/close/reopen are owner-only because they
+  # affect everyone else's board; copying affects nobody, and the copy belongs to
+  # whoever made it.
+  #
+  # No broadcast: the boards index isn't a Turbo stream target, and the copy is
+  # only visible to its owner and the members carried across. Redirect to the copy.
+  def copy
+    source = current_user.all_boards.find(params[:id])
+
+    begin
+      new_board = source.copy_to(user: current_user, name: params[:name])
+    rescue ActiveRecord::RecordInvalid => e
+      # copy_to's transaction already rolled back — nothing persisted. Same shape
+      # as CardsController#copy and ListsController#copy: a real page and a flash,
+      # never a raw 500.
+      return redirect_to board_path(source),
+                         alert: "Couldn't copy this board: #{e.record.errors.full_messages.to_sentence}"
+    end
+
+    redirect_to board_path(new_board), notice: "Copied to \"#{new_board.name}\"."
   end
 
   # Toggle the board's favorite state. Stores the timestamp when starred
@@ -209,9 +264,12 @@ class BoardsController < ApplicationController
       current_user.board_favorites.create!(board: @board)
     end
 
-    # Recomputed fresh (same ordering as #index) so the turbo_stream response
-    # can replace the whole Starred section without a page reload.
-    @starred_boards = current_user.favorited_boards.order("board_favorites.created_at DESC")
+    # Recomputed fresh (same scope and ordering as #index) so the turbo_stream
+    # response can replace the whole Starred section without a page reload.
+    # Going through starred_boards_scope keeps the `.open` filter — otherwise
+    # starring any board would re-render the section and resurrect a tile for a
+    # closed board the user had previously favourited.
+    @starred_boards = starred_boards_scope
 
     respond_to do |format|
       format.turbo_stream
@@ -251,12 +309,23 @@ class BoardsController < ApplicationController
     session[:recent_board_ids] = ids.first(RECENT_BOARDS_LIMIT)
   end
 
+  # Starred section for #index and #toggle_favorite. One definition so the two
+  # can't drift apart on the closed-board filter.
+  def starred_boards_scope
+    current_user.favorited_boards.open.order("board_favorites.created_at DESC")
+  end
+
   # Resolves the session's id list to real boards the user still has access
   # to, in session order. Ids for boards since deleted or un-shared are
   # dropped silently, and the pruned list is written back to the session.
+  #
+  # `open_boards`, not `all_boards`: a board the user closed is usually one they
+  # just visited, so it would otherwise sit at the top of Recently viewed —
+  # the most visible possible place for a board that's supposed to be hidden.
+  # Its id is pruned from the session here too, so it doesn't linger.
   def recent_boards_from_session
     ids = session[:recent_board_ids] || []
-    boards_by_id = current_user.all_boards.where(id: ids).index_by(&:id)
+    boards_by_id = current_user.open_boards.where(id: ids).index_by(&:id)
     ordered = ids.filter_map { |id| boards_by_id[id] }
 
     session[:recent_board_ids] = ordered.map(&:id)

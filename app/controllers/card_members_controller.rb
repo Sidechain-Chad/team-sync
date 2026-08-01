@@ -1,4 +1,6 @@
 class CardMembersController < ApplicationController
+  include BroadcastsCardUpdates
+
   before_action :authenticate_user!
   before_action :set_card
 
@@ -25,7 +27,17 @@ class CardMembersController < ApplicationController
 
     # Destroy the join row, not the user. find_by + safe-nav
     # avoids raising if it was already removed in another tab.
-    @card.card_members.find_by(user: @user)&.destroy
+    removed = @card.card_members.find_by(user: @user)&.destroy
+
+    # Mirrors #create's added_to_card: the removed user is the only recipient, not
+    # the card's subscribers — this is about them, not about the card changing.
+    # Gated on a row having actually been destroyed, so the already-removed case
+    # (a second tab, a double submit) doesn't notify a second time. Removing
+    # yourself notifies nobody: Notification.deliver no-ops when recipient ==
+    # actor, same as #create.
+    if removed
+      Notification.deliver(recipient: @user, actor: current_user, notifiable: @card, action: "removed_from_card")
+    end
 
     broadcast_card_update
 
@@ -36,24 +48,12 @@ class CardMembersController < ApplicationController
 
   private
 
-  # Replace the small card on the board so its member avatars update for
-  # everyone viewing it — a copy of CardLabelsController#broadcast_card_update,
-  # which does exactly this for label pills. Members show on the tile the same
-  # way labels do, so the two controllers should behave the same; this one just
-  # never got it.
+  # broadcast_card_update comes from BroadcastsCardUpdates — the card's member
+  # avatars render on its board tile, so every viewer needs the fresh tile.
   #
-  # Broadcast-only, no double render: the actor's own turbo_stream template
-  # touches modal-internal frames only (member_row_*, assigned_members_list,
-  # card_face_avatars_*), never the board tile. `replace` also targets by id, so
-  # it stays idempotent regardless.
-  def broadcast_card_update
-    Turbo::StreamsChannel.broadcast_replace_to(
-      @card.list.board,
-      target: @card,
-      partial: "cards/card",
-      locals: { card: @card }
-    )
-  end
+  # No double render: the actor's own turbo_stream template touches
+  # modal-internal frames only (member_row_*, assigned_members_list,
+  # card_face_avatars_*), never the board tile.
 
   def set_card
     @card = current_user.all_cards.find(params[:card_id])

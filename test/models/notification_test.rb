@@ -166,4 +166,53 @@ class NotificationTest < ActiveSupport::TestCase
 
     assert Notification.exists?(keeper.id), "an unrelated card's notification must survive"
   end
+
+  # --- messages for the types added in this arc ---
+
+  test "message renders moved this card, deliberately without a list name" do
+    notification = Notification.new(action: "moved")
+    assert_equal "moved this card", notification.message
+  end
+
+  # #message is computed from live associations at render time, so naming the
+  # destination would show the card's CURRENT list rather than where it went — wrong
+  # after a second move. Activity can say "from A to B" only because it stores the
+  # names in its own description column at write time. Documenting the divergence
+  # so nobody "fixes" the wording without adding a context column first.
+  test "the moved message does not name a list, unlike the moved ACTIVITY" do
+    card = cards(:one)
+    activity = card.log_activity(users(:one), "moved", "Backlog to Done")
+
+    assert_match(/Backlog to Done/, activity.message)
+    assert_no_match(/Backlog|Done/, Notification.new(action: "moved").message)
+  end
+
+  test "message renders archived this card" do
+    assert_equal "archived this card", Notification.new(action: "archived").message
+  end
+
+  test "message renders removed you from this card" do
+    assert_equal "removed you from this card", Notification.new(action: "removed_from_card").message
+  end
+
+  test "the three new actions respect a false preference through notifies?" do
+    user = User.create!(email: "new-types-prefs@example.com", password: "password",
+                        notification_preferences: { "moved" => false, "archived" => false,
+                                                    "removed_from_card" => false })
+
+    %w[moved archived removed_from_card].each do |action|
+      assert_not user.notifies?(action), "#{action} must be gated by its own preference"
+      assert_no_difference "Notification.count" do
+        Notification.deliver(recipient: user, actor: users(:one), notifiable: cards(:one), action: action)
+      end
+    end
+  end
+
+  test "the three new actions default to ON for a user who has set no preferences" do
+    user = User.create!(email: "new-types-default@example.com", password: "password")
+
+    %w[moved archived removed_from_card].each do |action|
+      assert user.notifies?(action)
+    end
+  end
 end

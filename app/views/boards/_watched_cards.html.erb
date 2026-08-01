@@ -1,0 +1,24 @@
+<%# The current user's watched card ids FOR THIS BOARD — the per-user half of the
+    tile watch badge.
+
+    This is rendered in a real request, so current_user is valid here. That's the
+    whole point of the split: cards/_card is broadcast to the board stream (no
+    session, current_user is nil) and therefore carries no per-user state at all,
+    while this element carries all of it and is never broadcast.
+
+    Scoped to the board being viewed rather than the user's whole watch list —
+    ids for cards that aren't on this page are useless here, and shipping them
+    would leak which other cards the user follows into this page's HTML.
+
+    One query (a single pluck), fixed cost, independent of card count — pinned by
+    BoardsControllerTest's flat-query test.
+
+    Replaced by CardsController#toggle_watch so the board behind the modal updates
+    the moment you toggle. `turbo_stream.replace` on a missing target is a no-op,
+    so toggling from a context with no board page (a direct /cards/:id visit, the
+    account Cards page) is harmless. %>
+<div id="watched_cards"
+     class="hidden"
+     data-controller="watched-cards"
+     data-watched-card-ids="<%= current_user.watched_cards.where(list_id: board.lists.select(:id)).pluck(:id).to_json %>">
+</div>

@@ -1,0 +1,29 @@
+<%# The card modal's heading, in display mode. Its own frame, distinct from the
+    tile's (dom_id(card, :tile_title)) because the modal opens OVER the board and
+    both are on the page at once — a shared id would have Turbo swapping the
+    wrong one. See CardsController#title_context.
+
+    A real <a> rather than a div with a click handler, so it's focusable and
+    Enter-activatable for free. <a><h2>…</h2></a> is valid HTML. The negative
+    margins let the hover surface extend slightly past the text without shifting
+    the heading's position in the layout.
+
+    NOTE: the id the dialog's aria-labelledby points at is deliberately NOT here
+    — it lives on the wrapper OUTSIDE this frame (cards/show.html.erb), which
+    survives the swap into edit mode.
+
+    NO aria-label on the link, deliberately. It had one ("Edit card title") and
+    that BROKE the dialog's accessible name: aria-labelledby computes the name
+    from the wrapper's subtree, and a descendant's aria-label wins over its own
+    text content — so the dialog announced as "Edit card title" instead of the
+    card's title. Measured in the accessibility tree, not assumed. The link is
+    not icon-only (it wraps the heading text), so it needs no label anyway: its
+    name comes from that text, and `title` supplies the "you can rename this"
+    hint as a description without touching either name. %>
+<%= turbo_frame_tag dom_id(card, :modal_title) do %>
+  <%= link_to edit_title_card_path(card, context: "modal"),
+      class: "block -mx-2 -my-1 px-2 py-1 rounded-md no-underline text-inherit hover:bg-surface-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+      title: "Rename card" do %>
+    <h2 class="font-display text-xl font-bold text-ink-700 leading-tight"><%= card.title %></h2>
+  <% end %>
+<% end %>

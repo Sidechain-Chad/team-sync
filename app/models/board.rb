@@ -43,6 +43,95 @@ class Board < ApplicationRecord
                     }
                   }
 
+  # ---- Close / reopen ----
+  #
+  # Closing hides a board from every listing and cross-board aggregation while
+  # leaving it fully intact and reachable by direct URL, so its owner can reopen
+  # it. Deliberately NOT applied inside User#all_boards / #all_lists / #all_cards:
+  # those back authorization (BoardsController#set_board,
+  # CardsController#board_scoped_list), and scoping them would make a closed
+  # board 404 — including the very page that offers Reopen. Filtering happens at
+  # the listing/aggregation sites instead.
+  scope :open,   -> { where(closed_at: nil) }
+  scope :closed, -> { where.not(closed_at: nil) }
+
+  def closed?
+    closed_at.present?
+  end
+
+  def close!
+    update!(closed_at: Time.current)
+  end
+
+  def reopen!
+    update!(closed_at: nil)
+  end
+
+  # Duplicates this board — its labels, lists, active cards, members, avatar and
+  # background — with `user` as the OWNER of the copy.
+  #
+  # LABEL REMAPPING is the whole reason this can't just loop List#copy_to. Labels
+  # belong_to :board, and Card#copy_to's default `copy.label_ids = label_ids`
+  # would attach THIS board's label rows to cards on the new board: cross-board
+  # references that render the wrong labels and break the moment a source label is
+  # renamed, recoloured or deleted. So new Label rows are created on the copy
+  # first, a {source_label_id => new_label_id} map is built, and every card copy
+  # translates through it.
+  #
+  # Copied:  labels (as new rows), lists in position order, each list's ACTIVE
+  #          cards with their full association tree, board_users, avatar and
+  #          background (the SAME blobs — no re-upload, no Cloudinary round trip;
+  #          the active_storage_attachments → blobs FK makes sharing safe, and
+  #          this is exactly what card attachments already do).
+  # Not copied: favourites (personal), closed_at (a copy is always open,
+  #          regardless of the source), archived cards, comments, activities, card
+  #          watchers (personal subscription — same reasoning as card copy).
+  #
+  # board_users ARE copied deliberately: those users already had access to the
+  # source, and leaving them out would strand copied card_members on a board they
+  # can't open — inconsistent state we'd then have to go and strip.
+  #
+  # One transaction for the entire board, so a failure part-way through can never
+  # leave a half-copied board behind.
+  #
+  # Note the seeded-defaults dance: Board's after_create callbacks give every new
+  # board ten labels and three lists, which a copy must not keep. They're removed
+  # inside the transaction before the real content is built.
+  def copy_to(user:, name: nil)
+    copy = nil
+
+    transaction do
+      copy = Board.create!(name: name.presence || "Copy of #{self.name}", user: user)
+
+      # seed_default_labels / seed_default_lists fired on create. A copy brings its
+      # own, so clear the defaults rather than ending up with both.
+      copy.lists.destroy_all
+      copy.labels.destroy_all
+
+      label_map = labels.each_with_object({}) do |label, map|
+        map[label.id] = copy.labels.create!(name: label.name, color: label.color).id
+      end
+
+      lists.order(:position).each do |list|
+        list.copy_to(board: copy, name: list.name, user: user, label_map: label_map)
+      end
+
+      # The copier is skipped: they're the OWNER of the copy, so a board_users row
+      # for them would be redundant (all_boards already covers owned boards, and
+      # active_members uniq's the two lists). Everyone else who could see the
+      # source can see the copy. Note the SOURCE's owner is not a board_user and
+      # so does not carry across — the copy belongs to whoever made it.
+      board_users.where.not(user_id: user.id).each do |bu|
+        copy.board_users.create!(user_id: bu.user_id)
+      end
+
+      copy.avatar.attach(avatar.blob) if avatar.attached?
+      copy.background.attach(background.blob) if background.attached?
+    end
+
+    copy
+  end
+
   def favorited_by?(user)
     return false unless user
     board_favorites.exists?(user_id: user.id)

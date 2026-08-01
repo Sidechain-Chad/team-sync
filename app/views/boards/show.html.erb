@@ -1,5 +1,11 @@
 <%= turbo_stream_from @board %>
 
+<%# Per-user watched card ids for this board. Deliberately OUTSIDE the canvas div
+    and outside #board_lists so nothing that re-renders a list or a tile can
+    replace or remove it — the badges depend on it still being there when they
+    reconnect. %>
+<%= render "boards/watched_cards", board: @board %>
+
 <%# Canvas wallpaper — an uploaded board background photo (scrimmed dark so
     the white title/action cluster stays legible over it), or else the same
     deterministic warm gradient as this board's tile cover, so the board
@@ -25,7 +31,10 @@
          data-action="click@document->dropdown#hide">
 
       <button type="button"
+              data-dropdown-target="trigger"
               data-action="click->dropdown#toggle"
+              aria-haspopup="true"
+              aria-expanded="false"
               class="group flex items-center gap-2 text-white font-bold text-lg px-2 py-1 rounded-md hover:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1">
         <span class="font-display"><%= @board.name %></span>
         <i class="fa-solid fa-chevron-down text-[10px] opacity-80 group-hover:opacity-100" aria-hidden="true"></i>
@@ -69,8 +78,43 @@
           <% end %>
         </div>
 
+        <%# Copy board — NOT owner-gated (matching BoardsController#copy): anyone
+            who can see a board may take their own copy, and the copy belongs to
+            whoever made it. Inline name field rather than a nested popover, same
+            shape as the list menu's Copy list and WIP-limit forms. The copy can be
+            slow on a big board (hundreds of synchronous inserts), so the button
+            carries data-turbo-submits-with to show it's working. %>
+        <div class="py-1 border-t border-line">
+          <div class="px-4 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-ink-500">Copy board</div>
+          <%= form_with url: copy_board_path(@board), method: :post, class: "px-4 pt-1 pb-3 flex items-center gap-2" do |f| %>
+            <%= text_field_tag :name, "Copy of #{@board.name}",
+                class: "w-full text-sm border-line rounded focus:ring-brand-700 focus:border-brand-700",
+                aria: { label: "Name for the copied board" } %>
+            <%= f.submit "Copy",
+                data: { turbo_submits_with: "Copying…" },
+                class: "flex-shrink-0 bg-brand-600 hover:bg-brand-700 text-white font-medium px-3 py-1.5 rounded text-sm cursor-pointer shadow-sm transition-colors" %>
+          <% end %>
+          <p class="px-4 pb-2 text-[11px] text-ink-500">Copies lists, cards, labels and members. Archived cards and favourites aren't copied.</p>
+        </div>
+
+        <%# Close board — reversible, so it sits with the ordinary actions and
+            is styled like them, NOT with Delete below. Owner-only, matching
+            boards#close's set_owned_board guard. The confirm copy leads with
+            reversibility so it can't be mistaken for the delete beneath it. %>
+        <% if @board.owner?(current_user) && !@board.closed? %>
+          <div class="py-1 border-t border-line">
+            <%= link_to close_board_path(@board),
+                data: { turbo_method: :patch, turbo_confirm: "Close this board? It's hidden from your boards, search and planner, but nothing is deleted — you can reopen it any time." },
+                class: "flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors" do %>
+              <i class="fa-solid fa-box-archive text-ink-500 w-4 text-center" aria-hidden="true"></i>
+              <span>Close board</span>
+            <% end %>
+          </div>
+        <% end %>
+
         <%# Destructive action separated by a divider, styled red.
-            Owner-only — matches boards#destroy's enforcement. %>
+            Owner-only — matches boards#destroy's enforcement. Unchanged, and
+            deliberately independent of closing: neither gates the other. %>
         <% if @board.owner?(current_user) %>
           <div class="py-1 border-t border-line">
             <%= link_to board_path(@board),
@@ -93,7 +137,7 @@
 
       <%# Automation / lightning — placeholder %>
       <button type="button"
-              class="h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
+              class="h-11 w-11 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
               title="Automation (coming soon)"
               aria-label="Automation (coming soon)">
         <i class="fa-solid fa-bolt text-sm" aria-hidden="true"></i>
@@ -101,7 +145,7 @@
 
       <%# Power-Ups / plug — placeholder %>
       <button type="button"
-              class="h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
+              class="h-11 w-11 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
               title="Power-Ups (coming soon)"
               aria-label="Power-Ups (coming soon)">
         <i class="fa-solid fa-plug text-sm" aria-hidden="true"></i>
@@ -134,6 +178,39 @@
 
     </div>
   </div>
+
+  <%# ===== CLOSED-BOARD BANNER =====
+      A closed board is hidden from every listing but still renders normally by
+      direct URL — this is the only thing that tells you which state you're in,
+      and (for the owner) the only route back. warn-100/warn-700, matching the
+      app's existing inline-notice treatment (see devise/registrations/edit):
+      this is "attention", not an error, so it stays clear of danger crimson,
+      and Reopen is a real action so it's brand.
+
+      NOT enforced read-only in v1 — the board's cards and lists are still fully
+      editable from here. See the arc note; that's a separate change spanning
+      every mutating controller.
+
+      Wraps rather than sits on one line (flex-wrap + min-w-0 on the text) so it
+      doesn't overflow the 375px viewport this app ships chrome for. %>
+  <% if @board.closed? %>
+    <div class="flex-shrink-0 mx-4 mb-3 bg-warn-100 text-warn-700 rounded-md px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-2"
+         role="status">
+      <i class="fa-solid fa-box-archive shrink-0" aria-hidden="true"></i>
+      <div class="flex-1 min-w-0 text-sm">
+        <span class="font-semibold">This board is closed.</span>
+        <span>It's hidden from your boards, search and planner. Nothing has been deleted.</span>
+      </div>
+      <% if @board.owner?(current_user) %>
+        <%= button_to reopen_board_path(@board),
+            method: :patch,
+            form: { class: "m-0 shrink-0" },
+            class: "bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-3 py-1.5 rounded cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2" do %>
+          Reopen board
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
 
   <%# ===== LISTS ROW (existing) ===== %>
   <div id="board_lists" class="flex-1 flex space-x-4 px-4 pb-4 overflow-x-auto" data-controller="list-sort">

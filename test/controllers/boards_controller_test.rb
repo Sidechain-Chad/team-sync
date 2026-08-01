@@ -304,7 +304,14 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     # Bumped 20 -> 21 for the top-nav notifications bell's unread-count
     # query (current_user.notifications.unread.count) — renders on every
     # page, fixed-cost, independent of card count.
-    assert_operator small, :<=, 21
+    # Bumped 21 -> 22 for boards/_watched_cards' single pluck of the current
+    # user's watched card ids on this board. ONE query for the whole page, not
+    # one per card — the tile badges read that one set client-side rather than
+    # each asking the DB (which is also why cards/_card can stay free of
+    # current_user). The helper below watches a card in every list, so a
+    # per-card or per-list lookup would show up as growth in the equality
+    # assertion rather than hiding under this ceiling.
+    assert_operator small, :<=, 22
 
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end
@@ -843,6 +850,11 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
       cards_per_list.times do |j|
         card = list.cards.create!(title: "Card #{i}-#{j}")
         first_card ||= card
+        # One watched card per list, and a watched card whose index scales with
+        # cards_per_list, so the watched-ids lookup is exercised at both sizes.
+        # If it were ever done per card (or per list) instead of as one pluck,
+        # this is what would make the count grow.
+        CardWatcher.create!(card: card, user: user) if j.zero? || j == cards_per_list - 1
         2.times do |k|
           checklist = card.checklists.create!(title: "Checklist #{k}", position: k + 1)
           3.times { |m| checklist.checklist_items.create!(content: "Item #{m}", position: m + 1) }
@@ -865,5 +877,596 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
       io: File.open(Rails.root.join("test/fixtures/files/test.png")),
       filename: "avatar.png", content_type: "image/png"
     )
+  end
+
+  # ============================================================
+  # Close / reopen a board
+  #
+  # Closing hides a board from every listing and cross-board aggregation but
+  # leaves it intact and reachable by direct URL so its owner can reopen it.
+  # The filtering deliberately does NOT live in User#all_boards/#all_lists/
+  # #all_cards (those back authorization — scoping them would 404 the very page
+  # that offers Reopen), so each listing site carries the filter itself. That
+  # makes "a call site was missed" the realistic failure mode, which is why
+  # there's one absence test per aggregation below rather than one general one.
+  # ============================================================
+
+  test "closing sets closed_at and reopening clears it" do
+    assert_nil @board.closed_at
+
+    patch close_board_url(@board)
+    assert_redirected_to boards_url
+    assert_not_nil @board.reload.closed_at
+    assert @board.closed?
+
+    patch reopen_board_url(@board)
+    assert_redirected_to board_url(@board)
+    assert_nil @board.reload.closed_at
+    assert_not @board.closed?
+  end
+
+  test "a shared member cannot close the board" do
+    member = User.create!(email: "close_member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    sign_out @user
+    sign_in member
+
+    patch close_board_url(@board)
+
+    assert_response :not_found
+    assert_nil @board.reload.closed_at, "closed_at must be unchanged"
+  end
+
+  test "a shared member cannot reopen the board" do
+    member = User.create!(email: "reopen_member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    @board.close!
+    closed_at = @board.closed_at
+    sign_out @user
+    sign_in member
+
+    patch reopen_board_url(@board)
+
+    assert_response :not_found
+    assert_equal closed_at.to_i, @board.reload.closed_at.to_i, "closed_at must be unchanged"
+  end
+
+  test "a non-member cannot close another user's board" do
+    outsider = User.create!(email: "close_outsider@example.com", password: "password")
+    sign_out @user
+    sign_in outsider
+
+    patch close_board_url(@board)
+
+    assert_response :not_found
+    assert_nil @board.reload.closed_at
+  end
+
+  # --- absence from board listings ---
+
+  test "a closed board is absent from the boards index owned section" do
+    get boards_url
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+
+    @board.close!
+    get boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), count: 0
+  end
+
+  test "a closed board shared with the user is absent from the index shared section" do
+    owner = User.create!(email: "shared_owner@example.com", password: "password")
+    shared = owner.boards.create!(name: "Shared Board")
+    shared.board_users.create!(user: @user)
+
+    get boards_url
+    assert_select "a[href=?]", board_path(shared), minimum: 1
+
+    shared.close!
+    get boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(shared), count: 0
+  end
+
+  # Favouriting is independent of closing, so a starred board that gets closed
+  # is the case most likely to slip through — it's read from favorited_boards,
+  # a different scope than the owned/shared sections.
+  test "a favourited closed board is absent from the starred section and sidebar" do
+    current_user_favorite = @user.board_favorites.create!(board: @board)
+    assert current_user_favorite.persisted?
+
+    get boards_url
+    assert_select "#starred_section a[href=?]", board_path(@board), minimum: 1
+
+    @board.close!
+    get boards_url
+
+    assert_response :success
+    assert_select "#starred_section a[href=?]", board_path(@board), count: 0
+    assert_select "a[href=?]", board_path(@board), count: 0,
+                  message: "a closed board must not appear anywhere on the index"
+  end
+
+  test "toggling a favourite does not resurrect a closed board into the starred section" do
+    @user.board_favorites.create!(board: @board)
+    @board.close!
+    other = @user.boards.create!(name: "Still Open")
+
+    patch toggle_favorite_board_url(other), as: :turbo_stream
+
+    assert_response :success
+    assert_no_match(/#{board_path(@board)}"/, response.body,
+                    "the re-rendered starred section must still exclude the closed board")
+  end
+
+  test "a closed board is absent from the switcher" do
+    get switch_boards_url
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+
+    @board.close!
+    get switch_boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), count: 0
+  end
+
+  test "a closed board is absent from recently viewed" do
+    get board_url(@board) # seeds session[:recent_board_ids]
+    get boards_url
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+
+    @board.close!
+    get boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), count: 0
+  end
+
+  test "boards#closed lists the closed board and not the open one" do
+    open_board = @user.boards.create!(name: "Open Board")
+    @board.close!
+
+    get closed_boards_url
+
+    assert_response :success
+    # Scoped to the list — the top nav's switch-boards popover legitimately
+    # links every OPEN board on every page, this one included.
+    assert_select "#closed_boards_list a[href=?]", board_path(@board), minimum: 1
+    assert_select "#closed_boards_list a[href=?]", board_path(open_board), count: 0
+    assert_select "form[action=?]", reopen_board_path(@board), count: 1
+  end
+
+  test "boards#closed renders the empty-state placeholder when nothing is closed" do
+    get closed_boards_url
+
+    assert_response :success
+    assert_select ".fa-box-archive"
+    assert_select "p", text: "No closed boards."
+  end
+
+  test "boards#closed shows a shared closed board but no Reopen control for a non-owner" do
+    owner = User.create!(email: "closed_owner@example.com", password: "password")
+    shared = owner.boards.create!(name: "Shared Closed")
+    shared.board_users.create!(user: @user)
+    shared.close!
+
+    get closed_boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(shared), minimum: 1
+    assert_select "form[action=?]", reopen_board_path(shared), count: 0,
+                  message: "reopen is owner-only, matching set_owned_board"
+  end
+
+  test "reopening restores the board to the index" do
+    @board.close!
+    get boards_url
+    assert_select "a[href=?]", board_path(@board), count: 0
+
+    patch reopen_board_url(@board)
+    get boards_url
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+  end
+
+  # --- the board itself still resolves, and shows the banner ---
+
+  test "the owner can still open a closed board by direct URL and sees the banner and Reopen" do
+    list = @board.lists.create!(name: "Todo", position: 1)
+    card = list.cards.create!(title: "Still here", position: 1)
+    @board.close!
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "[role=status]", text: /This board is closed/
+    assert_select "form[action=?]", reopen_board_path(@board), count: 1
+    # Non-destructive: the board still renders its lists and cards.
+    assert_select "##{ActionView::RecordIdentifier.dom_id(card)}", count: 1
+    assert_match(/Todo/, response.body)
+  end
+
+  test "a shared member can open a closed board but sees no Reopen control" do
+    member = User.create!(email: "banner_member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    @board.close!
+    sign_out @user
+    sign_in member
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "[role=status]", text: /This board is closed/
+    assert_select "form[action=?]", reopen_board_path(@board), count: 0
+  end
+
+  test "an open board renders no closed banner and the menu offers Close board" do
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "[role=status]", count: 0
+    assert_select "a[href=?]", close_board_path(@board), count: 1
+  end
+
+  test "a closed board's menu does not offer Close board again" do
+    @board.close!
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "a[href=?]", close_board_path(@board), count: 0
+  end
+
+  test "a shared member's board menu offers no Close board" do
+    member = User.create!(email: "menu_member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    sign_out @user
+    sign_in member
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "a[href=?]", close_board_path(@board), count: 0
+  end
+
+  # --- the Delete control is untouched by any of this ---
+
+  test "the Delete board control is unaffected by closing" do
+    @board.close!
+
+    get board_url(@board)
+
+    assert_response :success
+    assert_select "a[href=?]", board_path(@board), minimum: 1
+    assert_match(/Delete board/, response.body)
+  end
+
+  test "a closed board can still be destroyed by its owner" do
+    @board.close!
+
+    assert_difference "Board.count", -1 do
+      delete board_url(@board)
+    end
+    assert_redirected_to root_url
+  end
+
+  # --- authorization scopes stay unscoped ---
+
+  test "all_boards, all_lists and all_cards still resolve a closed board" do
+    list = @board.lists.create!(name: "Todo", position: 1)
+    card = list.cards.create!(title: "Reachable", position: 1)
+    @board.close!
+
+    assert_includes @user.all_boards, @board,
+                    "all_boards backs authorization and must not filter closed boards"
+    assert_includes @user.all_lists, list
+    assert_includes @user.all_cards, card
+
+    # ...and the open_* listing counterparts do filter.
+    assert_not_includes @user.open_boards, @board
+    assert_not_includes @user.open_lists, list
+    assert_not_includes @user.open_cards, card
+  end
+
+  test "the board show query count still holds with the closed banner rendered" do
+    @board.close!
+    count = count_queries { get board_url(@board) }
+    assert_response :success
+    assert_operator count, :<=, 21
+  end
+
+  # --- #copy (board-title menu) ---
+  #
+  # The hard part is LABEL REMAPPING: labels belong_to :board, so Card#copy_to's
+  # default `copy.label_ids = label_ids` would attach the SOURCE board's label rows
+  # to cards on the copy. Board#copy_to creates new Label rows first and translates
+  # through a {source_label_id => new_label_id} map.
+
+  # A board with real content: two lists in order, a fully-associated card, an
+  # archived card, a member, a favourite, an avatar and a background.
+  def rich_board
+    board = @user.boards.create!(name: "Rich Board")
+    board.lists.destroy_all # drop the seeded defaults for a controlled shape
+
+    member = User.create!(email: "copy-member@example.com", password: "password")
+    board.board_users.create!(user: member)
+    @user.board_favorites.create!(board: board)
+
+    first  = board.lists.create!(name: "First",  position: 1, card_limit: 3)
+    second = board.lists.create!(name: "Second", position: 2)
+
+    card = first.cards.create!(title: "Labelled card", description: "Body")
+    card.labels << board.labels.first << board.labels.second
+    card.members << member
+    cl = card.checklists.create!(title: "Steps", position: 1)
+    cl.checklist_items.create!(content: "Item", completed: true, position: 1)
+    card.attachments.attach(io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+                            filename: "test.png", content_type: "image/png")
+    CardWatcher.create!(card: card, user: @user)
+
+    archived = first.cards.create!(title: "Archived card")
+    archived.archive!
+    second.cards.create!(title: "Plain card")
+
+    board.avatar.attach(io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+                        filename: "avatar.png", content_type: "image/png")
+    board.background.attach(io: File.open(Rails.root.join("test/fixtures/files/test.png")),
+                            filename: "bg.png", content_type: "image/png")
+
+    [board, card, archived, member]
+  end
+
+  test "copy duplicates lists in position order with their active cards" do
+    board, = rich_board
+
+    assert_difference -> { Board.count }, 1 do
+      post copy_board_url(board), params: { name: "The Copy" }
+    end
+
+    copy = Board.find_by!(name: "The Copy")
+    assert_redirected_to board_url(copy)
+
+    assert_equal ["First", "Second"], copy.lists.order(:position).map(&:name)
+    assert_equal 3, copy.lists.order(:position).first.card_limit
+    assert_equal ["Labelled card"], copy.lists.order(:position).first.cards.map(&:title)
+    assert_equal ["Plain card"], copy.lists.order(:position).second.cards.map(&:title)
+  end
+
+  test "copy defaults the name to Copy of the source" do
+    board, = rich_board
+
+    post copy_board_url(board)
+
+    assert Board.exists?(name: "Copy of Rich Board")
+  end
+
+  # THE test that matters.
+  test "labels are NEW rows on the new board, and copied cards reference those" do
+    board, source_card, = rich_board
+
+    post copy_board_url(board), params: { name: "Label Copy" }
+
+    copy = Board.find_by!(name: "Label Copy")
+    copied_card = copy.lists.order(:position).first.cards.first
+
+    assert_equal source_card.labels.count, copied_card.labels.count
+    assert_equal 2, copied_card.labels.count
+
+    # New rows: different ids, all belonging to the COPY.
+    assert_empty copied_card.label_ids & source_card.label_ids,
+                 "a copied card must not reference the source board's label rows"
+    copied_card.labels.each do |label|
+      assert_equal copy.id, label.board_id, "every label on the copy belongs to the copy"
+    end
+
+    # Same content, so the card looks identical to the user.
+    assert_equal source_card.labels.map(&:color).sort, copied_card.labels.map(&:color).sort
+  end
+
+  test "the copy gets its own full label palette, not the source's rows" do
+    board, = rich_board
+
+    post copy_board_url(board), params: { name: "Palette Copy" }
+
+    copy = Board.find_by!(name: "Palette Copy")
+    assert_equal board.labels.count, copy.labels.count
+    assert_empty copy.label_ids & board.label_ids
+    assert_equal board.labels.order(:id).pluck(:color), copy.labels.order(:id).pluck(:color)
+  end
+
+  test "editing a label on the copy leaves the source board's label untouched" do
+    board, = rich_board
+    post copy_board_url(board), params: { name: "Divergence Copy" }
+    copy = Board.find_by!(name: "Divergence Copy")
+
+    source_label = board.labels.order(:id).first
+    copied_label = copy.labels.order(:id).first
+    before = { name: source_label.name, color: source_label.color }
+
+    copied_label.update!(name: "Renamed on the copy", color: "black")
+
+    source_label.reload
+    assert_equal before[:name], source_label.name
+    assert_equal before[:color], source_label.color
+  end
+
+  test "copy carries each card's full association tree" do
+    board, source_card, = rich_board
+
+    post copy_board_url(board), params: { name: "Tree Copy" }
+
+    copied = Board.find_by!(name: "Tree Copy").lists.order(:position).first.cards.first
+    assert_equal source_card.description, copied.description
+    assert_equal source_card.member_ids.sort, copied.member_ids.sort
+    assert_equal 1, copied.checklists.count
+    assert_equal ["Item"], copied.checklists.first.checklist_items.map(&:content)
+    assert_equal [false], copied.checklists.first.checklist_items.map(&:completed)
+    assert copied.attachments.attached?
+    assert_equal source_card.attachments.first.blob_id, copied.attachments.first.blob_id
+  end
+
+  test "copy excludes archived cards" do
+    board, _card, archived = rich_board
+
+    post copy_board_url(board), params: { name: "No Archive Copy" }
+
+    copy = Board.find_by!(name: "No Archive Copy")
+    assert_not_includes copy.lists.flat_map { |l| l.cards.map(&:title) }, archived.title
+  end
+
+  test "copy brings board members across but not favourites, and the copy is open and owned by the copier" do
+    board, _card, _archived, member = rich_board
+
+    post copy_board_url(board), params: { name: "Members Copy" }
+
+    copy = Board.find_by!(name: "Members Copy")
+    assert_equal [member.id], copy.board_users.pluck(:user_id),
+                 "members carry across; the copier is the owner, not a redundant member row"
+    assert_empty copy.board_favorites, "a favourite is personal — not copied"
+    assert_nil copy.closed_at, "a copy is open regardless of the source"
+    assert_equal @user.id, copy.user_id
+  end
+
+  test "a copy of a CLOSED board is open" do
+    board, = rich_board
+    board.close!
+
+    post copy_board_url(board), params: { name: "Reopened Copy" }
+
+    assert_nil Board.find_by!(name: "Reopened Copy").closed_at
+  end
+
+  # Sharing the blob is what proves there was no re-upload / Cloudinary round trip.
+  test "avatar and background are attached and SHARE the source's blobs" do
+    board, = rich_board
+
+    post copy_board_url(board), params: { name: "Media Copy" }
+
+    copy = Board.find_by!(name: "Media Copy")
+    assert copy.avatar.attached?
+    assert copy.background.attached?
+    assert_equal board.avatar.blob.id, copy.avatar.blob.id, "same blob — no re-upload"
+    assert_equal board.background.blob.id, copy.background.blob.id
+  end
+
+  test "card watchers are not copied" do
+    board, source_card, = rich_board
+    assert source_card.watched_by?(@user), "setup must leave the source card watched"
+
+    post copy_board_url(board), params: { name: "Watchless Copy" }
+
+    copied = Board.find_by!(name: "Watchless Copy").lists.order(:position).first.cards.first
+    assert_empty copied.watchers, "a watch is a personal subscription — not copied"
+  end
+
+  test "copy creates NO per-card activities" do
+    board, = rich_board
+
+    assert_no_difference -> { Activity.count } do
+      post copy_board_url(board), params: { name: "Quiet Copy" }
+    end
+  end
+
+  test "the SOURCE board is entirely unchanged by a copy" do
+    board, source_card, archived, member = rich_board
+    before = {
+      lists: board.lists.order(:position).pluck(:id, :name, :card_limit),
+      cards: board.lists.flat_map { |l| l.cards.pluck(:id) }.sort,
+      labels: board.labels.order(:id).pluck(:id, :name, :color),
+      card_labels: source_card.card_labels.pluck(:id).sort,
+      card_members: source_card.card_members.pluck(:id).sort,
+      checklists: source_card.checklists.pluck(:id).sort,
+      items: source_card.checklists.flat_map { |c| c.checklist_items.pluck(:id, :completed) },
+      blobs: source_card.attachments.map(&:blob_id).sort,
+      board_users: board.board_users.pluck(:id, :user_id).sort,
+      favourites: board.board_favorites.pluck(:id).sort,
+      avatar_blob: board.avatar.blob.id,
+      bg_blob: board.background.blob.id
+    }
+
+    post copy_board_url(board), params: { name: "Harmless Copy" }
+
+    board.reload
+    source_card.reload
+    assert_equal before[:lists], board.lists.order(:position).pluck(:id, :name, :card_limit)
+    assert_equal before[:cards], board.lists.flat_map { |l| l.cards.pluck(:id) }.sort
+    assert_equal before[:labels], board.labels.order(:id).pluck(:id, :name, :color)
+    assert_equal before[:card_labels], source_card.card_labels.pluck(:id).sort,
+                 "the copy must own NEW card_labels, not steal the source's"
+    assert_equal before[:card_members], source_card.card_members.pluck(:id).sort
+    assert_equal before[:checklists], source_card.checklists.pluck(:id).sort
+    assert_equal before[:items], source_card.checklists.flat_map { |c| c.checklist_items.pluck(:id, :completed) },
+                 "resetting the COPY's items must not reset the source's"
+    assert_equal before[:blobs], source_card.attachments.map(&:blob_id).sort
+    assert_equal before[:board_users], board.board_users.pluck(:id, :user_id).sort
+    assert_equal before[:favourites], board.board_favorites.pluck(:id).sort
+    assert_equal before[:avatar_blob], board.avatar.blob.id
+    assert_equal before[:bg_blob], board.background.blob.id
+    assert archived.reload.archived?
+  end
+
+  test "a member who is not the owner can copy the board, and owns the copy" do
+    board, = rich_board
+    member = User.create!(email: "copier-member@example.com", password: "password")
+    board.board_users.create!(user: member)
+    sign_out @user
+    sign_in member
+
+    assert_difference -> { Board.count }, 1 do
+      post copy_board_url(board), params: { name: "Member's Copy" }
+    end
+
+    copy = Board.find_by!(name: "Member's Copy")
+    assert_equal member.id, copy.user_id, "the copy belongs to whoever made it"
+    assert_not_equal board.user_id, copy.user_id
+  end
+
+  test "a user without access cannot copy the board" do
+    board, = rich_board
+    stranger = User.create!(email: "stranger@example.com", password: "password")
+    sign_out @user
+    sign_in stranger
+
+    assert_no_difference -> { Board.count } do
+      post copy_board_url(board), params: { name: "Stolen" }
+    end
+    assert_response :not_found
+  end
+
+  test "the copy keeps none of the seeded default lists or labels" do
+    board, = rich_board
+
+    post copy_board_url(board), params: { name: "No Defaults" }
+
+    copy = Board.find_by!(name: "No Defaults")
+    # Board's after_create seeds three lists and ten labels; a copy must bring its
+    # own, not end up with both.
+    assert_equal 2, copy.lists.count
+    assert_not_includes copy.lists.map(&:name), "To Do"
+    assert_equal board.labels.count, copy.labels.count
+  end
+
+  test "a blank name falls back to the default rather than failing" do
+    board, = rich_board
+
+    post copy_board_url(board), params: { name: "" }
+
+    assert Board.exists?(name: "Copy of Rich Board")
+  end
+
+  # boards#copy redirects to the copy, which is self-evident confirmation — but it
+  # sets a flash too, for consistency with lists#copy. Pinned so it can't be dropped.
+  test "copying a board sets a flash naming the copy" do
+    board, = rich_board
+
+    post copy_board_url(board), params: { name: "Flashy Copy" }
+
+    copy = Board.find_by!(name: "Flashy Copy")
+    assert_redirected_to board_url(copy)
+    assert_match(/Flashy Copy/, flash[:notice])
+    assert_nil flash[:alert]
   end
 end

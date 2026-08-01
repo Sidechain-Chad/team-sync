@@ -1,0 +1,21 @@
+<%# The board tile's title, in display mode. Lives in its OWN frame (nested
+    inside the tile's card frame) so the tile's pencil can swap just this for an
+    inline edit form without disturbing the rest of the tile. Deliberately not
+    the same frame id as the modal's title: the modal opens over the board, so
+    both can be on the page at once — see CardsController#title_context.
+
+    `flex-1 min-w-0` sits on the frame itself, since the frame IS the flex child
+    of the title row now (it took the old link's place). A bare <turbo-frame>
+    defaults to display:inline, but a flex item is blockified regardless, so no
+    explicit `block` is needed here — unlike the tile's outer frame, whose
+    vertical margin depends on it. min-w-0 is what keeps a long title (and the
+    edit field that replaces it) from pushing the tile wider than its column. %>
+<%= turbo_frame_tag dom_id(card, :tile_title), class: "flex-1 min-w-0" do %>
+  <%# Clicking the title still opens the modal, exactly as before — only the
+      pencil enters edit mode. data-turbo-frame="modal" overrides this frame. %>
+  <%= link_to card_path(card),
+      data: { turbo_frame: "modal" },
+      class: "block no-underline text-inherit" do %>
+    <h4 class="text-sm font-medium text-ink-700 leading-tight"><%= card.title %></h4>
+  <% end %>
+<% end %>

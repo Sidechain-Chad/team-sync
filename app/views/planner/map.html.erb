@@ -48,13 +48,13 @@
 
       <div class="flex items-center">
         <%= link_to planner_map_path(year: @prev_month.year, month: @prev_month.month),
-            class: "px-2 py-1.5 text-ink-500 bg-white border border-line rounded-l hover:bg-surface-50 transition",
+            class: "h-11 w-11 flex items-center justify-center text-ink-500 bg-white border border-line rounded-l hover:bg-surface-50 transition",
             title: "Previous month",
             aria: { label: "Previous month" } do %>
           <i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i>
         <% end %>
         <%= link_to planner_map_path(year: @next_month.year, month: @next_month.month),
-            class: "px-2 py-1.5 text-ink-500 bg-white border border-l-0 border-line rounded-r hover:bg-surface-50 transition",
+            class: "h-11 w-11 flex items-center justify-center text-ink-500 bg-white border border-l-0 border-line rounded-r hover:bg-surface-50 transition",
             title: "Next month",
             aria: { label: "Next month" } do %>
           <i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i>

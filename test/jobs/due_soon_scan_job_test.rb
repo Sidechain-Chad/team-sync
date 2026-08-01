@@ -83,4 +83,112 @@ class DueSoonScanJobTest < ActiveSupport::TestCase
       DueSoonScanJob.perform_now
     end
   end
+
+  # --- watching widens this trigger's audience too ---
+
+  test "notifies a WATCHER who is not a card member" do
+    card = cards(:one)
+    card.update!(due_date: 12.hours.from_now)
+    card.card_members.destroy_all # drop the fixture member so the watcher is the only recipient
+    watcher = User.create!(email: "due-watcher@example.com", password: "password")
+    CardWatcher.create!(card: card, user: watcher)
+
+    assert_difference "Notification.count", 1 do
+      DueSoonScanJob.perform_now
+    end
+
+    notification = Notification.last
+    assert_equal watcher, notification.recipient
+    assert_equal "due_soon", notification.action
+    assert_equal card, notification.notifiable
+    assert_not_includes card.reload.members, watcher
+  end
+
+  test "notifies members AND watchers, and only once for someone who is both" do
+    card = cards(:one)
+    card.update!(due_date: 12.hours.from_now)
+    member = users(:one) # card member via the fixture
+    watcher = User.create!(email: "due-watcher-2@example.com", password: "password")
+    CardWatcher.create!(card: card, user: watcher)
+    # The fixture member also watches — must still be one notification for them.
+    CardWatcher.create!(card: card, user: member)
+
+    assert_difference "Notification.count", 2 do
+      DueSoonScanJob.perform_now
+    end
+
+    assert_equal 1, member.notifications.where(action: "due_soon").count
+    assert_equal 1, watcher.notifications.where(action: "due_soon").count
+  end
+
+  test "does not notify a watcher who has turned due_soon off" do
+    card = cards(:one)
+    card.update!(due_date: 12.hours.from_now)
+    card.card_members.destroy_all
+    watcher = User.create!(email: "due-watcher-off@example.com", password: "password",
+                           notification_preferences: { "due_soon" => false })
+    CardWatcher.create!(card: card, user: watcher)
+
+    assert_no_difference "Notification.count" do
+      DueSoonScanJob.perform_now
+    end
+  end
+
+  # --- N+1 guard ---
+  #
+  # The scan reads Card#subscribers, which touches BOTH :members and :watchers.
+  # Before this arc it preloaded only :members; leaving it that way issues one
+  # `users INNER JOIN card_watchers` per due card.
+  #
+  # This counts LOOKUP queries only (the SELECTs that resolve cards and their two
+  # audiences), not every query, and that distinction is the whole design of this
+  # test: the scan's TOTAL query count cannot be flat, because it legitimately
+  # writes one notification row per recipient, refreshes that recipient's unread
+  # badge count, and stamps due_reminder_sent_at per card. Measured, that's a fixed
+  # 5 writes/counts per card here — real per-recipient work no preload can remove,
+  # and asserting on the total would just be pinning delivery internals.
+  #
+  # What MUST stay flat is the lookup side, and it does: 1 cards SELECT + 1
+  # card_members + 1 card_watchers + 2 users = 5, whatever the row count.
+  # Detection proven by dropping :watchers from DueSoonScanJob's includes — the
+  # count then becomes 4 + one per card (5→6 at three cards, 5→9 at six).
+  LOOKUP_TABLES = %w[cards card_members card_watchers users].freeze
+
+  test "lookup query count stays flat as the number of due cards with watchers grows" do
+    small = count_lookups_for_scan(due_cards: 3)
+    large = count_lookups_for_scan(due_cards: 6)
+
+    assert_equal small, large,
+                 "audience lookups must not grow with the number of due cards " \
+                 "(got #{small} at 3 cards, #{large} at 6)"
+    assert_equal 5, small, "expected exactly the five preload SELECTs"
+  end
+
+  private
+
+  # SELECT count against the tables the scan reads to build its audience. Writes,
+  # badge COUNTs and the due_reminder stamp are excluded on purpose — see above.
+  def count_lookups_for_scan(due_cards:)
+    Card.update_all(due_date: nil, due_reminder_sent_at: nil)
+    list = boards(:one).lists.first
+
+    due_cards.times do |i|
+      card = list.cards.create!(title: "Due #{due_cards}-#{i}", due_date: 12.hours.from_now)
+      # A member AND a watcher on every card, so a missing preload on either
+      # association shows up as growth.
+      card.members << User.create!(email: "scan-m-#{due_cards}-#{i}@example.com", password: "password")
+      CardWatcher.create!(card: card, user: User.create!(email: "scan-w-#{due_cards}-#{i}@example.com", password: "password"))
+    end
+
+    count = 0
+    counter = ->(*, payload) {
+      next if payload[:name].in?(["SCHEMA", "TRANSACTION"])
+      sql = payload[:sql]
+      next unless sql.start_with?("SELECT")
+      next if sql.include?("COUNT(*)") # the per-recipient unread badge count
+      count += 1 if LOOKUP_TABLES.any? { |t| sql.include?(%("#{t}")) }
+    }
+    ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { DueSoonScanJob.perform_now }
+    count
+  end
 end

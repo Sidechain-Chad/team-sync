@@ -423,6 +423,95 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#quick_add_row i.fa-paperclip", count: 1
   end
 
+  # --- empty card feed placeholder ---
+  #
+  # #activities_and_comments is the broadcast_prepend_to target for both Comment
+  # and Activity, so the placeholder inside it is rendered UNCONDITIONALLY and
+  # hidden by CSS whenever it isn't :only-child. These tests exist to stop someone
+  # "tidying up" by reintroducing an `if @feed.empty?` — which would go stale the
+  # instant a live comment was prepended beside it.
+
+  test "a card with no comments or activity renders the feed placeholder" do
+    empty_card = @list_one.cards.create!(title: "Nothing here yet")
+    assert_equal 0, Comment.where(card: empty_card).count
+    assert_equal 0, Activity.where(card: empty_card).count
+
+    get card_url(empty_card)
+
+    assert_response :success
+    assert_select "#activities_and_comments > .feed-empty", count: 1
+    assert_select "#activities_and_comments > .feed-empty p", text: "No comments or activity yet."
+    # Nothing else inside — so the placeholder really is :only-child and visible.
+    assert_select "#activities_and_comments > *", count: 1
+  end
+
+  test "a card WITH feed items still renders the placeholder markup — CSS hides it, not a conditional" do
+    # Counted straight off the DB, not via @card.comments.empty? — comments_count
+    # is a counter cache and cards.yml doesn't set it, so the association's
+    # own #empty? trusts a stale 0 and reports "no comments" for a card that
+    # demonstrably has one. (The view is unaffected: @feed builds with `+`,
+    # which forces a real load.)
+    assert_equal 1, Comment.where(card: @card).count, "fixture precondition: cards(:one) has a comment"
+    assert_equal 1, Activity.where(card: @card).count, "fixture precondition: cards(:one) has an activity"
+
+    get card_url(@card)
+
+    assert_response :success
+    # Both present: the placeholder is unconditional, and it now has siblings, so
+    # `.feed-empty:not(:only-child)` hides it in the browser.
+    assert_select "#activities_and_comments > .feed-empty", count: 1
+    assert_select "#activities_and_comments > ##{ActionView::RecordIdentifier.dom_id(Comment.where(card: @card).first)}", count: 1
+    assert_select "#activities_and_comments > .automated-activity", count: Activity.where(card: @card).count
+    assert_select "#activities_and_comments > *", minimum: 3
+  end
+
+  test "the placeholder is the only non-feed element in the container, which :only-child depends on" do
+    get card_url(@card)
+
+    assert_response :success
+    # Every element child is either a feed item or the placeholder. If a
+    # structural wrapper is ever added in here, :only-child breaks and the
+    # placeholder silently never shows again.
+    assert_select "#activities_and_comments > *" do |children|
+      children.each do |child|
+        classes = child["class"].to_s
+        assert child["id"].to_s.start_with?("comment_") ||
+               classes.include?("automated-activity") ||
+               classes.include?("feed-empty"),
+               "unexpected element in #activities_and_comments: #{child.name} class=#{classes.inspect} id=#{child["id"].inspect}"
+      end
+    end
+  end
+
+  test "the comment prepend broadcast is unchanged — comment partial only, no placeholder" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @card)
+
+    broadcasts = capture_broadcasts(stream) do
+      @card.comments.create!(content: "Live one", user: @user)
+    end
+
+    assert_equal [["prepend", "activities_and_comments"]], broadcast_targets(broadcasts)
+    body = broadcast_for(broadcasts, "activities_and_comments")
+    assert_match(/id="#{ActionView::RecordIdentifier.dom_id(Comment.last)}"/, body)
+    assert_match(/Live one/, body)
+    assert_no_match(/feed-empty/, body,
+                    "the prepend must stay exactly what it was — CSS does the hiding, not the broadcast")
+  end
+
+  test "the activity prepend broadcast is unchanged — activity partial only, no placeholder" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @card)
+
+    broadcasts = capture_broadcasts(stream) do
+      @card.log_activity(@user, "updated", "Live activity")
+    end
+
+    assert_equal [["prepend", "activities_and_comments"]], broadcast_targets(broadcasts)
+    body = broadcast_for(broadcasts, "activities_and_comments")
+    assert_match(/automated-activity/, body)
+    assert_no_match(/feed-empty/, body,
+                    "the prepend must stay exactly what it was — CSS does the hiding, not the broadcast")
+  end
+
   test "right column is the comments-and-activity conversation pane only" do
     get card_url(@card)
 
@@ -1184,6 +1273,591 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     # The broadcast is emitted after the service attaches, so the re-rendered
     # tile already carries the paperclip badge.
     assert_match(/fa-paperclip/, broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card)))
+  end
+
+  # --- inline title edit (#edit_title / #update_title) ---
+  #
+  # The tile and the modal can both be showing the same card at once (the modal
+  # opens over the board), so they render into SEPARATE frames and the two
+  # responses are deliberately different shapes: from the tile the broadcast
+  # already brings the title back to display mode for the actor, so the actor's
+  # own response must render nothing; from the modal the response replaces the
+  # modal title frame, a different target from the broadcast's tile.
+
+  TILE_TITLE_FRAME  = ->(card) { ActionView::RecordIdentifier.dom_id(card, :tile_title) }
+  MODAL_TITLE_FRAME = ->(card) { ActionView::RecordIdentifier.dom_id(card, :modal_title) }
+
+  test "edit_title renders the form into the TILE title frame" do
+    get edit_title_card_url(@card, context: "tile")
+
+    assert_response :success
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} input[name=?]", "card[title]"
+    assert_select "turbo-frame##{MODAL_TITLE_FRAME.call(@card)}", count: 0
+    # Blur saves, mirroring the list-rename pattern.
+    assert_match(/blur-&gt;autosubmit#submit|blur->autosubmit#submit/, response.body)
+  end
+
+  test "edit_title renders the form into the MODAL title frame" do
+    get edit_title_card_url(@card, context: "modal")
+
+    assert_response :success
+    assert_select "turbo-frame##{MODAL_TITLE_FRAME.call(@card)} input[name=?]", "card[title]"
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)}", count: 0
+  end
+
+  test "edit_title with an unrecognised context falls back to the tile frame" do
+    get edit_title_card_url(@card, context: "bogus")
+
+    assert_response :success
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} input[name=?]", "card[title]"
+  end
+
+  test "edit_title is scoped: another user's card 404s" do
+    other = cards(:two) # lives on boards(:two), which @user cannot access
+
+    get edit_title_card_url(other, context: "tile")
+
+    assert_response :not_found
+  end
+
+  test "update_title saves and broadcasts exactly one tile replace carrying the NEW title" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+    original = @card.title
+
+    broadcasts = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: "Renamed Inline" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal "Renamed Inline", @card.reload.title
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+    # Not merely "a broadcast fired" — the BODY has to carry the new title. A
+    # broadcast rendered from a stale record passes a naive count assertion
+    # while showing every other viewer the old value (the attachment-destroy
+    # lesson).
+    body = broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card))
+    assert_match(/Renamed Inline/, body)
+    assert_no_match(/#{Regexp.escape(original)}<\/h4>/, body)
+  end
+
+  test "update_title from the MODAL also broadcasts exactly one tile replace with the new title" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "modal"),
+            params: { card: { title: "Renamed From Modal" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal "Renamed From Modal", @card.reload.title
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+    assert_match(/Renamed From Modal/, broadcast_for(broadcasts, ActionView::RecordIdentifier.dom_id(@card)))
+  end
+
+  test "the actor's own TILE response renders no tile markup (anti double-render)" do
+    patch update_title_card_url(@card, context: "tile"),
+          params: { card: { title: "Tile Actor" } }, as: :turbo_stream
+
+    assert_response :success
+    # The broadcast replaces the whole tile for everyone including the actor, so
+    # this response deliberately carries nothing — not the tile, not the
+    # tile-title frame. Swapping the frame back here too would replace it twice.
+    assert_no_match(/turbo-stream/, response.body)
+    assert_no_match(/#{TILE_TITLE_FRAME.call(@card)}/, response.body)
+    assert_no_match(/id="#{ActionView::RecordIdentifier.dom_id(@card)}"/, response.body)
+  end
+
+  test "the actor's own MODAL response replaces the modal title frame" do
+    patch update_title_card_url(@card, context: "modal"),
+          params: { card: { title: "Modal Actor" } }, as: :turbo_stream
+
+    assert_response :success
+    assert_match(/<turbo-stream action="replace" target="#{MODAL_TITLE_FRAME.call(@card)}"/, response.body)
+    assert_match(/Modal Actor/, response.body)
+    # A different target from the broadcast's tile, so the two never collide.
+    assert_no_match(/target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, response.body)
+  end
+
+  test "update_title logs a renamed activity, but not for a no-op blur save" do
+    assert_difference -> { @card.activities.where(action: "renamed").count }, 1 do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: "Logged Rename" } }, as: :turbo_stream
+    end
+    assert_equal "Logged Rename", @card.reload.activities.where(action: "renamed").last.description
+
+    # Blur saves, so "open the editor, click away" re-submits the same title
+    # constantly — those must not each write a history row.
+    assert_no_difference -> { @card.activities.where(action: "renamed").count } do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: "Logged Rename" } }, as: :turbo_stream
+    end
+  end
+
+  test "a no-op title save still broadcasts, so the tile leaves edit mode" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: @card.title } }, as: :turbo_stream
+    end
+
+    # In the tile context the broadcast is the ONLY thing that swaps the input
+    # back for the heading, so it cannot be conditional on the title changing.
+    assert_equal [["replace", ActionView::RecordIdentifier.dom_id(@card)]], broadcast_targets(broadcasts)
+  end
+
+  # Blank title. Validation is `presence`, and the real UI submits from inside a
+  # turbo frame — note `as: :turbo_stream` does NOT send a turbo-stream request,
+  # so these use the raw Accept header where that path matters.
+
+  test "a blank title from the TILE is rejected, keeps the old title, and surfaces the error" do
+    original = @card.title
+
+    patch update_title_card_url(@card, context: "tile"),
+          params: { card: { title: "" } }, headers: TURBO_STREAM_ONLY
+
+    # 200, not 422: Turbo drops a 4xx turbo-stream response for a
+    # frame-targeted submission, so the error would never be seen.
+    assert_response :success
+    assert_equal original, @card.reload.title
+    # Reverted to display mode with the OLD title, rejected value discarded.
+    assert_match(/<turbo-stream action="replace" target="#{TILE_TITLE_FRAME.call(@card)}"/, response.body)
+    assert_match(/<turbo-stream action="replace" target="flash"/, response.body)
+    assert_match(/can&#39;t be blank|can't be blank/, response.body)
+  end
+
+  test "a blank title from the MODAL is rejected and surfaces the error" do
+    original = @card.title
+
+    patch update_title_card_url(@card, context: "modal"),
+          params: { card: { title: "" } }, headers: TURBO_STREAM_ONLY
+
+    assert_response :success
+    assert_equal original, @card.reload.title
+    assert_match(/<turbo-stream action="replace" target="#{MODAL_TITLE_FRAME.call(@card)}"/, response.body)
+    assert_match(/can&#39;t be blank|can't be blank/, response.body)
+  end
+
+  test "a blank title broadcasts nothing" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"),
+            params: { card: { title: "" } }, headers: TURBO_STREAM_ONLY
+    end
+
+    assert_empty broadcasts, "a rejected rename must not push a tile to other viewers"
+  end
+
+  test "a blank title re-renders the form with 422 for an HTML request" do
+    original = @card.title
+
+    patch update_title_card_url(@card, context: "tile"),
+          params: { card: { title: "" } }, headers: { "Accept" => "text/html" }
+
+    # HTML form re-render keeps 422 — Turbo needs a 4xx to re-render a form.
+    assert_response :unprocessable_entity
+    assert_equal original, @card.reload.title
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} input[name=?]", "card[title]"
+  end
+
+  test "update_title is scoped: another user's card 404s" do
+    other = cards(:two)
+    original = other.title
+
+    patch update_title_card_url(other, context: "tile"), params: { card: { title: "Hijacked" } }
+
+    # Cross-tenant requests 404 (RecordNotFound), never 403.
+    assert_response :not_found
+    assert_equal original, other.reload.title
+  end
+
+  # --- the aria-labelledby target must survive BOTH modes ---
+  #
+  # cards/show.html.erb's dialog is labelled by card_modal_title_<id>. That id
+  # used to live on the <h2>, which the title frame replaces with a form in edit
+  # mode — the dialog would have lost its accessible name. It now lives on the
+  # enclosing wrapper, outside the frame.
+
+  test "the modal's aria-labelledby target exists in display mode" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_match(/aria-labelledby="card_modal_title_#{@card.id}"/, response.body)
+    assert_match(/id="card_modal_title_#{@card.id}"/, response.body)
+    # The id is on the wrapper, NOT on the heading the frame swaps out.
+    assert_no_match(/<h2 id="card_modal_title_#{@card.id}"/, response.body)
+  end
+
+  # Found in the accessibility tree, not by reading the markup: the title link
+  # first carried aria-label="Edit card title", and because aria-labelledby
+  # computes the dialog's name from the wrapper's SUBTREE — where a descendant's
+  # aria-label beats its own text content — the dialog announced as "Edit card
+  # title" instead of the card's title. The link wraps the heading text, so it is
+  # not icon-only and needs no label; `title` carries the hint instead.
+  test "the modal title link has no aria-label, so it can't hijack the dialog's name" do
+    get card_url(@card)
+
+    assert_response :success
+    assert_select "turbo-frame##{MODAL_TITLE_FRAME.call(@card)} a" do |links|
+      assert_equal 1, links.size
+      assert_nil links.first["aria-label"],
+                 "an aria-label here overrides the heading text in the dialog's accessible name"
+      assert_equal "Rename card", links.first["title"]
+    end
+    # The name the dialog resolves to is the heading text inside the wrapper.
+    assert_select "##{"card_modal_title_#{@card.id}"} h2", text: @card.title
+  end
+
+  test "the aria-labelledby target is outside the title frame, so edit mode keeps it" do
+    get card_url(@card)
+    body = response.body
+
+    wrapper_at = body.index(%(id="card_modal_title_#{@card.id}"))
+    frame_at   = body.index(%(id="#{MODAL_TITLE_FRAME.call(@card)}"))
+
+    assert wrapper_at, "the aria-labelledby target must be rendered"
+    assert frame_at, "the modal title frame must be rendered"
+    assert wrapper_at < frame_at,
+           "the labelling id must enclose the title frame, or it vanishes in edit mode"
+
+    # And the edit render (which replaces only the frame) must not carry it —
+    # proof the id is untouched by the swap rather than duplicated.
+    get edit_title_card_url(@card, context: "modal")
+    assert_no_match(/id="card_modal_title_#{@card.id}"/, response.body)
+  end
+
+  test "the tile's title still links to the card in display mode" do
+    get board_url(@board_one)
+
+    assert_response :success
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} a[href=?]", card_path(@card)
+    assert_select "turbo-frame##{TILE_TITLE_FRAME.call(@card)} h4", text: @card.title
+  end
+
+  test "the tile's pencil enters inline rename rather than opening the modal" do
+    get board_url(@board_one)
+
+    assert_response :success
+    assert_select "a[href=?][data-turbo-frame=?]",
+                  edit_title_card_path(@card, context: "tile"),
+                  TILE_TITLE_FRAME.call(@card)
+    assert_select "a[aria-label=?]", "Rename card"
+    # The old redundant "Edit card" pencil (which just opened the modal, the
+    # same as clicking the card body) is gone.
+    assert_select "a[aria-label=?]", "Edit card", count: 0
+  end
+
+  # --- `moved` and `archived` notifications ---
+  #
+  # Both go to card.subscribers (members ∪ watchers) wholesale; `deliver` skips the
+  # actor and applies each recipient's preference, same as DueSoonScanJob.
+
+  # A member and a WATCHER-who-is-not-a-member, neither of them the actor.
+  def two_subscribers_on(card)
+    member = User.create!(email: "sub-member-#{card.id}@example.com", password: "password")
+    watcher = User.create!(email: "sub-watcher-#{card.id}@example.com", password: "password")
+    @board_one.board_users.create!(user: member)
+    @board_one.board_users.create!(user: watcher)
+    card.members << member
+    CardWatcher.create!(card: card, user: watcher)
+    [member, watcher]
+  end
+
+  test "moving a card BETWEEN lists notifies its subscribers, including a watcher who is not a member" do
+    member, watcher = two_subscribers_on(@card)
+
+    assert_difference -> { Notification.where(action: "moved").count }, 2 do
+      patch move_card_url(@card), params: { card: { list_id: @list_three.id, position: 1 } }, as: :json
+    end
+
+    assert_response :success
+    recipients = Notification.where(action: "moved").map(&:recipient)
+    assert_equal [member, watcher].sort_by(&:id), recipients.sort_by(&:id)
+    assert_not_includes recipients, @user, "the actor is never notified about their own action"
+    assert_not_includes @card.reload.members, watcher, "the watcher must not be a member"
+    assert_equal @card, Notification.where(action: "moved").first.notifiable
+  end
+
+  # TRAP 1: #move also handles reordering WITHIN a list. Without the guard in
+  # notify_card_moved, every drag-to-reorder would notify every subscriber.
+  test "reordering WITHIN a list notifies nobody" do
+    two_subscribers_on(@card)
+    @card.list.cards.create!(title: "Sibling")
+
+    assert_no_difference -> { Notification.count } do
+      patch move_card_url(@card), params: { card: { list_id: @card.list_id, position: 2 } }, as: :json
+    end
+
+    assert_response :success
+    assert_equal 2, @card.reload.position, "the reorder itself must still have happened"
+  end
+
+  test "the modal Move-to-list path notifies identically to a drag" do
+    member, watcher = two_subscribers_on(@card)
+
+    assert_difference -> { Notification.where(action: "moved").count }, 2 do
+      patch card_url(@card), params: { card: { list_id: @list_three.id, position: "bottom" } }, as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_equal [member, watcher].sort_by(&:id),
+                 Notification.where(action: "moved").map(&:recipient).sort_by(&:id)
+  end
+
+  test "a modal update that does NOT change the list notifies nobody" do
+    two_subscribers_on(@card)
+
+    assert_no_difference -> { Notification.count } do
+      patch card_url(@card), params: { card: { title: "Renamed, not moved" } }, as: :turbo_stream
+    end
+  end
+
+  test "a subscriber with Cards moved turned off is not notified" do
+    member, watcher = two_subscribers_on(@card)
+    member.update!(notification_preferences: { "moved" => false })
+
+    assert_difference -> { Notification.where(action: "moved").count }, 1 do
+      patch move_card_url(@card), params: { card: { list_id: @list_three.id, position: 1 } }, as: :json
+    end
+
+    assert_equal [watcher], Notification.where(action: "moved").map(&:recipient)
+  end
+
+  test "archiving a card notifies its subscribers but not the actor" do
+    member, watcher = two_subscribers_on(@card)
+
+    assert_difference -> { Notification.where(action: "archived").count }, 2 do
+      patch archive_card_url(@card)
+    end
+
+    recipients = Notification.where(action: "archived").map(&:recipient)
+    assert_equal [member, watcher].sort_by(&:id), recipients.sort_by(&:id)
+    assert_not_includes recipients, @user
+    assert @card.reload.archived?
+  end
+
+  test "a subscriber with Cards archived turned off is not notified" do
+    member, watcher = two_subscribers_on(@card)
+    watcher.update!(notification_preferences: { "archived" => false })
+
+    assert_difference -> { Notification.where(action: "archived").count }, 1 do
+      patch archive_card_url(@card)
+    end
+
+    assert_equal [member], Notification.where(action: "archived").map(&:recipient)
+  end
+
+  # Deliberate divergence from Trello, which bundles archive/unarchive under one
+  # toggle: two actions sharing one preference entry would break the 1:1
+  # action↔preference mapping #notifies? depends on.
+  test "unarchiving a card notifies nobody" do
+    two_subscribers_on(@card)
+    @card.archive!
+
+    assert_no_difference -> { Notification.count } do
+      patch unarchive_card_url(@card)
+    end
+    assert_not @card.reload.archived?
+  end
+
+  test "a card with no subscribers notifies nobody when moved" do
+    bare = @list_three.cards.create!(title: "Nobody watching")
+
+    assert_no_difference -> { Notification.count } do
+      patch move_card_url(bare), params: { card: { list_id: @list_one.id, position: 1 } }, as: :json
+    end
+  end
+
+  TURBO_STREAM_ONLY = { "Accept" => "text/vnd.turbo-stream.html" }.freeze
+
+  # --- #toggle_watch ---
+  #
+  # Watching is per-user state only, so unlike almost every other card action this
+  # one broadcasts NOTHING: cards/_card goes to the board stream, where every
+  # viewer receives identical HTML, so per-user state must never be rendered into
+  # it. That's asserted below and is also why there's no tile indicator in v1.
+
+  test "toggle_watch starts watching and swaps the control to the watching state" do
+    assert_difference -> { CardWatcher.count }, 1 do
+      patch toggle_watch_card_url(@card), as: :turbo_stream
+    end
+
+    assert_response :success
+    assert @card.reload.watched_by?(@user)
+    assert_includes @card.watchers, @user
+    assert_match(/<turbo-stream action="replace" target="#{ActionView::RecordIdentifier.dom_id(@card, :watch)}"/, response.body)
+    assert_match(/Stop watching this card/, response.body)
+  end
+
+  test "toggle_watch a second time stops watching" do
+    patch toggle_watch_card_url(@card), as: :turbo_stream
+
+    assert_difference -> { CardWatcher.count }, -1 do
+      patch toggle_watch_card_url(@card), as: :turbo_stream
+    end
+
+    assert_response :success
+    assert_not @card.reload.watched_by?(@user)
+    assert_match(/Watch this card/, response.body)
+  end
+
+  test "watching does not make the user a card member" do
+    # A card with no members of its own — @card arrives with card_members(:one)
+    # already attaching @user, which would mask this.
+    bare = @list_three.cards.create!(title: "Watch-only card")
+
+    patch toggle_watch_card_url(bare), as: :turbo_stream
+
+    assert_response :success
+    assert_empty bare.reload.members, "watching must not create a membership"
+    assert_equal [@user], bare.watchers
+    assert_equal [@user], bare.subscribers
+  end
+
+  test "toggle_watch broadcasts NOTHING to the board stream" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+
+    broadcasts = capture_broadcasts(stream) do
+      patch toggle_watch_card_url(@card), as: :turbo_stream
+    end
+
+    assert_empty broadcasts,
+                 "watching is per-user state — broadcasting it would show one user's state to every viewer"
+  end
+
+  test "toggle_watch is scoped: a card the user cannot reach 404s and is not watched" do
+    other = cards(:two) # boards(:two), which @user has no access to
+
+    assert_no_difference -> { CardWatcher.count } do
+      patch toggle_watch_card_url(other), as: :turbo_stream
+    end
+    assert_response :not_found
+  end
+
+  test "the card modal renders the watch control reflecting the persisted state" do
+    get card_url(@card)
+    assert_response :success
+    assert_select "form##{ActionView::RecordIdentifier.dom_id(@card, :watch)}"
+    assert_select "button[aria-label=?]", "Watch this card"
+    assert_select "button[aria-pressed=?]", "false"
+
+    CardWatcher.create!(card: @card, user: @user)
+
+    get card_url(@card)
+    assert_select "button[aria-label=?]", "Stop watching this card"
+    assert_select "button[aria-pressed=?]", "true"
+  end
+
+  # --- the tile watch badge: markup identical for everyone, state client-side ---
+  #
+  # The tile DOES carry a watch badge now, but it is byte-identical for every
+  # viewer: always rendered, always hidden, no per-user state. Visibility comes
+  # from #watched_cards (rendered in request context) via watch_badge_controller.
+  # These are the assertions that protect that split; the reason it has to be a
+  # split at all is that cards/_card is broadcast through
+  # ApplicationController.renderer, which has no session.
+
+  test "the tile renders the watch badge element, hidden, for a card the user does NOT watch" do
+    get board_url(@board_one)
+
+    assert_response :success
+    tile = css_select("turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)}").first.to_s
+    assert_match(/data-controller="watch-badge"/, tile)
+    assert_match(/data-watch-badge-card-id-value="#{@card.id}"/, tile)
+    assert_match(/class="hidden items-center gap-1"/, tile,
+                 "the badge must ship hidden — the browser decides, not the server")
+  end
+
+  test "the tile markup is IDENTICAL whether or not the viewer watches the card" do
+    get board_url(@board_one)
+    not_watching = css_select("turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)}").first.to_s
+
+    CardWatcher.create!(card: @card, user: @user)
+
+    get board_url(@board_one)
+    watching = css_select("turbo-frame##{ActionView::RecordIdentifier.dom_id(@card)}").first.to_s
+
+    assert_equal not_watching, watching,
+                 "per-user state in the tile would leak through broadcast_card_update to every viewer"
+  end
+
+  test "a broadcast tile body is identical for a watcher and a non-watcher" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
+    target = ActionView::RecordIdentifier.dom_id(@card)
+
+    # A rename is the cheapest thing that fires broadcast_card_update.
+    plain = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"), params: { card: { title: "Broadcast A" } }, as: :turbo_stream
+    end
+    body_without_watch = broadcast_for(plain, target)
+
+    CardWatcher.create!(card: @card, user: @user)
+
+    watched = capture_broadcasts(stream) do
+      patch update_title_card_url(@card, context: "tile"), params: { card: { title: "Broadcast A" } }, as: :turbo_stream
+    end
+    body_with_watch = broadcast_for(watched, target)
+
+    assert_equal body_without_watch, body_with_watch,
+                 "the broadcast body must not depend on the acting user's watch state"
+    assert_match(/data-controller="watch-badge"/, body_with_watch,
+                 "the badge must still be present in the broadcast body")
+  end
+
+  test "watched_cards renders only the current user's watched ids for THIS board" do
+    other_board_card = cards(:one) # will be watched on board_one
+    off_board = @list_three.cards.create!(title: "Also on board one")
+    CardWatcher.create!(card: other_board_card, user: @user)
+
+    get board_url(@board_one)
+
+    assert_response :success
+    ids = JSON.parse(css_select("#watched_cards").first["data-watched-card-ids"])
+    assert_includes ids, other_board_card.id
+    assert_not_includes ids, off_board.id
+  end
+
+  test "watched_cards is per-user: another user's page render has a different set" do
+    CardWatcher.create!(card: @card, user: @user)
+
+    get board_url(@board_one)
+    mine = JSON.parse(css_select("#watched_cards").first["data-watched-card-ids"])
+    assert_equal [@card.id], mine
+
+    # A second board member who watches nothing.
+    other = User.create!(email: "watch-badge-other@example.com", password: "password")
+    @board_one.board_users.create!(user: other)
+    sign_out @user
+    sign_in other
+
+    get board_url(@board_one)
+    theirs = JSON.parse(css_select("#watched_cards").first["data-watched-card-ids"])
+    assert_empty theirs, "one user's watch set must not appear on another user's page"
+  end
+
+  test "watched_cards excludes cards on boards the user cannot see" do
+    foreign = cards(:two) # boards(:two), no access
+    CardWatcher.create!(card: foreign, user: @user)
+
+    get board_url(@board_one)
+
+    ids = JSON.parse(css_select("#watched_cards").first["data-watched-card-ids"])
+    assert_not_includes ids, foreign.id
+  end
+
+  test "toggle_watch replaces watched_cards with the updated id set" do
+    patch toggle_watch_card_url(@card), as: :turbo_stream
+
+    assert_response :success
+    assert_match(/<turbo-stream action="replace" target="watched_cards"/, response.body)
+    body = response.body
+    assert_match(/data-watched-card-ids="\[#{@card.id}\]"/, body)
+
+    patch toggle_watch_card_url(@card), as: :turbo_stream
+    assert_match(/data-watched-card-ids="\[\]"/, response.body,
+                 "unwatching must ship the shrunken set")
   end
 
   private

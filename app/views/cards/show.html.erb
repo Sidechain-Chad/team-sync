@@ -49,8 +49,9 @@
              data-move-picker-current-list-id-value="<%= @card.list_id %>"
              data-move-picker-current-position-value="<%= @card.position %>">
 
-          <button type="button" data-action="click->dropdown#toggle"
+          <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
                   aria-haspopup="true"
+                  aria-expanded="false"
                   aria-label="Move card, currently in <%= @card.list.name %>"
                   class="flex items-center gap-2 bg-surface-200 hover:bg-surface-300 px-3 py-1.5 rounded text-sm font-semibold text-ink-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
             <span>in <%= @card.list.name %></span>
@@ -86,8 +87,15 @@
           </div>
         </div>
 
-        <%# RIGHT: card-actions (⋯) menu, then Close %>
+        <%# RIGHT: watch toggle, card-actions (⋯) menu, then Close %>
         <div class="flex items-center gap-1">
+
+          <%# Watch (eye) — Trello's position: in the header, left of the ⋯ menu,
+              visible rather than buried in a menu. The header already hosts
+              icon-only buttons at exactly these dimensions, and it still fits at
+              375px (measured, not assumed). %>
+          <%= render "cards/watch_button", card: @card %>
+
 
           <%# Card actions — ONE anchored popover under the ⋯ button, with
               two internal panels that are never both visible at once:
@@ -98,10 +106,12 @@
               popover is freshly opened, so a previous "Copy card" session
               never lingers into the next open. %>
           <div class="relative" data-controller="dropdown card-actions-menu" data-action="click@window->dropdown#hide">
-            <button type="button" data-action="click->dropdown#toggle click->card-actions-menu#reset"
+            <button type="button" data-dropdown-target="trigger"
+                    data-action="click->dropdown#toggle click->card-actions-menu#reset"
                     aria-haspopup="true"
+                    aria-expanded="false"
                     aria-label="Card actions"
-                    class="h-8 w-8 flex items-center justify-center rounded text-ink-500 hover:text-ink-700 hover:bg-surface-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
+                    class="h-11 w-11 flex items-center justify-center rounded text-ink-500 hover:text-ink-700 hover:bg-surface-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
               <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
             </button>
 
@@ -173,7 +183,7 @@
 
           <%# CLOSE BUTTON %>
           <%= link_to close_path,
-              class: "text-ink-500 hover:text-ink-700 transition flex items-center justify-center p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+              class: "text-ink-500 hover:text-ink-700 transition flex items-center justify-center h-11 w-11 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
               "aria-label": "Close card",
               data: { turbo_action: "advance", modal_exit: true } do %>
             <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
@@ -207,26 +217,39 @@
                 <%= button_to toggle_complete_card_path(@card),
                     method: :patch,
                     params: toggle_params,
-                    form: { class: "m-0 shrink-0 mt-1" },
-                    class: "h-6 w-6 rounded-full bg-success-600/90 hover:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1#{" animate-complete-pop" if local_assigns.fetch(:just_completed, false)}",
+                    form: { class: "m-0 shrink-0 -mt-1.5 -ml-2.5" },
+                    class: "group/tap h-11 w-11 flex items-center justify-center rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1#{" animate-complete-pop" if local_assigns.fetch(:just_completed, false)}",
                     title: "Mark incomplete",
                     aria: { label: "Mark incomplete" } do %>
-                  <i class="fa-solid fa-check text-xs text-white" aria-hidden="true"></i>
+                  <span class="h-6 w-6 rounded-full bg-success-600/90 group-hover/tap:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-check text-xs text-white" aria-hidden="true"></i>
+                  </span>
                 <% end %>
               <% else %>
                 <%= button_to toggle_complete_card_path(@card),
                     method: :patch,
                     params: toggle_params,
-                    form: { class: "m-0 shrink-0 mt-1" },
-                    class: "h-6 w-6 rounded-full bg-white border-2 border-line hover:border-success-600 hover:bg-success-100 flex items-center justify-center transition-colors cursor-pointer group/complete focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+                    form: { class: "m-0 shrink-0 -mt-1.5 -ml-2.5" },
+                    class: "group/complete h-11 w-11 flex items-center justify-center rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
                     title: "Mark complete",
                     aria: { label: "Mark complete" } do %>
-                  <i class="fa-solid fa-check text-xs text-transparent group-hover/complete:text-success-600" aria-hidden="true"></i>
+                  <span class="h-6 w-6 rounded-full bg-white border-2 border-line group-hover/complete:border-success-600 group-hover/complete:bg-success-100 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-check text-xs text-transparent group-hover/complete:text-success-600" aria-hidden="true"></i>
+                  </span>
                 <% end %>
               <% end %>
 
-              <div class="w-full">
-                <h2 id="card_modal_title_<%= @card.id %>" class="font-display text-xl font-bold text-ink-700 leading-tight"><%= @card.title %></h2>
+              <%# card_modal_title_<id> is what this dialog's aria-labelledby
+                  (line 28) points at, and it lives HERE — on the wrapper,
+                  outside the title frame — not on the <h2> where it used to be.
+                  The frame below swaps the heading for an edit form, so an id
+                  carried by the <h2> would disappear with it and leave
+                  role="dialog" with no accessible name in edit mode. This
+                  wrapper survives both modes: in display mode the name comes
+                  from the <h2>, in edit mode from the input's value. Verified in
+                  the browser's accessibility tree, both modes. %>
+              <div class="w-full min-w-0" id="card_modal_title_<%= @card.id %>">
+                <%= render "cards/modal_title", card: @card %>
               </div>
             </div>
 
@@ -241,7 +264,9 @@
 
               <%# Checklist button %>
               <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
-                <button type="button" data-action="click->dropdown#toggle"
+                <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
+                        aria-haspopup="true"
+                        aria-expanded="false"
                         class="bg-surface-200 hover:bg-surface-300 text-ink-700 px-3 py-1.5 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
                   <i class="fa-solid fa-square-check w-4" aria-hidden="true"></i> Checklist
                 </button>
@@ -267,7 +292,9 @@
                    data-action="click@window->dropdown#hide"
                    data-location-search-card-id-value="<%= @card.id %>"
                    data-location-search-card-url-value="<%= card_path(@card) %>">
-                <button type="button" data-action="click->dropdown#toggle"
+                <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
+                        aria-haspopup="true"
+                        aria-expanded="false"
                         class="bg-surface-200 hover:bg-surface-300 text-ink-700 px-3 py-1.5 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
                   <i class="fa-solid fa-location-dot w-4" aria-hidden="true"></i> Location
                 </button>
@@ -300,7 +327,9 @@
 
               <%# Attachment button %>
               <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
-                <button type="button" data-action="click->dropdown#toggle"
+                <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
+                        aria-haspopup="true"
+                        aria-expanded="false"
                         class="bg-surface-200 hover:bg-surface-300 text-ink-700 px-3 py-1.5 rounded text-sm font-medium transition flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
                   <i class="fa-solid fa-paperclip w-4" aria-hidden="true"></i> Attachment
                 </button>
@@ -348,11 +377,15 @@
 
                   <%# Member-picker dropdown %>
                   <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
-                    <button type="button" data-action="click->dropdown#toggle"
-                            class="h-8 w-8 rounded-full bg-surface-200 hover:bg-surface-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
+                    <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
+                            class="group/tap h-11 w-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
                             title="Add members"
-                            aria-label="Add members">
-                      <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
+                            aria-label="Add members"
+                            aria-haspopup="true"
+                            aria-expanded="false">
+                      <span class="h-8 w-8 rounded-full bg-surface-200 group-hover/tap:bg-surface-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
+                      </span>
                     </button>
 
                     <div data-dropdown-target="menu"
@@ -397,11 +430,15 @@
 
                   <%# Picker dropdown %>
                   <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
-                    <button type="button" data-action="click->dropdown#toggle"
-                            class="h-8 w-8 rounded-full bg-surface-200 hover:bg-surface-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
+                    <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
+                            class="group/tap h-11 w-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
                             title="Add labels"
-                            aria-label="Add labels">
-                      <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
+                            aria-label="Add labels"
+                            aria-haspopup="true"
+                            aria-expanded="false">
+                      <span class="h-8 w-8 rounded-full bg-surface-200 group-hover/tap:bg-surface-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
+                      </span>
                     </button>
 
                     <div data-dropdown-target="menu"
@@ -438,11 +475,15 @@
 
                   <%# Picker dropdown %>
                   <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
-                    <button type="button" data-action="click->dropdown#toggle"
-                            class="h-8 w-8 rounded-full bg-surface-200 hover:bg-surface-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
+                    <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
+                            class="group/tap h-11 w-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
                             title="Set due date"
-                            aria-label="Set due date">
-                      <i class="fa-solid fa-clock text-sm text-ink-500" aria-hidden="true"></i>
+                            aria-label="Set due date"
+                            aria-haspopup="true"
+                            aria-expanded="false">
+                      <span class="h-8 w-8 rounded-full bg-surface-200 group-hover/tap:bg-surface-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-clock text-sm text-ink-500" aria-hidden="true"></i>
+                      </span>
                     </button>
 
                     <div data-dropdown-target="menu"
@@ -505,7 +546,7 @@
                         method: :patch,
                         params: { card: { latitude: "", longitude: "", location_name: "", location_address: "" } },
                         form: { class: "m-0 shrink-0", data: { turbo_confirm: "Remove this location?" } },
-                        class: "h-6 w-6 rounded flex items-center justify-center text-ink-500 hover:text-danger-600 hover:bg-danger-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+                        class: "h-11 w-11 rounded flex items-center justify-center text-ink-500 hover:text-danger-600 hover:bg-danger-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
                         title: "Remove location",
                         aria: { label: "Remove location" } do %>
                       <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
@@ -589,7 +630,32 @@
           <div class="flex-1 overflow-y-auto pr-2 space-y-4 transition-all">
             <%= turbo_stream_from @card %>
             <div id="activities_and_comments" class="space-y-4">
+              <%# Rendered UNCONDITIONALLY — deliberately no `if @feed.empty?`.
+                  This div is the broadcast_prepend_to target for both Comment and
+                  Activity (see their after_create_commit hooks), so a server-side
+                  conditional can't stay correct: a placeholder rendered inside
+                  goes stale the moment a live comment is prepended beside it, and
+                  one rendered outside can't see the prepend at all. Instead CSS
+                  hides it whenever it is not `:only-child` (see .feed-empty in
+                  tailwind/application.css), so an empty feed shows it and the
+                  first item — server-rendered OR live-prepended — hides it, with
+                  no change to any broadcast.
+
+                  DEPENDS ON BEING THE ONLY ELEMENT CHILD: if you add any other
+                  structural element inside #activities_and_comments, this
+                  placeholder silently never appears again. Feed items only in
+                  here. (`:only-child`, not `:empty` — ERB leaves whitespace text
+                  nodes that defeat `:empty`.)
+
+                  Rendered LAST, after the feed, so that the container's
+                  `space-y-4` (a `> * + *` rule, which still fires across a
+                  display:none sibling) can't push a stray 1rem onto the first
+                  real feed item. %>
               <%= render @feed %>
+              <div class="feed-empty px-4 py-12 text-center">
+                <i class="fa-solid fa-comment-slash text-3xl text-ink-300 mb-3" aria-hidden="true"></i>
+                <p class="text-sm text-ink-500">No comments or activity yet.</p>
+              </div>
             </div>
           </div>
 

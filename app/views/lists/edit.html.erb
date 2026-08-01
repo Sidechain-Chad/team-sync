@@ -1,15 +1,19 @@
 <%= turbo_frame_tag dom_id(@list, :header) do %>
   <div class="mb-2 p-1">
-    <%= form_with(model: @list, class: "flex items-center gap-1", data: { controller: "autosubmit" }) do |f| %>
+    <%# once: this form has BOTH a blur and an Enter trigger, and Enter used to
+        fire the browser's implicit submission as well as a blur — two writes per
+        keystroke. autosubmit#submit is now the only entry point (see the
+        controller) and `once` makes one interaction produce one submission. %>
+    <%= form_with(model: @list, class: "flex items-center gap-1",
+                  data: { controller: "autosubmit", autosubmit_once_value: true }) do |f| %>
 
-      <%# The Input Field (Autofocus so you can type immediately) %>
+      <%# The Input Field (Autofocus so you can type immediately).
+          Enter submits through the controller with :prevent, NOT through a
+          hidden submit button — the button is what created the second path. %>
       <%= f.text_field :name,
           class: "w-full border-2 border-brand-700 rounded p-1 text-sm font-bold text-ink-700 focus:outline-none focus:ring-0",
           autofocus: true,
-          data: { action: "blur->autosubmit#submit" } %>
-
-      <%# Hidden submit button for Enter key %>
-      <%= f.submit class: "hidden" %>
+          data: { action: "blur->autosubmit#submit keydown.enter->autosubmit#submit:prevent" } %>
 
     <% end %>
   </div>

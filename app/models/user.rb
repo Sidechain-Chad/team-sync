@@ -11,11 +11,13 @@ class User < ApplicationRecord
   has_many :comments,      dependent: :nullify   # historical — preserve the comment text
   has_many :activities,    dependent: :nullify   # historical — preserve the audit trail
   has_many :board_favorites, dependent: :destroy
+  has_many :card_watchers,   dependent: :destroy   # current state, like card_members
   has_many :notifications, foreign_key: :recipient_id, dependent: :destroy
 
   has_many :shared_boards,    through: :board_users, source: :board
   has_many :favorited_boards, through: :board_favorites, source: :board
   has_many :assigned_cards,   through: :card_members, source: :card
+  has_many :watched_cards,    through: :card_watchers, source: :card
 
   # :chip is 2x a h-8 chip (comment/activity/nav rows); :thumb is for the
   # h-16 profile identity block. NOT preprocessed — on Cloudinary these
@@ -61,6 +63,10 @@ class User < ApplicationRecord
       # Strip them from active assignments but keep their comments/activities intact.
       board_users.destroy_all
       card_members.destroy_all
+      # Watching is an active subscription, not history — same category as
+      # card_members. Without this a deactivated user keeps accruing comment and
+      # due_soon notifications for every card they were watching.
+      card_watchers.destroy_all
     end
   end
 
@@ -89,6 +95,27 @@ class User < ApplicationRecord
 
   def all_cards
     Card.where(list_id: all_lists.select(:id))
+  end
+
+  # ---- Listing scopes: the all_* scopes above, minus closed boards ----
+  #
+  # The all_* scopes back AUTHORIZATION (set_board, board_scoped_list,
+  # every `find(params[...])` in the app) and must keep resolving a closed
+  # board — otherwise its owner could never reach the page that reopens it.
+  # These open_* scopes are the LISTING counterparts: use them anywhere boards
+  # or their cards are enumerated or aggregated rather than looked up by id.
+  # Two names instead of one flag is deliberate — it makes "did this call site
+  # get the closed-board filter?" a grep, not a code read.
+  def open_boards
+    all_boards.merge(Board.open)
+  end
+
+  def open_lists
+    List.where(board_id: open_boards.select(:id))
+  end
+
+  def open_cards
+    Card.where(list_id: open_lists.select(:id))
   end
 
   def all_checklists

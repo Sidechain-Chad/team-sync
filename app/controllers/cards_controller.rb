@@ -1,6 +1,8 @@
 class CardsController < ApplicationController
+  include BroadcastsCardUpdates
+
   before_action :authenticate_user!
-  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :copy, :edit_description, :update_description, :archive, :unarchive, :toggle_complete]
+  before_action :set_card, only: [:show, :edit, :update, :destroy, :move, :copy, :edit_description, :update_description, :edit_title, :update_title, :archive, :unarchive, :toggle_complete, :toggle_watch]
 
   def show
     # Eager-load everything the card modal needs
@@ -131,6 +133,11 @@ class CardsController < ApplicationController
         @card.log_activity(current_user, "renamed", @card.title)
       end
 
+      # Same helper as #move — the modal's "Move to list" must notify identically.
+      # Deliberately NOT extended to `renamed`: Trello doesn't notify on rename,
+      # and this app's inline rename saves on blur, so it would be pure noise.
+      notify_card_moved(old_list)
+
       # Use the service for attachments — handles validation (size + type)
       # and logs one activity entry per file.
       result = CardAttachmentService.new(card: @card, user: current_user, files: new_attachments).call
@@ -146,14 +153,16 @@ class CardsController < ApplicationController
       else
         # Broadcast the freshly-rendered card to anyone viewing this board so
         # the preview reflects changes (location pin, attachment count, due
-        # pill, title) in real time. Same pattern as toggle_complete. This is
-        # the common edit path — one card replace, exactly as before.
-        Turbo::StreamsChannel.broadcast_replace_to(
-          @card.list.board,
-          target: @card,
-          partial: "cards/card",
-          locals: { card: @card }
-        )
+        # pill, title) in real time. This is the common edit path — one card
+        # replace, exactly as before.
+        #
+        # broadcast_card_update (BroadcastsCardUpdates) — this used to be an
+        # inline copy of the concern's body, byte for byte, in a controller that
+        # already included the concern. Two paths that had to stay in step for no
+        # reason. #toggle_complete's own broadcast stays inline on purpose: it
+        # passes a just_completed local for the one-shot pop animation, and the
+        # concern deliberately takes no flags (see its comment).
+        broadcast_card_update
       end
 
       if result.success?
@@ -268,6 +277,9 @@ class CardsController < ApplicationController
         @card.log_activity(current_user, "moved", "#{old_list.name} to #{@card.list.name}")
       end
 
+      # No-op for a within-list reorder — the guard is inside the helper.
+      notify_card_moved(old_list)
+
       # Make the drag live for everyone else. Before this, #move broadcast
       # nothing at all, so another viewer saw neither the card leaving its old
       # list nor arriving in the new one until they reloaded — and once the
@@ -373,9 +385,123 @@ class CardsController < ApplicationController
     end
   end
 
+  # Inline title edit, entered from two places: the board tile's pencil and the
+  # card modal's heading. Both can be on the page at the same time (the modal
+  # opens OVER the board), so they cannot share a frame id — see #title_context.
+  def edit_title
+    @title_context = title_context
+  end
+
+  # Mirrors #update_description, with one deliberate difference: the title
+  # renders on the board TILE, not just inside the modal, so a rename has to
+  # reach every viewer of the board. That's the broadcast below.
+  #
+  # No Esc-cancel, matching lists#update's inline rename exactly — blur saves,
+  # and there is no cancel there either. Consequence, documented rather than
+  # fixed: pressing Esc in the modal while editing closes the modal, and the
+  # resulting blur saves. Surprising, never destructive. If cancel semantics are
+  # ever added they should land on card AND list rename together so the two
+  # stay consistent, rather than diverging here.
+  def update_title
+    context = title_context
+
+    if @card.update(title: params[:card][:title])
+      # Only on a real change: blur-saving means "open the editor, click away"
+      # submits an identical title constantly, and each of those would otherwise
+      # write a "renamed this card to ..." row. Same condition #update uses.
+      @card.log_activity(current_user, "renamed", @card.title) if @card.saved_change_to_title?
+
+      # UNCONDITIONAL, unlike the activity above: in the tile context this
+      # broadcast is the only thing that brings the title back out of edit mode
+      # for the actor (see the `head :ok` below), so a no-op save still has to
+      # push a fresh tile or the input would stay on screen.
+      broadcast_card_update
+
+      respond_to do |format|
+        format.turbo_stream do
+          if context == "modal"
+            # A different target from the broadcast above (the modal's own
+            # title frame vs. the board tile), so the two don't collide: the
+            # actor gets their heading back in display mode here, and their
+            # copy of the board BEHIND the modal is refreshed by the broadcast.
+            render turbo_stream: turbo_stream.replace(
+              helpers.dom_id(@card, :modal_title),
+              partial: "cards/modal_title",
+              locals: { card: @card }
+            )
+          else
+            # Tile context: the broadcast above replaces the WHOLE tile, and the
+            # actor is subscribed to that same board stream — so the title comes
+            # back in display mode for them too. Swapping the tile-title frame
+            # back here as well would replace it twice for the actor. Same
+            # anti-double-render reasoning as #toggle_complete's board-tile
+            # branch, which renders nothing for the same reason.
+            head :ok
+          end
+        end
+        format.html { redirect_to @card }
+      end
+    else
+      # Blank title (the only way to fail this action — `validates :title,
+      # presence: true`). Same shape as lists#update's failure branch: keep the
+      # old title, revert the frame to display mode, surface the error in the
+      # flash slot. Not a third invention.
+      error = @card.errors.full_messages.to_sentence
+
+      respond_to do |format|
+        format.html do
+          @title_context = context
+          render :edit_title, formats: [:html], status: :unprocessable_entity
+        end
+
+        # Deliberately 200, not 422: both forms submit from INSIDE a turbo
+        # frame, and Turbo does not apply a turbo-stream response to a
+        # frame-targeted submission when the status is 4xx — the body would be
+        # correct and the user would see nothing at all. Same 200 + flash.now
+        # shape update_description's failure branch already uses.
+        format.turbo_stream do
+          flash.now[:alert] = error
+          # Re-read so the frame renders the card as it actually stands: the
+          # rejected value is discarded, never left half-applied on screen.
+          @card.reload
+
+          frame, partial =
+            if context == "modal"
+              [helpers.dom_id(@card, :modal_title), "cards/modal_title"]
+            else
+              [helpers.dom_id(@card, :tile_title), "cards/tile_title"]
+            end
+
+          render turbo_stream: [
+            turbo_stream.replace(frame, partial: partial, locals: { card: @card }),
+            # Neither title frame contains the flash slot, so without this the
+            # alert would never be seen. Same second stream lists#update sends.
+            turbo_stream.replace("flash", partial: "shared/flash")
+          ]
+        end
+      end
+    end
+  end
+
   def archive
     @card.archive!
     @card.log_activity(current_user, "archived")
+
+    # HERE, not in a model callback or in Card#archive!, and that placement is
+    # load-bearing: ListsController#archive_all_cards archives every card in a list
+    # by calling card.archive! directly, so a model-level trigger would fire N
+    # notifications per subscriber for one bulk click. Living in this controller
+    # action means the bulk path can't reach it by construction — pinned by a test
+    # in ListsControllerTest.
+    #
+    # Unarchive deliberately does NOT notify. Trello bundles archive/unarchive
+    # under one "Cards archived" toggle, but two actions sharing one preference
+    # entry would break the 1:1 action↔preference mapping #notifies? depends on
+    # (and which NotificationCoverageTest enforces). One action, archive only.
+    @card.subscribers.each do |subscriber|
+      Notification.deliver(recipient: subscriber, actor: current_user, notifiable: @card, action: "archived")
+    end
+
     broadcast_card_remove
     broadcast_list_card_count(@card.list)
 
@@ -461,6 +587,58 @@ class CardsController < ApplicationController
     end
   end
 
+  # Watch / stop watching this card — receive its notifications without being a
+  # member. Same shape as BoardsController#toggle_favorite: find the join row,
+  # destroy it if present, create it if not.
+  #
+  # Authorization is the standard scoped find (set_card → current_user.all_cards),
+  # so a card on a board the user can't reach 404s rather than becoming watchable.
+  #
+  # DELIBERATELY NO BOARD BROADCAST. Watching changes only per-user state; there
+  # is nothing here another viewer of the board should see, and cards/_card is
+  # broadcast to the board stream, so anything per-user rendered into it would be
+  # shown to everyone (the notification-badge / account-row class of bug). The
+  # response replaces the actor's own watch control and nothing else.
+  def toggle_watch
+    watch = current_user.card_watchers.find_by(card: @card)
+
+    if watch
+      watch.destroy
+    else
+      # find_or_create_by, not create!, so a double-submit is a no-op rather than
+      # a RecordNotUnique from the unique index.
+      current_user.card_watchers.find_or_create_by!(card: @card)
+    end
+
+    respond_to do |format|
+      format.turbo_stream do
+        # BOTH targets are actor-only, which is the whole point: still no board
+        # broadcast, because watch state is per-user and broadcasting it would
+        # show one user's eye to every viewer.
+        #
+        # The partial reads the state itself (card.watched_by?), same as
+        # boards/_star_button — one source of truth, so the response and the
+        # initial modal render can't disagree.
+        render turbo_stream: [
+          turbo_stream.replace(
+            helpers.dom_id(@card, :watch),
+            partial: "cards/watch_button",
+            locals: { card: @card }
+          ),
+          # Refreshes the per-user id set the tile badges read, so the board
+          # behind the modal updates immediately. A no-op when the actor isn't
+          # looking at a board page — replace on a missing target does nothing.
+          turbo_stream.replace(
+            "watched_cards",
+            partial: "boards/watched_cards",
+            locals: { board: @card.list.board }
+          )
+        ]
+      end
+      format.html { redirect_to @card }
+    end
+  end
+
   def unarchive
     @card.unarchive!
     # Place at the bottom of the (now active) cards in its original list.
@@ -502,6 +680,17 @@ class CardsController < ApplicationController
 
   def move_params
     params.require(:card).permit(:list_id, :position)
+  end
+
+  # Which inline-title frame this request is aiming at. A strict two-value
+  # whitelist, never reflected anywhere: the board tile and the card modal can
+  # both be showing the same card at once (the modal opens over the board), so
+  # they render into SEPARATE frames — dom_id(card, :tile_title) and
+  # dom_id(card, :modal_title) — and every render path has to know which. The
+  # two response shapes differ too (see #update_title). Anything unrecognised
+  # falls back to the tile.
+  def title_context
+    params[:context] == "modal" ? "modal" : "tile"
   end
 
   # Translates the "Move card" popover's position choice into a real
@@ -577,6 +766,27 @@ class CardsController < ApplicationController
     only_location_keys = (p.keys - location_keys).empty?
     all_blank          = location_keys.all? { |k| p[k].blank? }
     only_location_keys && all_blank && ! @card.location?
+  end
+
+  # "Cards moved" notification, shared by BOTH move paths: #move (drag) and
+  # #update (the modal's "Move to list"). One helper so the two can't drift.
+  #
+  # THE GUARD LIVES HERE, not at the call sites. #move also handles reordering
+  # WITHIN a list — same endpoint, same params shape — so without this every
+  # drag-to-reorder would notify every subscriber of the card. Keeping the check
+  # inside the helper means a future third caller inherits it instead of having to
+  # remember it. Compares against the pre-update list rather than
+  # saved_change_to_list_id? because #update can save the card again (via
+  # CardAttachmentService) before this point, which would clear saved_changes.
+  #
+  # Subscribers wholesale — members ∪ watchers. `deliver` already skips the actor
+  # and applies each recipient's preference, same as DueSoonScanJob.
+  def notify_card_moved(old_list)
+    return if @card.list_id == old_list.id
+
+    @card.subscribers.each do |subscriber|
+      Notification.deliver(recipient: subscriber, actor: current_user, notifiable: @card, action: "moved")
+    end
   end
 
   def broadcast_card_remove
