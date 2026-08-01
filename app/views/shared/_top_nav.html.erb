@@ -29,7 +29,10 @@
     <input type="text"
            placeholder="Search"
            aria-label="Search"
+           aria-haspopup="true"
+           aria-expanded="false"
            data-search-target="input"
+           data-dropdown-target="trigger"
            data-action="focus->dropdown#open click->dropdown#open input->search#query"
            class="w-full h-8 pl-8 pr-3 rounded bg-white/10 hover:bg-white/15 focus:bg-white focus:text-ink-900 placeholder-ink-300 focus:placeholder-ink-300 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-brand-700 transition-colors">
 
@@ -62,7 +65,10 @@
        data-action="click@document->dropdown#hide">
 
     <button type="button"
+            data-dropdown-target="trigger"
             data-action="click->dropdown#toggle"
+            aria-haspopup="true"
+            aria-expanded="false"
             class="flex items-center gap-1.5 h-8 px-3 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1">
       Create
     </button>
@@ -98,10 +104,13 @@
        data-action="click@document->dropdown#hide">
 
     <button type="button"
+            data-dropdown-target="trigger"
             data-action="click->dropdown#toggle"
             class="relative h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-ink-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
             title="Notifications"
-            aria-label="Notifications">
+            aria-label="Notifications"
+            aria-haspopup="true"
+            aria-expanded="false">
       <i class="fa-regular fa-bell text-sm" aria-hidden="true"></i>
       <%= render "notifications/badge", count: current_user.notifications.unread.count %>
     </button>
@@ -126,10 +135,13 @@
        data-action="click@document->dropdown#hide">
 
     <button type="button"
+            data-dropdown-target="trigger"
             data-action="click->dropdown#toggle"
             class="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-ink-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
             title="Help"
-            aria-label="Help">
+            aria-label="Help"
+            aria-haspopup="true"
+            aria-expanded="false">
       <i class="fa-regular fa-circle-question text-sm" aria-hidden="true"></i>
     </button>
 
@@ -175,10 +187,13 @@
        data-action="click@document->dropdown#hide">
 
     <button type="button"
+            data-dropdown-target="trigger"
             data-action="click->dropdown#toggle"
             class="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-white/20 hover:ring-white/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
             title="<%= current_user.display_name %>"
-            aria-label="Account menu for <%= current_user.display_name %>">
+            aria-label="Account menu for <%= current_user.display_name %>"
+            aria-haspopup="true"
+            aria-expanded="false">
       <%= render "shared/avatar", user: current_user, size: "h-8 w-8", text_size: "text-[11px]" %>
     </button>
 
