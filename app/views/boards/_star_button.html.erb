@@ -7,7 +7,7 @@
 <%= button_to toggle_favorite_board_path(board),
     method: :patch,
     form: { class: "inline-block board-star-#{board.id}" },
-    class: "h-8 w-8 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+    class: "h-11 w-11 flex items-center justify-center rounded hover:bg-white/20 transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
     title: favorited ? "Remove from favorites" : "Add to favorites",
     aria: { label: favorited ? "Remove from favorites" : "Add to favorites" } do %>
   <i class="<%= favorited ? 'fa-solid text-yellow-300' : 'fa-regular' %> fa-star text-sm" aria-hidden="true"></i>

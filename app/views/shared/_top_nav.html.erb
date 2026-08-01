@@ -106,7 +106,7 @@
     <button type="button"
             data-dropdown-target="trigger"
             data-action="click->dropdown#toggle"
-            class="relative h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-ink-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
+            class="relative h-11 w-11 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-ink-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
             title="Notifications"
             aria-label="Notifications"
             aria-haspopup="true"
@@ -137,7 +137,7 @@
     <button type="button"
             data-dropdown-target="trigger"
             data-action="click->dropdown#toggle"
-            class="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-ink-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
+            class="h-11 w-11 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-ink-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
             title="Help"
             aria-label="Help"
             aria-haspopup="true"
@@ -189,12 +189,17 @@
     <button type="button"
             data-dropdown-target="trigger"
             data-action="click->dropdown#toggle"
-            class="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-white/20 hover:ring-white/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
+            class="group h-11 w-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1"
             title="<%= current_user.display_name %>"
             aria-label="Account menu for <%= current_user.display_name %>"
             aria-haspopup="true"
             aria-expanded="false">
-      <%= render "shared/avatar", user: current_user, size: "h-8 w-8", text_size: "text-[11px]" %>
+      <%# The ring/clip lives on this inner span, not the button: the button is
+          padded out to the 44×44 minimum tap target, and putting the ring there
+          too would float a 44px circle around a 32px avatar. %>
+      <span class="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-white/20 group-hover:ring-white/40 transition">
+        <%= render "shared/avatar", user: current_user, size: "h-8 w-8", text_size: "text-[11px]" %>
+      </span>
     </button>
 
     <div data-dropdown-target="menu"

@@ -20,7 +20,14 @@
     <%= button_to card_checklist_checklist_item_path(checklist_item.checklist.card, checklist_item.checklist, checklist_item),
         method: :delete,
         form: { class: "m-0", data: { turbo_frame: dom_id(checklist_item) } },
-        class: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-ink-300 hover:text-danger-600 transition-opacity bg-transparent border-0 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+        # 44 WIDE, NOT 44 SQUARE. The row is 24px tall and rows are 8px apart
+        # (space-y-2 on the items frame), so a 44px-tall target would overlap the
+        # delete button of the row above and below — clicks landing on the wrong
+        # item is strictly worse than a short target. Reaching 44 vertically means
+        # making every checklist row ~44px tall, which is a redesign of the row,
+        # not a tap-target fix. Widening costs nothing: the item text is a flex-1
+        # sibling that simply reflows.
+        class: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-ink-300 hover:text-danger-600 transition-opacity bg-transparent border-0 cursor-pointer h-6 w-11 flex items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
         title: "Delete item",
         aria: { label: "Delete item" } do %>
       <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>

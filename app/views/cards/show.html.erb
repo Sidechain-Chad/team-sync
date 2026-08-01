@@ -111,7 +111,7 @@
                     aria-haspopup="true"
                     aria-expanded="false"
                     aria-label="Card actions"
-                    class="h-8 w-8 flex items-center justify-center rounded text-ink-500 hover:text-ink-700 hover:bg-surface-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
+                    class="h-11 w-11 flex items-center justify-center rounded text-ink-500 hover:text-ink-700 hover:bg-surface-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
               <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
             </button>
 
@@ -183,7 +183,7 @@
 
           <%# CLOSE BUTTON %>
           <%= link_to close_path,
-              class: "text-ink-500 hover:text-ink-700 transition flex items-center justify-center p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+              class: "text-ink-500 hover:text-ink-700 transition flex items-center justify-center h-11 w-11 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
               "aria-label": "Close card",
               data: { turbo_action: "advance", modal_exit: true } do %>
             <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
@@ -217,21 +217,25 @@
                 <%= button_to toggle_complete_card_path(@card),
                     method: :patch,
                     params: toggle_params,
-                    form: { class: "m-0 shrink-0 mt-1" },
-                    class: "h-6 w-6 rounded-full bg-success-600/90 hover:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1#{" animate-complete-pop" if local_assigns.fetch(:just_completed, false)}",
+                    form: { class: "m-0 shrink-0 -mt-1.5 -ml-2.5" },
+                    class: "group/tap h-11 w-11 flex items-center justify-center rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1#{" animate-complete-pop" if local_assigns.fetch(:just_completed, false)}",
                     title: "Mark incomplete",
                     aria: { label: "Mark incomplete" } do %>
-                  <i class="fa-solid fa-check text-xs text-white" aria-hidden="true"></i>
+                  <span class="h-6 w-6 rounded-full bg-success-600/90 group-hover/tap:bg-success-600 border-2 border-success-600 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-check text-xs text-white" aria-hidden="true"></i>
+                  </span>
                 <% end %>
               <% else %>
                 <%= button_to toggle_complete_card_path(@card),
                     method: :patch,
                     params: toggle_params,
-                    form: { class: "m-0 shrink-0 mt-1" },
-                    class: "h-6 w-6 rounded-full bg-white border-2 border-line hover:border-success-600 hover:bg-success-100 flex items-center justify-center transition-colors cursor-pointer group/complete focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+                    form: { class: "m-0 shrink-0 -mt-1.5 -ml-2.5" },
+                    class: "group/complete h-11 w-11 flex items-center justify-center rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
                     title: "Mark complete",
                     aria: { label: "Mark complete" } do %>
-                  <i class="fa-solid fa-check text-xs text-transparent group-hover/complete:text-success-600" aria-hidden="true"></i>
+                  <span class="h-6 w-6 rounded-full bg-white border-2 border-line group-hover/complete:border-success-600 group-hover/complete:bg-success-100 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-check text-xs text-transparent group-hover/complete:text-success-600" aria-hidden="true"></i>
+                  </span>
                 <% end %>
               <% end %>
 
@@ -374,12 +378,14 @@
                   <%# Member-picker dropdown %>
                   <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                     <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
-                            class="h-8 w-8 rounded-full bg-surface-200 hover:bg-surface-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
+                            class="group/tap h-11 w-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
                             title="Add members"
                             aria-label="Add members"
                             aria-haspopup="true"
                             aria-expanded="false">
-                      <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
+                      <span class="h-8 w-8 rounded-full bg-surface-200 group-hover/tap:bg-surface-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
+                      </span>
                     </button>
 
                     <div data-dropdown-target="menu"
@@ -425,12 +431,14 @@
                   <%# Picker dropdown %>
                   <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                     <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
-                            class="h-8 w-8 rounded-full bg-surface-200 hover:bg-surface-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
+                            class="group/tap h-11 w-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
                             title="Add labels"
                             aria-label="Add labels"
                             aria-haspopup="true"
                             aria-expanded="false">
-                      <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
+                      <span class="h-8 w-8 rounded-full bg-surface-200 group-hover/tap:bg-surface-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-plus text-sm text-ink-500" aria-hidden="true"></i>
+                      </span>
                     </button>
 
                     <div data-dropdown-target="menu"
@@ -468,12 +476,14 @@
                   <%# Picker dropdown %>
                   <div class="relative" data-controller="dropdown" data-action="click@window->dropdown#hide">
                     <button type="button" data-dropdown-target="trigger" data-action="click->dropdown#toggle"
-                            class="h-8 w-8 rounded-full bg-surface-200 hover:bg-surface-300 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
+                            class="group/tap h-11 w-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1"
                             title="Set due date"
                             aria-label="Set due date"
                             aria-haspopup="true"
                             aria-expanded="false">
-                      <i class="fa-solid fa-clock text-sm text-ink-500" aria-hidden="true"></i>
+                      <span class="h-8 w-8 rounded-full bg-surface-200 group-hover/tap:bg-surface-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-clock text-sm text-ink-500" aria-hidden="true"></i>
+                      </span>
                     </button>
 
                     <div data-dropdown-target="menu"
@@ -536,7 +546,7 @@
                         method: :patch,
                         params: { card: { latitude: "", longitude: "", location_name: "", location_address: "" } },
                         form: { class: "m-0 shrink-0", data: { turbo_confirm: "Remove this location?" } },
-                        class: "h-6 w-6 rounded flex items-center justify-center text-ink-500 hover:text-danger-600 hover:bg-danger-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+                        class: "h-11 w-11 rounded flex items-center justify-center text-ink-500 hover:text-danger-600 hover:bg-danger-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
                         title: "Remove location",
                         aria: { label: "Remove location" } do %>
                       <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>

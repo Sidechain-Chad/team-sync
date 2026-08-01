@@ -41,7 +41,15 @@
         card bodies — the same pattern Trello uses. Archive only appears once
         the card is marked complete and gets a more pronounced shadow as the
         "next-step" affordance. %>
-    <div class="absolute top-2 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 ease-out z-content">
+    <%# TAP TARGETS: each control here is a 44×44 button wrapping a 28×28 badge,
+        rather than a 28×28 button. The badge is the only thing painted, so the
+        cluster looks identical — but the boxes now tile at 44px instead of
+        overlapping, which is what a ::after hit-area extension would have done
+        at this spacing (28px badges 6px apart = 34px between centres, 10px short
+        of two 44px areas). Offsets compensate so the badges stay put: the
+        wrapper moves top-2→top-0 and right-3→right-1, and the 8px of padding
+        inside each button puts the badge back exactly where it was. %>
+    <div class="absolute top-0 right-1 flex items-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 ease-out z-content">
 
       <% if card.completed? %>
         <%= button_to archive_card_path(card),
@@ -50,10 +58,12 @@
               class: "m-0",
               data: { turbo_confirm: "Archive this card? You can restore it from the archive view." }
             },
-            class: "h-7 w-7 rounded-md bg-ink-900/55 hover:bg-ink-900/75 backdrop-blur-sm text-white flex items-center justify-center shadow-md ring-1 ring-white/10 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+            class: "group/tap h-11 w-11 flex items-center justify-center bg-transparent border-0 cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
             title: "Archive card",
             aria: { label: "Archive card" } do %>
-          <i class="fa-solid fa-box-archive text-[11px]" aria-hidden="true"></i>
+          <span class="h-7 w-7 rounded-md bg-ink-900/55 group-hover/tap:bg-ink-900/75 backdrop-blur-sm text-white flex items-center justify-center shadow-md ring-1 ring-white/10 transition-colors">
+            <i class="fa-solid fa-box-archive text-[11px]" aria-hidden="true"></i>
+          </span>
         <% end %>
       <% end %>
 
@@ -83,10 +93,12 @@
           still opens the modal. %>
       <%= link_to edit_title_card_path(card, context: "tile"),
           data: { turbo_frame: dom_id(card, :tile_title) },
-          class: "h-7 w-7 rounded-md bg-ink-900/40 hover:bg-ink-900/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+          class: "group/tap h-11 w-11 flex items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
           title: "Rename card",
           "aria-label": "Rename card" do %>
-        <i class="fa-solid fa-pencil text-[11px]" aria-hidden="true"></i>
+        <span class="h-7 w-7 rounded-md bg-ink-900/40 group-hover/tap:bg-ink-900/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors">
+          <i class="fa-solid fa-pencil text-[11px]" aria-hidden="true"></i>
+        </span>
       <% end %>
     </div>
 
