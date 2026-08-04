@@ -18,6 +18,21 @@ class LabelsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  # `new_label_row` IS a turbo-frame (cards/show.html.erb wraps the "Create a new
+  # label" trigger in one; labels/cancel_new.html.erb puts it back). `replace`
+  # swapped the frame itself out for a bare <a>, and since that link carries
+  # data-turbo-frame="new_label_row" the next click had no frame to target and
+  # fell back to a full-page visit to a frame-only template — card modal and board
+  # gone. Same bug as the add-a-card trigger; see FrameReplaceTargetsTest.
+  test "create updates the new-label trigger frame instead of replacing the frame" do
+    post board_labels_url(@board), params: { label: { color: "red" }, card_id: @card.id }, as: :turbo_stream
+
+    assert_response :success
+    assert_match %r{<turbo-stream action="update" target="new_label_row">}, response.body
+    assert_no_match %r{<turbo-stream action="replace" target="new_label_row">}, response.body
+    assert_match "Create a new label", response.body
+  end
+
   test "should not create label on a board the user has no access to" do
     other_board = boards(:two)
 

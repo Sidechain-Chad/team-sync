@@ -1,11 +1,21 @@
-<%# 1. Reset the "new label" trigger so the user can create another. %>
+<%# 1. Reset the "new label" trigger so the user can create another.
+
+    UPDATE, NOT REPLACE — the same bug the add-a-card trigger had (see
+    cards/create.turbo_stream.erb). `new_label_row` IS a turbo-frame
+    (cards/show.html.erb wraps the trigger in one, and labels/cancel_new.html.erb
+    puts it back), so `replace` swapped the frame itself out for a bare <a>.
+    The link carries data-turbo-frame="new_label_row", so once the frame was gone
+    the next "Create a new label" click had no frame to target and fell back to a
+    full-page visit to /boards/:id/labels/new — a template that renders nothing
+    but cards/_label_form, itself only a turbo_frame_tag. Card modal and board
+    gone, page reduced to a lone label form.
+
+    Rendering the shared trigger partial rather than an inlined copy of the link:
+    labels/cancel_new.html.erb already used it, and this copy had drifted (it was
+    missing the focus-visible ring the partial carries). %>
 <% card = @card %>
-<%= turbo_stream.replace "new_label_row" do %>
-  <%= link_to new_board_label_path(@board, card_id: card.id),
-      data: { turbo_frame: "new_label_row" },
-      class: "block w-full text-center text-sm bg-surface-200 hover:bg-surface-300 text-ink-700 py-1.5 rounded" do %>
-    <i class="fa-solid fa-plus text-xs mr-1"></i> Create a new label
-  <% end %>
+<%= turbo_stream.update "new_label_row" do %>
+  <%= render "cards/new_label_trigger", card: card %>
 <% end %>
 
 <%# 2. Append the freshly-created label row into the picker list.
