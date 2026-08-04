@@ -83,9 +83,37 @@ Rails.application.configure do
 
   config.action_mailer.perform_caching = false
 
-  # Ignore bad email addresses and do not raise email delivery errors.
-  # Set this to true and configure the email server for immediate delivery to raise delivery errors.
-  # config.action_mailer.raise_delivery_errors = false
+  # Mail has no request context, so URL helpers in a mailer view need a host or
+  # they raise "Missing host to link to!". APP_HOST is the declared knob (see
+  # render.yaml); RENDER_EXTERNAL_HOSTNAME is Render's own auto-injected value
+  # and is the fallback so mail links resolve even before a custom domain exists.
+  # https because force_ssl is on above — an http:// reset link would just eat a
+  # redirect, and some mail clients strip it.
+  config.action_mailer.default_url_options = {
+    host:     ENV["APP_HOST"].presence || ENV["RENDER_EXTERNAL_HOSTNAME"],
+    protocol: "https"
+  }
+
+  # SMTP, entirely ENV-driven, so wiring up a provider is a dashboard change and
+  # not a code change. NO provider is chosen here — that decision comes with
+  # credentials attached and is deliberately not part of this arc.
+  #
+  # UNTIL SMTP_ADDRESS AND FRIENDS ARE SET, PRODUCTION MAIL DOES NOT SEND.
+  # That is left loud on purpose: raise_delivery_errors defaults to true and is
+  # NOT switched off below. A password reset with no SMTP configured raises and
+  # is logged, rather than rendering "check your inbox" for a mail that was never
+  # sent. Silence here would be strictly worse than a 500 — it would leave the
+  # user waiting forever with nothing in the logs to explain it.
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address:              ENV["SMTP_ADDRESS"],
+    port:                 ENV.fetch("SMTP_PORT", "587").to_i,
+    user_name:            ENV["SMTP_USERNAME"],
+    password:             ENV["SMTP_PASSWORD"],
+    domain:               ENV["SMTP_DOMAIN"].presence || ENV["APP_HOST"],
+    authentication:       :plain,
+    enable_starttls_auto: true
+  }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).

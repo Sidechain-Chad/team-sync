@@ -36,7 +36,31 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :cloudinary
 
-  # Don't care if the mailer can't send.
+  # Mail has no request context, so URL helpers in a mailer view have no host to
+  # build on and raise "Missing host to link to!" — which is exactly how password
+  # reset came to 500 in every environment. Every environment must set this; a
+  # test guards that (see test/config/mailer_configuration_test.rb).
+  config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
+
+  # letter_opener writes each rendered message to tmp/letter_opener/ and opens it
+  # in a browser rather than delivering it. The on-disk copy is the useful part:
+  # it can be read and verified directly instead of trusting a popup.
+  config.action_mailer.delivery_method = :letter_opener
+
+  # Stays false, and NOT for "don't care if the mailer can't send".
+  #
+  # This governs DELIVERY exceptions only. The bug this arc fixes — "Missing host
+  # to link to!" — is a RENDER error raised while the message is built, so it
+  # raises here whether this is true or false; flipping it would not have caught
+  # anything. What it does catch in development is LetterOpener's unguarded
+  # `Launchy.open`, which raises Launchy::CommandNotFoundError on any box without
+  # a browser command (this one — WSL). letter_opener writes the .html file
+  # BEFORE it tries to open it, so with this true a perfectly rendered email 500s
+  # the request after already having been "delivered" to disk. Verified in the
+  # browser: it did exactly that.
+  #
+  # So: mail that cannot be RENDERED still blows up loudly. Mail that rendered
+  # fine and merely had no browser to pop does not.
   config.action_mailer.raise_delivery_errors = false
 
   config.action_mailer.perform_caching = false
