@@ -862,6 +862,26 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_match "Add a card", response.body
   end
 
+  # The trigger target IS a turbo-frame (lists/_list.html.erb wraps the link in
+  # one; cards/new.html.erb re-declares it to swap in the inline form). `replace`
+  # swaps the whole target ELEMENT, so it left a bare <a> behind and the next
+  # "Add a card" click became a full-page visit to a frame-only template — the
+  # board disappeared. `update` sets the frame's contents and leaves it intact.
+  #
+  # Asserting the ACTION rather than "the body contains a <turbo-frame>": with
+  # `update` there is deliberately no frame in the response, because none is
+  # removed and none needs putting back. Switching this site back to `replace`
+  # fails here, and also fails FrameReplaceTargetsTest.
+  test "create updates the trigger frame's contents instead of replacing the frame" do
+    post list_cards_url(@list_three), params: { card: { title: "Frame Survival" } }, as: :turbo_stream
+
+    assert_response :success
+    target = "list_#{@list_three.id}_new_card"
+
+    assert_match %r{<turbo-stream action="update" target="#{target}">}, response.body
+    assert_no_match %r{<turbo-stream action="replace" target="#{target}">}, response.body
+  end
+
   test "copy broadcasts the new card insert plus the target list's card-count pill" do
     stream_name = Turbo::StreamsChannel.send(:stream_name_from, @board_one)
 

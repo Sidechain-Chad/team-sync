@@ -1,8 +1,25 @@
 <%# The new card itself is inserted via CardsController#broadcast_card_insert
     (a board-stream broadcast, not rendered here) — the actor is subscribed
     to that same stream, so rendering it in this response too would insert
-    it twice. This response only resets the trigger, which IS actor-only. %>
-<%= turbo_stream.replace "list_#{@list.id}_new_card" do %>
+    it twice. This response only resets the trigger, which IS actor-only.
+
+    UPDATE, NOT REPLACE, and this is load-bearing.
+
+    `list_<id>_new_card` IS a turbo-frame — lists/_list.html.erb wraps the "Add
+    a card" link in one, and cards/new.html.erb re-declares the same frame to
+    swap in the inline form. `turbo_stream.replace` swaps the whole TARGET
+    ELEMENT, so replacing this target with a bare link destroyed the frame:
+    after adding one card the trigger was a plain <a> with no id and no frame
+    wrapper, and the next "Add a card" click became a full Turbo Drive visit to
+    /lists/:id/cards/new — a template that is nothing but a turbo_frame_tag, so
+    the whole board vanished and the page became a lone add-card form.
+
+    `update` sets the frame's CONTENTS and leaves the element itself alone,
+    which is exactly the intent here: the trigger's contents reset, the frame
+    persists. Same lesson as cards/show.html.erb re-declaring
+    turbo_frame_tag "modal" — a replace whose target is a frame has to put the
+    frame back. Here there is nothing to put back, because nothing is removed. %>
+<%= turbo_stream.update "list_#{@list.id}_new_card" do %>
   <%= link_to new_list_card_path(@list),
       class: "flex items-center gap-2 w-full p-2 text-ink-500 hover:bg-surface-200 rounded text-sm font-medium transition-colors" do %>
     <i class="fa-solid fa-plus text-xs"></i>

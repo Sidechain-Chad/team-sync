@@ -37,11 +37,8 @@ class BoardFilterPersistenceTest < ApplicationSystemTestCase
 
     # The turbo_stream response has landed: the inline form is gone, replaced by
     # the trigger. This is the `turbo:before-stream-render` the filter hooks.
-    #
-    # NOTE deliberately asserted loosely (no #list_X_new_card): that element does
-    # not survive the create. See the BUG note at the bottom of this file.
-    assert_no_selector "textarea"
-    assert_text "Add a card"
+    assert_selector "#list_#{@list.id}_new_card", text: "Add a card"
+    assert_no_selector "#list_#{@list.id}_new_card textarea"
 
     # The actual regression guard: a stream render must not blow away the filter.
     assert_text "Has the label"
@@ -108,28 +105,8 @@ class BoardFilterPersistenceTest < ApplicationSystemTestCase
     end
   end
 end
-
-# ============================================================================
-# BUG FOUND WHILE WRITING THIS FILE — NOT FIXED HERE, reported separately.
-# ============================================================================
-# cards/create.turbo_stream.erb does:
-#
-#   turbo_stream.replace "list_#{@list.id}_new_card" do <a>Add a card</a> end
-#
-# `replace` swaps the whole TARGET ELEMENT, and the target is the turbo-frame
-# itself — so after adding one card the frame is gone, replaced by a bare <a>
-# with no id and no frame wrapper. Verified in the browser:
-#
-#   before create: #list_X_new_card => TURBO-FRAME
-#   after create:  #list_X_new_card => does not exist
-#
-# Consequence: clicking "Add a card" a SECOND time is no longer frame-scoped, so
-# it does a full Turbo Drive visit to /lists/:id/cards/new — whose template is
-# only a turbo_frame_tag. The board is destroyed: #board_lists is gone and the
-# whole page becomes the lone add-card form ("TeamSync Create ... Cancel").
-#
-# The fix is presumably to render the frame inside the replacement (or target the
-# frame's contents with `update` instead of `replace`), but that is a change to a
-# core flow with its own tests to write, so it is deliberately left alone. The
-# assertions above are written not to depend on the broken element.
+# The frame-destroying bug originally found by this file (cards/create using
+# `replace` on the trigger's turbo-frame) is fixed — see
+# cards/create.turbo_stream.erb — and pinned by CardCreationTest, which is where
+# the two-cards-in-a-row case belongs.
 
