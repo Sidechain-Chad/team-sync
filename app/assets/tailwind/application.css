@@ -19,8 +19,60 @@
   --color-brand-400: #F9906B;  /* coral: soft accents, hover tints    */
   --color-brand-100: #FBE9E0;  /* coral wash: selected/soft fills     */
 
+  /* ---- Foreground counterparts of the fill colours ----
+
+     WHY THESE EXIST, and why they are not just aliases you can inline back:
+     a single colour cannot be both a fill that white text sits on AND a
+     foreground that sits on a dark surface. That's arithmetic, not taste.
+     White text needs its fill at luminance <= 0.1833 to clear 4.5:1; a
+     foreground on the darkest dark surface (#16120F) needs luminance
+     >= 0.2037 to clear it. The ranges do not overlap, so any theme with a
+     dark surface has to split the two roles or fail one of them.
+
+     In LIGHT mode each -fg is byte-identical to the fill it was split from,
+     so the split is invisible here. Dark mode is where they diverge: the
+     fills stay put (a persimmon button looks the same in both themes and
+     its white label keeps passing) while the -fg tokens lighten.
+
+     warn deliberately has NO -fg counterpart: warn-700 is only ever a
+     foreground (`text-warn-700` on `bg-warn-100`) — there is no
+     `bg-warn-700` anywhere — so it has no fill role to conflict with and
+     can simply lighten in place. Adding a token for symmetry alone would
+     be a rename with no reader benefit. If a warn fill ever appears, that
+     is the moment to split it. */
+  --color-brand-fg:       #BE451A; /* == brand-600. Link/icon/accent text  */
+  --color-brand-fg-hover: #A93B12; /* == brand-700. Its hover step         */
+  --color-danger-fg:      #B91C1C; /* == danger-600. Destructive text      */
+  --color-success-fg:     #4D7C0F; /* == success-600. Checkmarks, pills    */
+
+  /* ---- Solids standing in for what USED to be an opacity modifier ----
+
+     Tailwind v4 resolves an opacity modifier AT BUILD TIME into a literal:
+     `text-danger-600/80` compiles to `color:#b91c1ccc`, with no var() left in
+     it. Every other utility keeps `var(--color-…)` and so flips for free when
+     the variable is redefined — these do not. They are frozen at their light
+     value in every theme.
+
+     Mostly that is harmless or even wanted (`bg-scrim/60` is a backdrop that
+     SHOULD stay dark; `bg-success-600/90` is a fill). Two were not: composited
+     over a dark surface instead of a light one, the alpha pulls the wrong
+     direction. `text-danger-600/80` measured 2.04:1 on the dark card surface —
+     a destructive link you cannot read. So those two became real tokens, which
+     do flip.
+
+     Light values are the exact composite of the alpha they replace over the
+     surface each one actually sits on, so this is a no-op here (within a
+     rounding step of at most 3/255 per channel — sub-perceptual, but not
+     byte-identical, and worth knowing when diffing screenshots).
+
+     The remaining alpha-on-token utilities are left alone ON PURPOSE — see the
+     dark-mode block at the bottom for which ones degrade and why each is
+     acceptable. If you add a new one, ask first whether it needs to flip. */
+  --color-danger-fg-muted: #C74949; /* == danger-600/80 over surface-0      */
+  --color-surface-muted:   #FDFBF9; /* == surface-50/50 over surface-0      */
+
   /* Espresso & warm neutrals — the volume. */
-  --color-ink-900:   #2A211C;  /* nav bg, strongest text              */
+  --color-ink-900:   #2A211C;  /* strongest text (NOT nav bg — see nav-bg) */
   --color-ink-700:   #4A3C33;  /* headings                            */
   --color-ink-500:   #6E5F55;  /* secondary text (replaces gray-500/600) */
   --color-ink-300:   #B7A99D;  /* disabled, placeholders              */
@@ -30,6 +82,29 @@
   --color-surface-200: #EFE7DF; /* chips, wells (replaces #e9ebee, gray-100/200) */
   --color-surface-300: #E6DACE; /* deeper hover step for surface-200 buttons */
   --color-line:        #E4D9CF; /* borders (replaces gray-200/300)    */
+
+  /* ---- Chrome that is DARK IN BOTH THEMES ----
+
+     ink-900 used to do three unrelated jobs at once: strongest text, the
+     nav bar fill, and every translucent overlay scrim. That is fine while
+     there is only one theme, and impossible once there are two — dark mode
+     needs ink-900-as-text to become near-WHITE, while ink-900-as-nav and
+     ink-900-as-scrim must stay dark. One token cannot go both ways, so the
+     always-dark jobs moved out here and ink-900 went back to being purely
+     the top of the text ramp.
+
+     Values are byte-identical to the ink-900 / gray-200 they replaced, so
+     splitting them changes nothing in light mode.
+
+     Deliberately NOT folded into each other: nav-fg (#E5E7EB) and
+     scrim-fg (#FAF6F2) are the two different light-text values already in
+     the codebase, and unifying them would be a real (if small) visual
+     change, which belongs nowhere near a mechanical tokenisation. Worth
+     unifying later on purpose. */
+  --color-nav-bg:   #2A211C;  /* top + bottom nav fill (was bg-ink-900)  */
+  --color-nav-fg:   #E5E7EB;  /* nav label text (was the text-gray-200 holdout) */
+  --color-scrim:    #2A211C;  /* modal backdrops, image overlays, code blocks */
+  --color-scrim-fg: #FAF6F2;  /* text on an always-dark fill             */
 
   /* Functional — warm-shifted, and DISTINCT from brand. */
   --color-danger-600:  #B91C1C; /* true crimson — must read redder than brand persimmon */
@@ -231,9 +306,13 @@ body {
   font-size: 0.85em;
 }
 
+/* scrim / scrim-fg, not ink-900 / surface-50: a code block is dark chrome in
+   BOTH themes. Reading it off the text ramp meant dark mode inverted it into a
+   light block with dark text sitting inside an otherwise dark modal. Same hexes
+   as before in light mode. */
 .tiptap-content pre {
-  background: var(--color-ink-900);
-  color: var(--color-surface-50);
+  background: var(--color-scrim);
+  color: var(--color-scrim-fg);
   padding: 0.75rem;
   border-radius: 0.375rem;
   overflow-x: auto;

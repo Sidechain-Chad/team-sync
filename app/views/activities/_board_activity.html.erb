@@ -19,7 +19,7 @@
       <%= activity.message %> &mdash;
       <%= link_to card.title, card_path(card),
           data: { turbo_frame: "_top" },
-          class: "font-medium text-brand-600 hover:underline" %>
+          class: "font-medium text-brand-fg hover:underline" %>
     </p>
     <p class="text-xs text-ink-500 mt-0.5">
       <%= card.list.name %> · <%= time_ago_in_words(activity.created_at) %> ago

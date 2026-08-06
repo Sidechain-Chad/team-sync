@@ -412,7 +412,7 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/data-card-limit-state="over"/, response.body)
     assert_match(/3\s*\/\s*2/, response.body)
     over_pill = response.body[/<[^>]*data-card-limit-state="over"[^>]*>/]
-    assert_match(/danger-600/, over_pill, "over-limit pill must use the danger-600 token")
+    assert_match(/danger-fg/, over_pill, "over-limit pill must use the danger-fg token")
   end
 
   test "creating a card past the soft limit still works" do

@@ -8,7 +8,7 @@
     <div class="flex items-center justify-between mb-6 pb-4 border-b border-line">
       <div>
         <%= link_to boards_path,
-            class: "text-sm text-ink-500 hover:text-brand-600 flex items-center gap-1 mb-2" do %>
+            class: "text-sm text-ink-500 hover:text-brand-fg flex items-center gap-1 mb-2" do %>
           <i class="fa-solid fa-arrow-left text-xs" aria-hidden="true"></i>
           Back to My Workspaces
         <% end %>
@@ -21,14 +21,14 @@
 
     <%# Empty state — icon + placeholder, per the house rule for list pages. %>
     <% if @closed_boards.empty? %>
-      <div class="bg-white rounded-lg shadow-sm border border-line text-center py-12">
+      <div class="bg-surface-0 rounded-lg shadow-sm border border-line text-center py-12">
         <i class="fa-solid fa-box-archive text-5xl text-ink-300 mb-4" aria-hidden="true"></i>
         <p class="text-ink-500">No closed boards.</p>
         <p class="text-sm text-ink-300 mt-1">Boards you close are kept here and can be reopened.</p>
       </div>
     <% else %>
 
-      <div class="bg-white rounded-lg shadow-sm border border-line p-4">
+      <div class="bg-surface-0 rounded-lg shadow-sm border border-line p-4">
         <div class="text-xs text-ink-500 uppercase font-bold mb-3">
           Boards (<%= @closed_boards.size %>)
         </div>
@@ -43,7 +43,7 @@
                 <%# Still a link: a closed board renders normally by direct URL,
                     which is how a non-owner member reaches it at all. %>
                 <%= link_to board_path(board),
-                    class: "font-medium text-ink-700 hover:text-brand-600 transition-colors block truncate" do %>
+                    class: "font-medium text-ink-700 hover:text-brand-fg transition-colors block truncate" do %>
                   <%= board.name %>
                 <% end %>
                 <p class="text-xs text-ink-500 mt-0.5">

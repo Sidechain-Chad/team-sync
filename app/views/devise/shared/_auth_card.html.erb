@@ -2,7 +2,7 @@
     Centers a single card on a TeamSync-blue background, mirrors the
     look of the rest of the app instead of dropping the user onto a
     bare white page. %>
-<div class="min-h-screen bg-gradient-to-br from-ink-900 via-brand-700 to-brand-600 flex items-center justify-center px-4 py-12">
+<div class="min-h-screen bg-gradient-to-br from-scrim via-brand-700 to-brand-600 flex items-center justify-center px-4 py-12">
   <div class="w-full max-w-md">
     <%# Brand header %>
     <div class="text-center mb-8">
@@ -14,7 +14,7 @@
     </div>
 
     <%# Card body %>
-    <div class="bg-white rounded-2xl shadow-2xl p-8">
+    <div class="bg-surface-0 rounded-2xl shadow-2xl p-8">
       <h2 class="text-xl font-bold text-ink-900 mb-1"><%= title %></h2>
       <% if local_assigns[:subtitle].present? %>
         <p class="text-sm text-ink-500 mb-6"><%= subtitle %></p>

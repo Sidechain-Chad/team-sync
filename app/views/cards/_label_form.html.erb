@@ -64,7 +64,7 @@
         <%= button_to board_label_path(board, label),
             method: :delete,
             data: { turbo_confirm: "Delete this label? It will be removed from any cards using it." },
-            class: "text-xs text-danger-600 hover:bg-danger-50 px-2 py-1.5 rounded m-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+            class: "text-xs text-danger-fg hover:bg-danger-50 px-2 py-1.5 rounded m-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
             form: { class: "m-0", data: { turbo_frame: frame_id } } do %>
           <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i> Delete
         <% end %>

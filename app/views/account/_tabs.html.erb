@@ -6,7 +6,7 @@
   <% account_nav_links.each do |link| %>
     <% is_active = active == link[:key] %>
     <%= link_to link[:label], link[:path],
-        class: "px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors #{is_active ? "border-brand-600 text-brand-600" : "border-transparent text-ink-500 hover:text-ink-700"}",
+        class: "px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors #{is_active ? "border-brand-600 text-brand-fg" : "border-transparent text-ink-500 hover:text-ink-700"}",
         "aria-current": (is_active ? "page" : nil) %>
   <% end %>
 </nav>

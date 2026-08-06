@@ -22,7 +22,7 @@
 
       <%# 2. The Delete Button (Only visible on hover, or on keyboard focus) %>
       <div class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
-        <%= button_to list_path(list), method: :delete, class: "text-ink-300 hover:text-danger-600 bg-transparent border-0 cursor-pointer h-11 w-11 flex items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1", form: { class: "inline-block" }, data: { turbo_confirm: "Delete this list?" }, title: "Delete list", aria: { label: "Delete list" } do %>
+        <%= button_to list_path(list), method: :delete, class: "text-ink-300 hover:text-danger-fg bg-transparent border-0 cursor-pointer h-11 w-11 flex items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1", form: { class: "inline-block" }, data: { turbo_confirm: "Delete this list?" }, title: "Delete list", aria: { label: "Delete list" } do %>
           <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
         <% end %>
       </div>
@@ -47,7 +47,7 @@
         <%# Menu — hidden until toggle. Anchored to the button's lower-right
             so it doesn't clip the right edge of the list column. %>
         <div data-dropdown-target="menu"
-             class="hidden absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-2xl ring-1 ring-ink-900/5 z-menu overflow-hidden cursor-auto text-left">
+             class="hidden absolute right-0 top-full mt-2 w-64 bg-surface-0 rounded-lg shadow-2xl ring-1 ring-ink-900/5 z-menu overflow-hidden cursor-auto text-left">
 
           <div class="px-4 py-3 border-b border-line">
             <h3 class="text-sm font-semibold text-ink-700">List actions</h3>

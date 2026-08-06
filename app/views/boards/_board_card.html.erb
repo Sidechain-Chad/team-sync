@@ -2,7 +2,7 @@
     + compact footer with name/updated-at. Star and gear float above the
     cover as siblings of the link — not nested inside it — so clicking
     either never triggers navigation into the board. %>
-<div class="group relative bg-white rounded-lg shadow-sm hover:shadow-lg border border-line overflow-hidden transition-all duration-300 ease-out hover:-translate-y-0.5">
+<div class="group relative bg-surface-0 rounded-lg shadow-sm hover:shadow-lg border border-line overflow-hidden transition-all duration-300 ease-out hover:-translate-y-0.5">
 
   <%= link_to board_path(board), class: "block" do %>
     <%= render "boards/cover", board: board, height_class: "h-24" %>
@@ -21,7 +21,7 @@
 
   <% if board.user == current_user %>
     <%= link_to edit_board_path(board),
-        class: "absolute top-2 left-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300 ease-out h-8 w-8 rounded-full bg-ink-900/30 hover:bg-ink-900/50 backdrop-blur-sm text-white flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
+        class: "absolute top-2 left-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300 ease-out h-8 w-8 rounded-full bg-scrim/30 hover:bg-scrim/50 backdrop-blur-sm text-white flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
         title: "Edit #{board.name}",
         "aria-label": "Edit #{board.name}" do %>
       <i class="fa-solid fa-gear text-xs" aria-hidden="true"></i>

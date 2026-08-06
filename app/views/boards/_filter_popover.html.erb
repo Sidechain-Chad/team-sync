@@ -22,12 +22,12 @@
           aria-expanded="false">
     <i class="fa-solid fa-filter text-sm" aria-hidden="true"></i>
     <span data-board-filter-target="badge"
-          class="hidden absolute top-1 right-1 h-2 w-2 rounded-full bg-brand-600 ring-1 ring-ink-900"
+          class="hidden absolute top-1 right-1 h-2 w-2 rounded-full bg-brand-600 ring-1 ring-scrim"
           aria-hidden="true"></span>
   </button>
 
   <div data-dropdown-target="menu"
-       class="hidden absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-2xl ring-1 ring-ink-900/5 z-menu overflow-hidden text-ink-700 max-h-[70vh] overflow-y-auto">
+       class="hidden absolute right-0 top-full mt-2 w-72 bg-surface-0 rounded-lg shadow-2xl ring-1 ring-ink-900/5 z-menu overflow-hidden text-ink-700 max-h-[70vh] overflow-y-auto">
 
     <div class="px-4 py-3 border-b border-line">
       <h3 class="text-sm font-semibold">Filter cards</h3>
@@ -46,7 +46,7 @@
                      data-category="due"
                      data-board-filter-target="checkbox"
                      data-action="change->board-filter#apply"
-                     class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+                     class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
               <%= label_text %>
             </label>
           <% end %>
@@ -64,7 +64,7 @@
                      data-category="label"
                      data-board-filter-target="checkbox"
                      data-action="change->board-filter#apply"
-                     class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+                     class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
               <span class="inline-block h-4 w-7 rounded <%= label_solid_class(label.color) %>" aria-hidden="true"></span>
               <span class="truncate"><%= label.name.presence || label.color.capitalize %></span>
             </label>
@@ -75,7 +75,7 @@
                    data-category="label"
                    data-board-filter-target="checkbox"
                    data-action="change->board-filter#apply"
-                   class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+                   class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
             No labels
           </label>
         </div>
@@ -92,7 +92,7 @@
                      data-category="member"
                      data-board-filter-target="checkbox"
                      data-action="change->board-filter#apply"
-                     class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+                     class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
               <%= render "shared/avatar", user: member, size: "h-5 w-5", text_size: "text-[9px]", css_class: "flex-shrink-0" %>
               <span class="truncate"><%= member.display_name %></span>
             </label>
@@ -103,7 +103,7 @@
                    data-category="member"
                    data-board-filter-target="checkbox"
                    data-action="change->board-filter#apply"
-                   class="rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+                   class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
             Unassigned
           </label>
         </div>

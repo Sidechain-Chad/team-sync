@@ -6,9 +6,9 @@
   <% account_nav_links.each do |link| %>
     <% is_active = active == link[:key] %>
     <%= link_to link[:path],
-        class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{is_active ? "bg-brand-100 text-brand-600" : "text-ink-700 hover:bg-surface-100"}",
+        class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{is_active ? "bg-brand-100 text-brand-fg" : "text-ink-700 hover:bg-surface-100"}",
         "aria-current": (is_active ? "page" : nil) do %>
-      <i class="<%= link[:icon] %> w-4 text-center <%= is_active ? "text-brand-600" : "text-ink-300" %>" aria-hidden="true"></i>
+      <i class="<%= link[:icon] %> w-4 text-center <%= is_active ? "text-brand-fg" : "text-ink-300" %>" aria-hidden="true"></i>
       <%= link[:label] %>
     <% end %>
   <% end %>

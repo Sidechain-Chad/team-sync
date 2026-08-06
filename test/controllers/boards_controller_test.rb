@@ -342,7 +342,7 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_select "form"
-    assert_select "p.text-danger-600", text: "can't be blank"
+    assert_select "p.text-danger-fg", text: "can't be blank"
   end
 
   test "update with a blank name does not raise for a turbo-stream-only request" do
@@ -359,7 +359,7 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_select "form"
-    assert_select "p.text-danger-600", text: "can't be blank"
+    assert_select "p.text-danger-fg", text: "can't be blank"
   end
 
   # --- validation messages on the board forms ---
@@ -373,7 +373,7 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     post boards_url, params: { board: { name: "" } }
 
     assert_response :unprocessable_entity
-    assert_select "p.text-danger-600", text: "can't be blank"
+    assert_select "p.text-danger-fg", text: "can't be blank"
     # The field itself is flagged too, mirroring account/profile.
     assert_select "input#board_name.border-danger-600"
   end
@@ -382,7 +382,7 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     patch board_url(@board), params: { board: { name: "" } }
 
     assert_response :unprocessable_entity
-    assert_select "p.text-danger-600", text: "can't be blank"
+    assert_select "p.text-danger-fg", text: "can't be blank"
     assert_select "input#board_name.border-danger-600"
   end
 
@@ -396,7 +396,7 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     get new_board_url
 
     assert_response :success
-    assert_select "p.text-danger-600", false, "a pristine form must not show errors"
+    assert_select "p.text-danger-fg", false, "a pristine form must not show errors"
   end
 
   # --- board activity feed ---

@@ -18,5 +18,5 @@
   locals: record (an ActiveModel), attribute (Symbol)
 %>
 <% if record.errors[attribute].any? %>
-  <p class="text-xs text-danger-600"><%= record.errors[attribute].first %></p>
+  <p class="text-xs text-danger-fg"><%= record.errors[attribute].first %></p>
 <% end %>

@@ -4,14 +4,14 @@
 <div class="canvas-golden min-h-screen">
   <div class="max-w-lg mx-auto px-4 py-10">
 
-    <%= link_to account_settings_path, class: "text-sm text-ink-500 hover:text-brand-600 flex items-center gap-1 mb-4" do %>
+    <%= link_to account_settings_path, class: "text-sm text-ink-500 hover:text-brand-fg flex items-center gap-1 mb-4" do %>
       <i class="fa-solid fa-arrow-left text-xs" aria-hidden="true"></i>
       Back to Settings
     <% end %>
 
     <h1 class="font-display text-2xl font-bold text-ink-700 mb-6">Change email or password</h1>
 
-    <div class="bg-white rounded-lg shadow-sm border border-line p-6">
+    <div class="bg-surface-0 rounded-lg shadow-sm border border-line p-6">
       <%= render "devise/shared/error_messages", resource: resource %>
 
       <%= form_for(resource, as: resource_name, url: registration_path(resource_name), html: { method: :put, class: "space-y-4" }) do |f| %>
@@ -21,7 +21,7 @@
           <%= f.email_field :email,
                 autofocus: true,
                 autocomplete: "email",
-                class: "w-full px-3 py-2.5 bg-surface-50 focus:bg-white border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition" %>
+                class: "w-full px-3 py-2.5 bg-surface-50 focus:bg-surface-0 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition" %>
         </div>
 
         <% if devise_mapping.confirmable? && resource.pending_reconfirmation? %>
@@ -35,7 +35,7 @@
           <%= f.password_field :password,
                 autocomplete: "new-password",
                 placeholder: "Leave blank if you don't want to change it",
-                class: "w-full px-3 py-2.5 bg-surface-50 focus:bg-white border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition" %>
+                class: "w-full px-3 py-2.5 bg-surface-50 focus:bg-surface-0 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition" %>
           <% if @minimum_password_length %>
             <p class="text-xs text-ink-500 mt-1"><%= @minimum_password_length %> characters minimum.</p>
           <% end %>
@@ -45,14 +45,14 @@
           <%= f.label :password_confirmation, "Confirm new password", class: "block text-xs font-bold text-ink-700 uppercase tracking-wide mb-1.5" %>
           <%= f.password_field :password_confirmation,
                 autocomplete: "new-password",
-                class: "w-full px-3 py-2.5 bg-surface-50 focus:bg-white border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition" %>
+                class: "w-full px-3 py-2.5 bg-surface-50 focus:bg-surface-0 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition" %>
         </div>
 
         <div>
           <%= f.label :current_password, class: "block text-xs font-bold text-ink-700 uppercase tracking-wide mb-1.5" %>
           <%= f.password_field :current_password,
                 autocomplete: "current-password",
-                class: "w-full px-3 py-2.5 bg-surface-50 focus:bg-white border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition" %>
+                class: "w-full px-3 py-2.5 bg-surface-50 focus:bg-surface-0 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-700 focus:border-brand-700 transition" %>
           <p class="text-xs text-ink-500 mt-1">We need your current password to confirm these changes.</p>
         </div>
 
@@ -60,17 +60,17 @@
       <% end %>
     </div>
 
-    <div class="bg-white rounded-lg shadow-sm border-2 border-danger-600/40 p-6 mt-6">
-      <h2 class="text-sm font-bold text-danger-600 uppercase tracking-wide mb-1">Cancel my account</h2>
+    <div class="bg-surface-0 rounded-lg shadow-sm border-2 border-danger-600/40 p-6 mt-6">
+      <h2 class="text-sm font-bold text-danger-fg uppercase tracking-wide mb-1">Cancel my account</h2>
       <p class="text-sm text-ink-500 mb-4">
         This permanently deletes your account right away. If you'd rather keep your comment
         and activity history intact, use
-        <%= link_to "Deactivate", account_settings_path, class: "text-brand-600 hover:underline" %> from Settings instead.
+        <%= link_to "Deactivate", account_settings_path, class: "text-brand-fg hover:underline" %> from Settings instead.
       </p>
       <%= button_to "Cancel my account", registration_path(resource_name),
           method: :delete,
           form: { data: { turbo_confirm: "Are you sure? This immediately and permanently deletes your account — it cannot be undone." } },
-          class: "bg-white border border-danger-600/40 hover:bg-danger-50 text-danger-600 text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors" %>
+          class: "bg-surface-0 border border-danger-600/40 hover:bg-danger-50 text-danger-fg text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors" %>
     </div>
   </div>
 </div>

@@ -15,7 +15,7 @@
 
     <%= f.text_area :content,
         rows: 1,
-        class: "w-full border border-line rounded-md py-2 px-3 text-sm bg-surface-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-700 shadow-sm transition-all placeholder-ink-300 resize-none min-h-10",
+        class: "w-full border border-line rounded-md py-2 px-3 text-sm bg-surface-50 focus:bg-surface-0 focus:outline-none focus:ring-2 focus:ring-brand-700 shadow-sm transition-all placeholder-ink-300 resize-none min-h-10",
         placeholder: "Write a comment...",
         data: {
           comment_form_target: "input",
@@ -32,7 +32,7 @@
         popovers opened from inside a modal — it outranks the modal's own content.
         (It can't escape the modal's stacking context, and doesn't need to.) %>
     <ul data-mention-typeahead-target="dropdown"
-        class="hidden absolute left-0 top-full mt-1 w-64 max-h-48 overflow-y-auto bg-white border border-line rounded-md shadow-xl z-modal-menu list-none p-1"></ul>
+        class="hidden absolute left-0 top-full mt-1 w-64 max-h-48 overflow-y-auto bg-surface-0 border border-line rounded-md shadow-xl z-modal-menu list-none p-1"></ul>
 
     <%# Toolbar (Contains the SEND BUTTON) %>
     <%# This starts hidden, but the controller reveals it when you click the input %>

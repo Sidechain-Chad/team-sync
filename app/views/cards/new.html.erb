@@ -1,5 +1,5 @@
 <%= turbo_frame_tag "list_#{@list.id}_new_card" do %>
-  <div class="bg-white p-2 rounded shadow-sm border-2 border-brand-700 my-2">
+  <div class="bg-surface-0 p-2 rounded shadow-sm border-2 border-brand-700 my-2">
     <%= form_with(model: [@list, @card], class: "space-y-2") do |f| %>
 
       <%= f.text_area :title,
