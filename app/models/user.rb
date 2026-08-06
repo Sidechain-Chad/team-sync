@@ -30,6 +30,21 @@ class User < ApplicationRecord
     attachable.variant :thumb, resize_to_fill: [160, 160]
   end
 
+  # ---- Appearance ----
+  #
+  # The value is written into <html data-theme="..."> (see ApplicationHelper),
+  # where CSS keys the whole dark palette off it. "system" resolves in CSS via
+  # prefers-color-scheme, NOT here — that's what keeps "Match system" free of a
+  # wrong-theme flash on first paint.
+  #
+  # Unscoped (no `on:` context) on purpose, unlike the name validation below:
+  # the theme switcher saves through a plain `update`, and an unvalidated column
+  # feeding straight into an HTML attribute is how you get an injected attribute
+  # value. The allowlist IS the sanitiser.
+  THEMES = %w[light dark system].freeze
+
+  validates :theme, inclusion: { in: THEMES }
+
   # Only enforced on the Account > Profile name form (AccountController
   # passes context: :profile_update). Can't use `validates :name,
   # presence: true` unscoped — that would call the #name reader below,

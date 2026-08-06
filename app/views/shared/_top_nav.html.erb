@@ -232,6 +232,64 @@
         <% end %>
       </div>
 
+      <%# Appearance — Light / Dark / Match system. Lives here rather than on
+          the Settings page (where notification preferences live) to match
+          Trello, and because a theme is the one preference you want to flip
+          while looking at the thing it changes.
+
+          Plain buttons driven by theme_controller, NOT a form: the change is
+          applied to <html> client-side for an instant repaint and persisted
+          with a background fetch, so there is nothing to submit and nothing to
+          navigate to. See the controller for why that split matters.
+
+          radiogroup / radio, NOT the menuitem-radio role. DropdownAriaTest bans
+          the whole menuitem* family app-wide and is right to: those roles are
+          only valid inside a menu-role container, and these dropdowns
+          deliberately have none (they contain forms, which that role forbids).
+          An orphaned menuitem-radio is worse for assistive tech than no role at
+          all. radiogroup is valid standalone and is the precise semantic for "pick
+          exactly one of three" — and unlike the menu roles, its keyboard
+          contract is small enough to actually honour, which theme_controller
+          does (arrow keys + roving tabindex). %>
+      <div class="py-1 border-t border-line"
+           data-controller="theme"
+           data-theme-url-value="<%= account_theme_path %>">
+        <p class="px-4 pt-2 pb-1 text-[10px] font-bold text-ink-500 uppercase tracking-wider"
+           id="appearance-label">Appearance</p>
+        <div role="radiogroup" aria-labelledby="appearance-label">
+          <% [
+               { value: "light",  label: "Light",        icon: "fa-regular fa-sun" },
+               { value: "dark",   label: "Dark",         icon: "fa-regular fa-moon" },
+               { value: "system", label: "Match system", icon: "fa-solid fa-circle-half-stroke" }
+             ].each do |option| %>
+            <% selected = current_theme == option[:value] %>
+            <%# Roving tabindex: only the checked option is in the tab order, and
+                arrow keys move between them. That is the radiogroup contract —
+                three separate tab stops would make tabbing past the menu take
+                three presses. %>
+            <button type="button"
+                    role="radio"
+                    aria-checked="<%= selected %>"
+                    tabindex="<%= selected ? 0 : -1 %>"
+                    data-theme-target="option"
+                    data-action="click->theme#select keydown->theme#navigate"
+                    data-theme-theme-param="<%= option[:value] %>"
+                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-100 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-inset">
+              <i class="<%= option[:icon] %> text-ink-500 w-4 text-center" aria-hidden="true"></i>
+              <span class="flex-1"><%= option[:label] %></span>
+              <%# Rendered for every row and hidden with `invisible` rather than
+                  `hidden`, so the rows keep identical widths and the checkmark
+                  can be toggled without reflowing the menu. aria-hidden because
+                  aria-checked already carries this to assistive tech — the icon
+                  is the sighted-user version of the same fact. %>
+              <i class="fa-solid fa-check text-brand-fg text-xs <%= "invisible" unless selected %>"
+                 data-theme-check
+                 aria-hidden="true"></i>
+            </button>
+          <% end %>
+        </div>
+      </div>
+
       <%# Log out — Devise session destroy. button_to so we get a real
           form with CSRF + DELETE method, no Turbo data-method shim. %>
       <div class="py-1 border-t border-line">

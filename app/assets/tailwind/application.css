@@ -176,6 +176,177 @@
      dropdowns out of the nav; there's no precedent for that here. */
 }
 
+/* ============================================================
+   DARK MODE — Golden Hour after dark.
+
+   HOW THIS WORKS, and why it is 30 lines instead of 300:
+
+   Tailwind v4 compiles a colour utility to a variable REFERENCE, not to a
+   literal — `.bg-surface-0 { background-color: var(--color-surface-0) }`. So
+   redefining that variable further down the cascade re-colours every one of
+   the ~1500 utility usages in app/views at once. There is not a single `dark:`
+   variant in this codebase and there should never need to be one.
+
+   This ONLY works with a plain `@theme` block. `@theme inline` inlines the
+   resolved value into each utility instead of emitting a var() reference, and
+   would silently produce a theme that cannot be overridden — the utilities
+   would keep their light values no matter what is set here. Verified against
+   the compiled output, not assumed: grep app/assets/builds/tailwind.css for
+   `.bg-surface-0{` and you should see `var(--color-surface-0)`.
+
+   WHY THE MEDIA QUERY IS ARRANGED LIKE THIS: "Match system" has to be pure
+   CSS. If JS resolved it, the server could not know which palette to stamp
+   into <html> and every system-mode page load would flash the wrong theme
+   before the script ran. Gating `[data-theme="system"]` on
+   prefers-color-scheme means the browser resolves it during the first style
+   pass — no JS, no flash, and flipping the OS setting re-resolves live with
+   no reload.
+
+   THE ONE DUPLICATION, and why it is safe: the dark VALUES are defined exactly
+   once, as the --dark-* set below. What repeats is the mapping list, because
+   CSS cannot apply a set of declarations conditionally — `[data-theme="dark"]`
+   must be unconditional while `[data-theme="system"]` must live inside the
+   media query, and no selector list spans both. Space toggles, style queries
+   and `revert-layer` were all considered; each either breaks custom-property
+   fallback or cannot target the root element. Instead the two mappings are
+   pinned identical by a test (ThemeTokensTest), so drifting one without the
+   other fails the suite rather than shipping a half-dark theme.
+   ============================================================ */
+:root {
+  /* The dark palette. Defined here as inert --dark-* names so the values live
+     in ONE place; the two mapping blocks below point the real tokens at them.
+
+     Derived from the Golden Hour tokens rather than invented: same espresso and
+     persimmon hues, lightness inverted. Contrast figures are measured (WCAG 2.1
+     relative luminance) against the surface each token actually sits on, not
+     eyeballed. */
+
+  /* Surfaces. NOTE the ordering flips relative to light mode, on purpose: in
+     light mode a higher number is DARKER (a chip recessed into a white card);
+     in dark mode a higher number is LIGHTER, because dark UIs signal elevation
+     by getting lighter, not darker. surface-0 stays "the raised card" in both,
+     which is what keeps `bg-surface-0` meaning the same thing semantically. */
+  --dark-surface-50:  #16120F;  /* page floor — the darkest thing on screen  */
+  --dark-surface-100: #1C1714;  /* modal canvas, sits under cards            */
+  --dark-surface-0:   #241D18;  /* cards + panels, raised off the floor      */
+  --dark-surface-200: #322822;  /* chips, wells, hover fills ON a card       */
+  --dark-surface-300: #40342B;  /* the deeper hover step above surface-200   */
+  --dark-surface-muted: #1E1814; /* dimmed cells — darker than a card        */
+  --dark-line:        #3A2F27;  /* borders, visible on surface-0 without shouting */
+
+  /* Text ramp, inverted. ink-900 is the strongest, as in light mode. */
+  --dark-ink-900: #FAF6F2;      /* 15.45:1 on surface-0 */
+  --dark-ink-700: #EDE4DB;      /* 13.23:1 on surface-0 — body + headings */
+  --dark-ink-500: #B3A498;      /*  6.87:1 on surface-0,  5.94:1 on surface-200 */
+  --dark-ink-300: #8A7A6D;      /*  4.02:1 — placeholders/disabled. Compare
+                                    LIGHT mode's ink-300, which is 2.29:1 on
+                                    white: this is the same role, measurably
+                                    better, so it is not a regression. */
+
+  /* Foregrounds — LIGHTENED. This is the deliberate deviation from "same hues,
+     inverted lightness": brand-600 (#BE451A) on a near-black surface is a
+     3.0:1 accent, which is not a link colour. Each of these is the lightest
+     step of its own hue already in the palette where one existed. */
+  --dark-brand-fg:       #F9906B;  /* == the existing brand-400. 7.30:1 */
+  --dark-brand-fg-hover: #FCBCA6;  /* a lighter step above it. 10.19:1   */
+  --dark-danger-fg:      #F0918B;  /* 7.22:1 on surface-0, 6.80:1 on the danger tint */
+  --dark-danger-fg-muted:#E0736C;  /* 5.41:1 — the de-emphasised destructive link */
+  --dark-success-fg:     #A9CC63;  /* 9.10:1 on surface-0, 7.79:1 on the success tint */
+  --dark-warn-700:       #EDB45F;  /* 7.43:1 on the warn tint. warn-700 has no fill
+                                      role, so unlike the others it lightens in
+                                      place with no split needed. */
+
+  /* Tints — the soft fills those foregrounds sit on. Inverted from washes into
+     shadows, same hue. */
+  --dark-brand-100:   #3A211A;
+  --dark-danger-50:   #3A1A1A;
+  --dark-warn-100:    #3A2A12;
+  --dark-success-100: #242E14;
+
+  /* NOT REMAPPED, and both omissions were measured rather than assumed:
+
+     scrim — 9 of its 11 uses are `bg-scrim/NN` backdrops, and Tailwind resolves
+     an opacity modifier at BUILD time into a literal (`bg-scrim/60` compiles to
+     `background-color:#2a211c99`, no var() in it). A dark value here would
+     therefore reach only the two unmodified uses — `ring-scrim` and the
+     sign-in gradient's `from-scrim` — and leave every actual backdrop alone.
+     Remapping half a token is worse than not remapping it, so scrim means
+     exactly what its name says: the same dark colour in both themes. The
+     backdrop was checked on the real card modal and separates fine.
+
+     shadows — `--shadow-*` cannot be themed this way AT ALL. The utility bakes
+     the value into its own variable: `.shadow-2xl` compiles to
+     `--tw-shadow: 0 25px 50px -12px var(--tw-shadow-color, #2a211c52)`, so
+     nothing ever reads `var(--shadow-2xl)` and redefining it is dead code that
+     merely looks like it works. Verified with getComputedStyle on the open card
+     modal — the espresso shadow was still being painted. Leaving shadows as-is
+     is also what the brief asked for; see the bottom-of-file notes for how they
+     actually read on dark. */
+}
+
+/* Explicit dark. */
+[data-theme="dark"] {
+  /* Tells the BROWSER the page is dark, which is not something a token can do.
+     It governs the parts of the UA we don't paint: native checkbox and radio
+     rendering, the default `outline: auto` focus ring (the card modal takes one
+     on open, since modal_controller focuses the dialog), the canvas colour
+     before our CSS lands, and default scrollbars on any element the themed
+     scrollbar rules below don't reach. Without it those all stay light-styled on
+     a dark page. Scoped to the dark selectors only, so light mode is untouched. */
+  color-scheme: dark;
+
+  --color-surface-0: var(--dark-surface-0);
+  --color-surface-50: var(--dark-surface-50);
+  --color-surface-100: var(--dark-surface-100);
+  --color-surface-200: var(--dark-surface-200);
+  --color-surface-300: var(--dark-surface-300);
+  --color-surface-muted: var(--dark-surface-muted);
+  --color-line: var(--dark-line);
+  --color-ink-900: var(--dark-ink-900);
+  --color-ink-700: var(--dark-ink-700);
+  --color-ink-500: var(--dark-ink-500);
+  --color-ink-300: var(--dark-ink-300);
+  --color-brand-fg: var(--dark-brand-fg);
+  --color-brand-fg-hover: var(--dark-brand-fg-hover);
+  --color-danger-fg: var(--dark-danger-fg);
+  --color-danger-fg-muted: var(--dark-danger-fg-muted);
+  --color-success-fg: var(--dark-success-fg);
+  --color-warn-700: var(--dark-warn-700);
+  --color-brand-100: var(--dark-brand-100);
+  --color-danger-50: var(--dark-danger-50);
+  --color-warn-100: var(--dark-warn-100);
+  --color-success-100: var(--dark-success-100);
+}
+
+/* Match system — identical mapping, gated on the OS preference. Keep in lockstep
+   with the block above; ThemeTokensTest fails if they diverge. */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    color-scheme: dark;
+    --color-surface-0: var(--dark-surface-0);
+    --color-surface-50: var(--dark-surface-50);
+    --color-surface-100: var(--dark-surface-100);
+    --color-surface-200: var(--dark-surface-200);
+    --color-surface-300: var(--dark-surface-300);
+    --color-surface-muted: var(--dark-surface-muted);
+    --color-line: var(--dark-line);
+    --color-ink-900: var(--dark-ink-900);
+    --color-ink-700: var(--dark-ink-700);
+    --color-ink-500: var(--dark-ink-500);
+    --color-ink-300: var(--dark-ink-300);
+    --color-brand-fg: var(--dark-brand-fg);
+    --color-brand-fg-hover: var(--dark-brand-fg-hover);
+    --color-danger-fg: var(--dark-danger-fg);
+    --color-danger-fg-muted: var(--dark-danger-fg-muted);
+    --color-success-fg: var(--dark-success-fg);
+    --color-warn-700: var(--dark-warn-700);
+    --color-brand-100: var(--dark-brand-100);
+    --color-danger-50: var(--dark-danger-50);
+    --color-warn-100: var(--dark-warn-100);
+    --color-success-100: var(--dark-success-100);
+  }
+}
+
 body {
   font-family: var(--font-sans);
   /* Floor so no page can ever show pure white below short content — pages
@@ -192,13 +363,31 @@ body {
    4.5:1) — if this stop darkens later, re-check that number first.
    Excludes the board show page (its own per-board wallpaper gradient,
    see board_cover_gradient_classes) and the card modal. */
+/* The bottom stop is a variable so dark mode can move it. The top stop is
+   already surface-50, which flips on its own. */
 .canvas-golden {
   background:
     radial-gradient(1100px 480px at 72% -8%,
       rgb(249 144 107 / 0.16), transparent 62%),   /* coral sun glow, top-right under the nav */
     radial-gradient(800px 420px at 8% 2%,
       rgb(245 158 11 / 0.08), transparent 55%),    /* faint amber counter-glow, top-left */
-    linear-gradient(180deg, var(--color-surface-50) 0%, #F1E6DA 100%);
+    linear-gradient(180deg, var(--color-surface-50) 0%, var(--canvas-golden-stop) 100%);
+}
+
+/* INTERPRETATION, flagged because the brief's "warm gradients stay unchanged"
+   could be read either way. What stays untouched is BOARD backgrounds — the
+   per-board wallpaper image and the deterministic hashed gradients from
+   board_cover_gradient_classes. .canvas-golden is neither of those: it is the
+   page wrapper behind the boards index, planner and archive, i.e. app chrome,
+   and the block comment above has always said so ("Excludes the board show
+   page"). Leaving it at cream would have left those three pages a bright canvas
+   with dark cards floating on it — the one combination dark mode exists to
+   avoid. So it darkens, keeping the same two warm glows, which now read as a
+   faint bloom instead of daylight. */
+:root { --canvas-golden-stop: #F1E6DA; }
+[data-theme="dark"] { --canvas-golden-stop: #221A15; }
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] { --canvas-golden-stop: #221A15; }
 }
 
 /* ============================================================
@@ -518,4 +707,195 @@ body {
 
 span.flatpickr-weekday {
   color: var(--color-ink-500) !important;
+}
+
+/* ============================================================
+   Flatpickr in dark mode.
+
+   The due-date picker opens from inside the card modal, so an unthemed
+   flatpickr is a white rectangle in the middle of a dark panel — the most
+   visible seam dark mode could have.
+
+   This stayed small because the Golden Hour override block ABOVE is already
+   written in tokens: the month name (ink-900), the weekday row (ink-500), the
+   hover fill (brand-100), today's ring (brand-400) and the selected day
+   (brand-600 + white text) all flip on their own with zero extra work. What is
+   left is only the parts the vendor hard-codes and nothing had reason to touch
+   before: the calendar's own white fill, the #e6e6e6 hairline it fakes with a
+   4-way box-shadow, the #393939 day text, and the arrow pseudo-elements.
+
+   No !important here, unlike the block above. Those rules are single-class and
+   had to out-shout a vendor file that loads AFTER ours; these carry an extra
+   attribute selector, so they already win on specificity. Keep it that way —
+   !important on the theme layer would make the light-mode rules unoverridable.
+
+   Selectors matched 1:1 against vendor/flatpickr's actual rules. Both theme
+   selectors are listed on every rule for the same reason as the token blocks:
+   "system" is resolved by CSS, so it needs its own gated copy. */
+[data-theme="dark"] .flatpickr-calendar,
+[data-theme="dark"] .flatpickr-calendar.arrowTop:after,
+[data-theme="dark"] .flatpickr-calendar.arrowBottom:after {
+  background: var(--color-surface-0);
+  border-bottom-color: var(--color-surface-0);
+  border-top-color: var(--color-surface-0);
+  box-shadow:
+    1px 0 0 var(--color-line), -1px 0 0 var(--color-line),
+    0 1px 0 var(--color-line), 0 -1px 0 var(--color-line),
+    0 3px 13px rgb(0 0 0 / 0.5);
+}
+
+[data-theme="dark"] .flatpickr-day {
+  color: var(--color-ink-700);
+}
+
+/* Out-of-month and disabled days. The vendor states these as rgba(57,57,57,α),
+   i.e. dark ink at low alpha — which composites toward the BACKGROUND, so on a
+   dark surface it collapses into it and the dates vanish entirely. A solid
+   mid-ramp token is the only thing that reads. */
+[data-theme="dark"] .flatpickr-day.prevMonthDay,
+[data-theme="dark"] .flatpickr-day.nextMonthDay,
+[data-theme="dark"] .flatpickr-day.flatpickr-disabled,
+[data-theme="dark"] .flatpickr-day.flatpickr-disabled:hover,
+[data-theme="dark"] .flatpickr-day.notAllowed {
+  color: var(--color-ink-300);
+}
+
+/* Month header text AND the prev/next chevrons — the chevrons are inline SVG
+   taking `fill: inherit`, so the fill has to be set alongside the colour. */
+[data-theme="dark"] .flatpickr-months .flatpickr-month,
+[data-theme="dark"] .flatpickr-months .flatpickr-prev-month,
+[data-theme="dark"] .flatpickr-months .flatpickr-next-month {
+  color: var(--color-ink-700);
+  fill: var(--color-ink-700);
+}
+
+[data-theme="dark"] .flatpickr-months .flatpickr-prev-month svg,
+[data-theme="dark"] .flatpickr-months .flatpickr-next-month svg {
+  fill: var(--color-ink-700);
+}
+
+/* The year stepper's little triangles are borders, not glyphs. */
+[data-theme="dark"] .flatpickr-current-month .numInputWrapper span.arrowUp:after {
+  border-bottom-color: var(--color-ink-500);
+}
+[data-theme="dark"] .flatpickr-current-month .numInputWrapper span.arrowDown:after {
+  border-top-color: var(--color-ink-500);
+}
+[data-theme="dark"] .numInputWrapper:hover {
+  background: var(--color-surface-200);
+}
+
+[data-theme="dark"] .flatpickr-monthDropdown-months,
+[data-theme="dark"] .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
+  background: var(--color-surface-0);
+  color: var(--color-ink-700);
+}
+
+
+/* The TIME row (hour : minute AM/PM). Its own block because it is the one part
+   of the picker the day/month rules do not reach: the vendor styles the inputs
+   as `color:#393939` and separates the row with a `border-top:1px solid #e6e6e6`.
+   On the dark surface that measured 1.4:1 — the time was there and unreadable,
+   and the hairline was the brightest thing in the modal. `background:transparent`
+   on the inputs means they inherit the calendar fill, so only colour is needed.
+   The `:hover`/`:focus` fills are set too, or hovering an input flashes the
+   vendor's near-black `rgba(0,0,0,0.05)` wash. */
+[data-theme="dark"] .flatpickr-time,
+[data-theme="dark"] .flatpickr-calendar.hasTime .flatpickr-time {
+  border-top-color: var(--color-line);
+}
+
+[data-theme="dark"] .flatpickr-time input,
+[data-theme="dark"] .flatpickr-time .flatpickr-time-separator,
+[data-theme="dark"] .flatpickr-time .flatpickr-am-pm {
+  color: var(--color-ink-700);
+}
+
+[data-theme="dark"] .flatpickr-time input:hover,
+[data-theme="dark"] .flatpickr-time input:focus,
+[data-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover,
+[data-theme="dark"] .flatpickr-time .flatpickr-am-pm:focus {
+  background: var(--color-surface-200);
+  color: var(--color-ink-900);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .flatpickr-calendar,
+  [data-theme="system"] .flatpickr-calendar.arrowTop:after,
+  [data-theme="system"] .flatpickr-calendar.arrowBottom:after {
+    background: var(--color-surface-0);
+    border-bottom-color: var(--color-surface-0);
+    border-top-color: var(--color-surface-0);
+    box-shadow:
+      1px 0 0 var(--color-line), -1px 0 0 var(--color-line),
+      0 1px 0 var(--color-line), 0 -1px 0 var(--color-line),
+      0 3px 13px rgb(0 0 0 / 0.5);
+  }
+
+  [data-theme="system"] .flatpickr-day {
+    color: var(--color-ink-700);
+  }
+
+  [data-theme="system"] .flatpickr-day.prevMonthDay,
+  [data-theme="system"] .flatpickr-day.nextMonthDay,
+  [data-theme="system"] .flatpickr-day.flatpickr-disabled,
+  [data-theme="system"] .flatpickr-day.flatpickr-disabled:hover,
+  [data-theme="system"] .flatpickr-day.notAllowed {
+    color: var(--color-ink-300);
+  }
+
+  [data-theme="system"] .flatpickr-months .flatpickr-month,
+  [data-theme="system"] .flatpickr-months .flatpickr-prev-month,
+  [data-theme="system"] .flatpickr-months .flatpickr-next-month {
+    color: var(--color-ink-700);
+    fill: var(--color-ink-700);
+  }
+
+  [data-theme="system"] .flatpickr-months .flatpickr-prev-month svg,
+  [data-theme="system"] .flatpickr-months .flatpickr-next-month svg {
+    fill: var(--color-ink-700);
+  }
+
+  [data-theme="system"] .flatpickr-current-month .numInputWrapper span.arrowUp:after {
+    border-bottom-color: var(--color-ink-500);
+  }
+  [data-theme="system"] .flatpickr-current-month .numInputWrapper span.arrowDown:after {
+    border-top-color: var(--color-ink-500);
+  }
+  [data-theme="system"] .numInputWrapper:hover {
+    background: var(--color-surface-200);
+  }
+
+  [data-theme="system"] .flatpickr-monthDropdown-months,
+  [data-theme="system"] .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
+    background: var(--color-surface-0);
+    color: var(--color-ink-700);
+  }
+
+  /* The TIME row (hour : minute AM/PM). Its own block because it is the one part
+     of the picker the day/month rules do not reach: the vendor styles the inputs
+     as `color:#393939` and separates the row with a `border-top:1px solid #e6e6e6`.
+     On the dark surface that measured 1.4:1 — the time was there and unreadable,
+     and the hairline was the brightest thing in the modal. `background:transparent`
+     on the inputs means they inherit the calendar fill, so only colour is needed.
+     The `:hover`/`:focus` fills are set too, or hovering an input flashes the
+     vendor's near-black `rgba(0,0,0,0.05)` wash. */
+  [data-theme="system"] .flatpickr-time,
+  [data-theme="system"] .flatpickr-calendar.hasTime .flatpickr-time {
+    border-top-color: var(--color-line);
+  }
+
+  [data-theme="system"] .flatpickr-time input,
+  [data-theme="system"] .flatpickr-time .flatpickr-time-separator,
+  [data-theme="system"] .flatpickr-time .flatpickr-am-pm {
+    color: var(--color-ink-700);
+  }
+
+  [data-theme="system"] .flatpickr-time input:hover,
+  [data-theme="system"] .flatpickr-time input:focus,
+  [data-theme="system"] .flatpickr-time .flatpickr-am-pm:hover,
+  [data-theme="system"] .flatpickr-time .flatpickr-am-pm:focus {
+    background: var(--color-surface-200);
+    color: var(--color-ink-900);
+  }
 }
