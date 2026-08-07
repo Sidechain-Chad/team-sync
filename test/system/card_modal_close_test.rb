@@ -46,17 +46,57 @@ class CardModalCloseTest < ApplicationSystemTestCase
   test "clicking the backdrop returns to the board" do
     open_modal
 
-    # The backdrop is `absolute inset-0`, i.e. the whole viewport — so its CENTRE
-    # is behind the modal panel, and a plain .click is intercepted by whatever
-    # modal control happens to sit there (Selenium says so explicitly rather than
-    # silently clicking the wrong thing). Offset well to the left, into the gutter
-    # beside the panel, which is real backdrop.
-    find("a[data-modal-exit]", match: :first).click(x: -660, y: 0)
+    click_modal_backdrop
 
     assert_modal_closed
   end
 
   private
+
+  # Click the dark backdrop, not the panel sitting on top of it.
+  #
+  # The backdrop is `absolute inset-0`, i.e. the whole viewport, so its CENTRE is
+  # behind the modal panel — a plain .click is intercepted by whatever modal
+  # control happens to sit there (Selenium says so explicitly rather than
+  # silently clicking the wrong thing). The click therefore has to be OFFSET into
+  # the gutter beside the panel.
+  #
+  # That offset used to be a hardcoded `x: -660`, and that is the part worth
+  # fixing: an offset click is the one Selenium click that does NOT run the
+  # obscured-element check, so if the viewport ever narrows or the panel ever
+  # widens past that point, the click lands ON THE PANEL and the test fails with
+  # "modal didn't close" — a lie about where the bug is. Derive the offset from
+  # the live geometry instead, and assert the point really does hit the backdrop
+  # before clicking, so a layout change fails with the actual reason.
+  def click_modal_backdrop
+    backdrop = find("a[data-modal-exit]", match: :first)
+
+    offset_x, hits_backdrop, gutter = page.evaluate_script(<<~JS, backdrop)
+      (() => {
+        const el = arguments[0]
+        const panel = document.querySelector('[data-modal-target="dialog"]')
+        const r = el.getBoundingClientRect()
+        const p = panel.getBoundingClientRect()
+
+        // Midpoint of the gutter between the viewport's left edge and the panel.
+        const x = Math.round(p.left / 2)
+        const y = Math.round(r.top + r.height / 2)
+
+        return [
+          Math.round(x - (r.left + r.width / 2)), // Capybara offsets from the centre
+          document.elementFromPoint(x, y) === el,
+          Math.round(p.left)
+        ]
+      })()
+    JS
+
+    assert hits_backdrop,
+      "the computed backdrop click point is not on the backdrop (gutter beside the " \
+      "panel is #{gutter}px wide) — the modal panel may now span the full viewport, " \
+      "in which case this test needs a different way to reach the backdrop"
+
+    backdrop.click(x: offset_x, y: 0)
+  end
 
   def open_modal
     find("#card_#{@card.id} a[data-turbo-frame='modal']", match: :first).click
