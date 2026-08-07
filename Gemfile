@@ -63,6 +63,11 @@ group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
 
+  # Opens sent mail in the browser instead of delivering it, and writes each
+  # rendered message to tmp/letter_opener/ so it can be read (and asserted on)
+  # straight off disk. Dev-only: test uses :test, production uses SMTP.
+  gem "letter_opener"
+
   # Add speed badges [https://github.com/MiniProfiler/rack-mini-profiler]
   # gem "rack-mini-profiler"
 

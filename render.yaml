@@ -39,6 +39,33 @@ services:
       - key: WEB_CONCURRENCY
         value: "2"
 
+      # ---- Mail ----------------------------------------------------------
+      # Declared here rather than left to be discovered in production. Every
+      # one of these is read by config/environments/production.rb.
+      #
+      # APP_HOST is the host mail links are built against. If it's unset the
+      # app falls back to Render's own RENDER_EXTERNAL_HOSTNAME, so reset links
+      # resolve even before a custom domain exists — but set it once you have
+      # one, because it also gates the Action Cable origin allowlist above.
+      - key: APP_HOST
+        sync: false        # set manually in the Render dashboard
+      - key: MAILER_FROM
+        sync: false        # e.g. no-reply@yourdomain — the From: on every email
+      #
+      # SMTP. NOTHING SENDS MAIL UNTIL THESE ARE SET — password reset will
+      # raise rather than pretend to have delivered. No provider is chosen in
+      # code; pick one, then fill these in.
+      - key: SMTP_ADDRESS
+        sync: false        # provider's SMTP host
+      - key: SMTP_PORT
+        sync: false        # optional, defaults to 587
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_DOMAIN
+        sync: false        # optional, defaults to APP_HOST
+
   # Solid Queue supervisor. Without this service nothing processes jobs in
   # production: config/recurring.yml schedules due_soon_scan hourly, but a
   # schedule with no worker running is dead code.

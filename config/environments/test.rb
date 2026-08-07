@@ -39,6 +39,11 @@ Rails.application.configure do
 
   config.action_mailer.perform_caching = false
 
+  # example.com is the Rails convention for the test host. Mail has no request
+  # context, so without this every mailer view that generates a URL raises
+  # "Missing host to link to!" — the failure that had no test.
+  config.action_mailer.default_url_options = { host: "example.com" }
+
   # Tell Action Mailer not to deliver emails to the real world.
   # The :test delivery method accumulates sent emails in the
   # ActionMailer::Base.deliveries array.

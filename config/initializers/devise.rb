@@ -21,16 +21,26 @@ Devise.setup do |config|
   # config.parent_controller = 'DeviseController'
 
   # ==> Mailer Configuration
-  # Configure the e-mail address which will be shown in Devise::Mailer,
-  # note that it will be overwritten if you use your own mailer class
-  # with default "from" parameter.
-  config.mailer_sender = 'please-change-me-at-config-initializers-devise@example.com'
+  # (The generated comment here claimed this value "will be overwritten if you
+  # use your own mailer class with default 'from' parameter". That is backwards,
+  # which is worth knowing — it's why setting ApplicationMailer's `from` alone
+  # changed nothing. Removed rather than left to mislead the next reader.)
+  #
+  # Devise sets `from` from THIS value on every message it sends, overriding the
+  # parent mailer's `default from:` — so this, not ApplicationMailer, is what
+  # actually determines the sender of a password-reset email. Both read
+  # config.x.mailer_from (set in config/application.rb) so the two can't drift.
+  config.mailer_sender = Rails.application.config.x.mailer_from
 
   # Configure the class responsible to send e-mails.
   # config.mailer = 'Devise::Mailer'
 
-  # Configure the parent class responsible to send e-mails.
-  # config.parent_mailer = 'ActionMailer::Base'
+  # Devise::Mailer inherits ActionMailer::Base by default, which resolves NO
+  # layout — so Devise mail rendered as a bare HTML fragment with no <html>,
+  # <head> or the <style> block in layouts/mailer.html.erb. Pointing it at
+  # ApplicationMailer (which declares `layout "mailer"`) is what makes the app's
+  # mailer layout actually apply to the only mail this app sends.
+  config.parent_mailer = 'ApplicationMailer'
 
   # ==> ORM configuration
   # Load and configure the ORM. Supports :active_record (default) and
