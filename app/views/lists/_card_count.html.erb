@@ -22,5 +22,5 @@
 <% over_limit = has_limit && list.over_card_limit? %>
 <span id="list_<%= list.id %>_card_count"
       <%= tag.attributes(data: { card_limit_state: over_limit ? "over" : "ok" }) if has_limit %>
-      class="<%= has_limit ? "flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded #{over_limit ? "bg-danger-50 text-danger-600" : "text-ink-500"}" : "hidden" %>"
+      class="<%= has_limit ? "flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded #{over_limit ? "bg-danger-50 text-danger-fg" : "text-ink-500"}" : "hidden" %>"
       <% if has_limit %>title="<%= over_limit ? "Over the work-in-progress limit" : "Work-in-progress limit" %>"<% end %>><% if has_limit %><%= list.active_cards.size %>/<%= list.card_limit %><% end %></span>

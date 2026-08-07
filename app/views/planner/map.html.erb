@@ -36,25 +36,25 @@
           <i class="fa-regular fa-calendar text-[10px] mr-1"></i>Calendar
         <% end %>
         <%= link_to planner_map_path(year: @year, month: @month),
-            class: "px-3 py-1 text-xs font-medium rounded transition bg-white text-ink-900 shadow-sm" do %>
+            class: "px-3 py-1 text-xs font-medium rounded transition bg-surface-0 text-ink-900 shadow-sm" do %>
           <i class="fa-solid fa-map-location-dot text-[10px] mr-1"></i>Map
         <% end %>
       </div>
 
       <%= link_to planner_map_path,
-          class: "px-3 py-1.5 text-sm font-medium text-ink-700 bg-white border border-line rounded hover:bg-surface-50 transition" do %>
+          class: "px-3 py-1.5 text-sm font-medium text-ink-700 bg-surface-0 border border-line rounded hover:bg-surface-50 transition" do %>
         Today
       <% end %>
 
       <div class="flex items-center">
         <%= link_to planner_map_path(year: @prev_month.year, month: @prev_month.month),
-            class: "h-11 w-11 flex items-center justify-center text-ink-500 bg-white border border-line rounded-l hover:bg-surface-50 transition",
+            class: "h-11 w-11 flex items-center justify-center text-ink-500 bg-surface-0 border border-line rounded-l hover:bg-surface-50 transition",
             title: "Previous month",
             aria: { label: "Previous month" } do %>
           <i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i>
         <% end %>
         <%= link_to planner_map_path(year: @next_month.year, month: @next_month.month),
-            class: "h-11 w-11 flex items-center justify-center text-ink-500 bg-white border border-l-0 border-line rounded-r hover:bg-surface-50 transition",
+            class: "h-11 w-11 flex items-center justify-center text-ink-500 bg-surface-0 border border-l-0 border-line rounded-r hover:bg-surface-50 transition",
             title: "Next month",
             aria: { label: "Next month" } do %>
           <i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i>
@@ -69,7 +69,7 @@
       <%= render "shared/map_empty_state" %>
     </div>
   <% else %>
-    <div class="flex-1 relative bg-white rounded-lg shadow-sm border border-line overflow-hidden"
+    <div class="flex-1 relative bg-surface-0 rounded-lg shadow-sm border border-line overflow-hidden"
          data-controller="board-map">
 
       <div data-board-map-target="container" class="absolute inset-0"></div>

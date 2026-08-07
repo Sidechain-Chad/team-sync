@@ -1,13 +1,13 @@
 <%= render "account/shell", active: :activity, title: "Activity" do %>
 
   <% if @activities.empty? %>
-    <div class="bg-white rounded-lg shadow-sm border border-line text-center py-12">
+    <div class="bg-surface-0 rounded-lg shadow-sm border border-line text-center py-12">
       <i class="fa-solid fa-clock-rotate-left text-5xl text-ink-300 mb-4" aria-hidden="true"></i>
       <p class="text-ink-500">No activity yet.</p>
       <p class="text-sm text-ink-300 mt-1">Actions you take on cards will show up here.</p>
     </div>
   <% else %>
-    <div class="bg-white rounded-lg shadow-sm border border-line divide-y divide-line">
+    <div class="bg-surface-0 rounded-lg shadow-sm border border-line divide-y divide-line">
       <% @activities.each do |activity| %>
         <% card = activity.card %>
         <div class="flex items-start gap-3 p-4">
@@ -15,7 +15,7 @@
           <div class="min-w-0 flex-1">
             <p class="text-sm text-ink-700">
               You <%= activity.message %> —
-              <%= link_to card.title, card_path(card), data: { turbo_frame: "modal" }, class: "font-medium text-brand-600 hover:underline" %>
+              <%= link_to card.title, card_path(card), data: { turbo_frame: "modal" }, class: "font-medium text-brand-fg hover:underline" %>
             </p>
             <p class="text-xs text-ink-500 mt-0.5">
               <%= card.list.board.name %> · <%= time_ago_in_words(activity.created_at) %> ago

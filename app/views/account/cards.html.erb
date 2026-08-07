@@ -12,16 +12,16 @@
     <div class="flex items-center justify-end gap-1 mb-3" role="group" aria-label="Sort cards">
       <span class="text-xs text-ink-500 mr-1">Sort:</span>
       <%= link_to "Due date", account_cards_path(sort: "due"),
-          class: "text-xs font-medium px-2.5 py-1 rounded-md transition-colors #{@sort == "due" ? "bg-brand-100 text-brand-600" : "text-ink-500 hover:bg-surface-100"}",
+          class: "text-xs font-medium px-2.5 py-1 rounded-md transition-colors #{@sort == "due" ? "bg-brand-100 text-brand-fg" : "text-ink-500 hover:bg-surface-100"}",
           "aria-current": (@sort == "due" ? "true" : nil) %>
       <%= link_to "Recently updated", account_cards_path(sort: "updated"),
-          class: "text-xs font-medium px-2.5 py-1 rounded-md transition-colors #{@sort == "updated" ? "bg-brand-100 text-brand-600" : "text-ink-500 hover:bg-surface-100"}",
+          class: "text-xs font-medium px-2.5 py-1 rounded-md transition-colors #{@sort == "updated" ? "bg-brand-100 text-brand-fg" : "text-ink-500 hover:bg-surface-100"}",
           "aria-current": (@sort == "updated" ? "true" : nil) %>
     </div>
   <% end %>
 
   <% if @cards.empty? %>
-    <div class="bg-white rounded-lg shadow-sm border border-line text-center py-12">
+    <div class="bg-surface-0 rounded-lg shadow-sm border border-line text-center py-12">
       <i class="fa-solid fa-address-card text-5xl text-ink-300 mb-4" aria-hidden="true"></i>
       <p class="text-ink-500">You're not assigned to any cards.</p>
       <p class="text-sm text-ink-300 mt-1">Cards you're added to as a member will show up here.</p>
@@ -31,7 +31,7 @@
     <%# Table — md+. Below md this collapses to stacked rows (same markup,
         just laid out as a card list instead of a grid, via responsive
         utility classes rather than two separate templates). %>
-    <div class="bg-white rounded-lg shadow-sm border border-line overflow-hidden">
+    <div class="bg-surface-0 rounded-lg shadow-sm border border-line overflow-hidden">
       <div class="hidden account-cards-grid gap-4 px-4 py-2.5 border-b border-line text-xs font-bold text-ink-500 uppercase tracking-wide">
         <span>Card</span>
         <span>List</span>

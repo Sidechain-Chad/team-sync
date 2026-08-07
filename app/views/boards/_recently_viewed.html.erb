@@ -11,7 +11,7 @@
         <%= link_to board_path(board),
             class: "block w-[190px] rounded-lg overflow-hidden border border-line hover:shadow-md transition-shadow duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2" do %>
           <%= render "boards/cover", board: board, height_class: "h-16" %>
-          <div class="px-2.5 py-1.5 bg-white">
+          <div class="px-2.5 py-1.5 bg-surface-0">
             <p class="text-xs font-medium text-ink-700 truncate"><%= board.name %></p>
           </div>
         <% end %>

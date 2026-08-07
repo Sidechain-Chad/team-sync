@@ -16,7 +16,7 @@
              <span class="font-serif font-bold text-lg leading-none">Tt</span>
              <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
           </button>
-          <div data-tiptap-target="headingMenu" class="hidden absolute top-full left-0 mt-1 w-64 bg-white border border-line shadow-xl rounded-md z-50 py-2 flex flex-col text-left max-h-[300px] overflow-y-auto">
+          <div data-tiptap-target="headingMenu" class="hidden absolute top-full left-0 mt-1 w-64 bg-surface-0 border border-line shadow-xl rounded-md z-50 py-2 flex flex-col text-left max-h-[300px] overflow-y-auto">
              <%# Normal %>
              <button type="button" data-action="click->tiptap#setHeading" data-level="0" class="flex items-center justify-between w-full px-4 py-2 hover:bg-surface-200 group">
                <span class="text-sm text-ink-700">Normal text</span>
@@ -47,7 +47,7 @@
           <button type="button" data-action="click->tiptap#toggleMoreMenu" class="hover:bg-surface-200 p-1.5 rounded" title="More formatting">
             <i class="fa-solid fa-ellipsis"></i>
           </button>
-          <div data-tiptap-target="moreMenu" class="hidden absolute top-full left-0 mt-1 w-56 bg-white border border-line shadow-xl rounded-md z-50 py-1 flex flex-col text-left">
+          <div data-tiptap-target="moreMenu" class="hidden absolute top-full left-0 mt-1 w-56 bg-surface-0 border border-line shadow-xl rounded-md z-50 py-1 flex flex-col text-left">
             <button type="button" data-action="click->tiptap#toggleStrike" class="flex items-center justify-between w-full px-4 py-2 hover:bg-surface-200 group text-sm">
               <span class="text-ink-700 line-through">Strikethrough</span>
               <span class="text-xs text-ink-300">Ctrl+Shift+S</span>
@@ -57,7 +57,7 @@
               <span class="text-xs text-ink-300">Ctrl+Shift+M</span>
             </button>
             <div class="h-px bg-surface-200 my-1"></div>
-            <button type="button" data-action="click->tiptap#clearFormatting" class="flex items-center justify-between w-full px-4 py-2 hover:bg-surface-200 group text-sm text-danger-600">
+            <button type="button" data-action="click->tiptap#clearFormatting" class="flex items-center justify-between w-full px-4 py-2 hover:bg-surface-200 group text-sm text-danger-fg">
               <span>Clear formatting</span>
               <span class="text-xs text-ink-300">Ctrl+\</span>
             </button>
@@ -81,7 +81,7 @@
            <button type="button" data-action="click->tiptap#toggleLinkMenu" class="hover:bg-surface-200 p-1.5 rounded" title="Link">
              <i class="fa-solid fa-link"></i>
            </button>
-           <div data-tiptap-target="linkMenu" class="hidden absolute top-full left-0 mt-1 w-72 bg-white border border-line shadow-xl rounded-md z-50 p-3">
+           <div data-tiptap-target="linkMenu" class="hidden absolute top-full left-0 mt-1 w-72 bg-surface-0 border border-line shadow-xl rounded-md z-50 p-3">
              <div class="mb-2">
                <label class="block text-xs font-bold text-ink-500 mb-1">Link</label>
                <input type="text" id="link-url-input" class="w-full text-sm border border-line rounded p-1.5" placeholder="Paste a link">
@@ -102,7 +102,7 @@
           <button type="button" data-action="click->tiptap#toggleImageMenu" class="hover:bg-surface-200 p-1.5 rounded" title="Image">
             <i class="fa-regular fa-image"></i>
           </button>
-          <div data-tiptap-target="imageMenu" class="hidden absolute top-full left-0 mt-1 w-72 bg-white border border-line shadow-xl rounded-md z-50 p-3">
+          <div data-tiptap-target="imageMenu" class="hidden absolute top-full left-0 mt-1 w-72 bg-surface-0 border border-line shadow-xl rounded-md z-50 p-3">
             <div class="mb-2">
               <label class="block text-xs font-bold text-ink-500 mb-1">Attach an image link</label>
               <div class="flex gap-1">
@@ -111,7 +111,7 @@
               </div>
             </div>
             <div class="text-center mt-2 border-t border-line pt-2">
-              <button type="button" data-action="click->tiptap#triggerFilePicker" class="text-xs text-brand-600 hover:text-brand-700 hover:underline cursor-pointer">
+              <button type="button" data-action="click->tiptap#triggerFilePicker" class="text-xs text-brand-fg hover:text-brand-fg-hover hover:underline cursor-pointer">
                 <i class="fa-solid fa-upload mr-1"></i> Upload from computer
               </button>
               <%# Hidden file input that the button above triggers %>
@@ -130,7 +130,7 @@
           <button type="button" data-action="click->tiptap#toggleInsertMenu" class="hover:bg-surface-200 p-1.5 rounded" title="Insert elements">
             <i class="fa-solid fa-plus"></i>
           </button>
-          <div data-tiptap-target="insertMenu" class="hidden absolute top-full left-0 mt-1 w-56 bg-white border border-line shadow-xl rounded-md z-50 py-1 flex flex-col text-left">
+          <div data-tiptap-target="insertMenu" class="hidden absolute top-full left-0 mt-1 w-56 bg-surface-0 border border-line shadow-xl rounded-md z-50 py-1 flex flex-col text-left">
             <div class="px-4 py-1 text-xs font-bold text-ink-500 uppercase">Insert</div>
             <button type="button" data-action="click->tiptap#addDivider" class="flex items-center gap-3 w-full px-4 py-2 hover:bg-surface-200 text-sm text-ink-700">
               <i class="fa-solid fa-minus text-ink-300 w-4"></i> Divider

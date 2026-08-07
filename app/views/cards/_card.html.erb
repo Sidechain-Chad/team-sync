@@ -30,7 +30,7 @@
       exposes, so both snap instantly. `focus-within` (not
       `group-focus-within`) since the outline lives on the same element
       that contains the focusable controls. %>
-  <div class="bg-white rounded-lg shadow-sm hover:shadow-md group relative border border-transparent hover:outline-2 hover:outline-brand-600 hover:-outline-offset-2 focus-within:outline-2 focus-within:outline-brand-600 focus-within:-outline-offset-2 cursor-grab overflow-hidden"
+  <div class="bg-surface-0 rounded-lg shadow-sm hover:shadow-md group relative border border-transparent hover:outline-2 hover:outline-brand-600 hover:-outline-offset-2 focus-within:outline-2 focus-within:outline-brand-600 focus-within:-outline-offset-2 cursor-grab overflow-hidden"
        data-filter-labels="<%= card.labels.map(&:id).join(' ') %>"
        data-filter-members="<%= card.members.map(&:id).join(' ') %>"
        data-filter-due="<%= card.due_status %>"
@@ -61,7 +61,7 @@
             class: "group/tap h-11 w-11 flex items-center justify-center bg-transparent border-0 cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
             title: "Archive card",
             aria: { label: "Archive card" } do %>
-          <span class="h-7 w-7 rounded-md bg-ink-900/55 group-hover/tap:bg-ink-900/75 backdrop-blur-sm text-white flex items-center justify-center shadow-md ring-1 ring-white/10 transition-colors">
+          <span class="h-7 w-7 rounded-md bg-scrim/55 group-hover/tap:bg-scrim/75 backdrop-blur-sm text-white flex items-center justify-center shadow-md ring-1 ring-white/10 transition-colors">
             <i class="fa-solid fa-box-archive text-[11px]" aria-hidden="true"></i>
           </span>
         <% end %>
@@ -96,7 +96,7 @@
           class: "group/tap h-11 w-11 flex items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1",
           title: "Rename card",
           "aria-label": "Rename card" do %>
-        <span class="h-7 w-7 rounded-md bg-ink-900/40 group-hover/tap:bg-ink-900/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors">
+        <span class="h-7 w-7 rounded-md bg-scrim/40 group-hover/tap:bg-scrim/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors">
           <i class="fa-solid fa-pencil text-[11px]" aria-hidden="true"></i>
         </span>
       <% end %>
@@ -158,10 +158,10 @@
             <%= button_to toggle_complete_card_path(card),
                 method: :patch,
                 form: { class: "m-0 mt-px" },
-                class: "h-5 w-5 rounded-full bg-white border-2 border-line hover:border-success-600 hover:bg-success-100 flex items-center justify-center cursor-pointer group/btn opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-[250ms] ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+                class: "h-5 w-5 rounded-full bg-surface-0 border-2 border-line hover:border-success-600 hover:bg-success-100 flex items-center justify-center cursor-pointer group/btn opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-[250ms] ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
                 title: "Mark complete",
                 aria: { label: "Mark complete" } do %>
-              <i class="fa-solid fa-check text-[10px] text-transparent group-hover/btn:text-success-600" aria-hidden="true"></i>
+              <i class="fa-solid fa-check text-[10px] text-transparent group-hover/btn:text-success-fg" aria-hidden="true"></i>
             <% end %>
           </div>
         <% end %>
@@ -225,7 +225,7 @@
                    title="<%= card.location_name %>"></i>
               <% end %>
               <% if items_total.positive? %>
-                <span class="flex items-center gap-1 <%= 'text-success-600 bg-success-100 px-1.5 py-0.5 rounded' if items_done == items_total %>"
+                <span class="flex items-center gap-1 <%= 'text-success-fg bg-success-100 px-1.5 py-0.5 rounded' if items_done == items_total %>"
                       title="Checklist progress">
                   <i class="fa-solid fa-square-check"></i><%= items_done %>/<%= items_total %>
                 </span>

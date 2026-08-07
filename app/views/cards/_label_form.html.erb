@@ -34,6 +34,10 @@
       <div class="grid grid-cols-5 gap-1">
         <% Label::COLORS.each do |color| %>
           <label class="cursor-pointer">
+            <%# Deliberately NO accent-* here, unlike every other native control in
+                the app: this radio is sr-only. It exists only to carry checked
+                state for the `peer-checked:` ring on the swatch below, and is
+                never painted, so accent-color would be unobservable. %>
             <%= f.radio_button :color, color, class: "peer sr-only", aria: { label: color.capitalize } %>
             <div class="h-7 rounded <%= label_solid_class(color) %> peer-checked:ring-2 peer-checked:ring-offset-1 peer-checked:ring-brand-700 hover:opacity-90 peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-brand-700"
                  title="<%= color.capitalize %>"></div>
@@ -64,7 +68,7 @@
         <%= button_to board_label_path(board, label),
             method: :delete,
             data: { turbo_confirm: "Delete this label? It will be removed from any cards using it." },
-            class: "text-xs text-danger-600 hover:bg-danger-50 px-2 py-1.5 rounded m-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+            class: "text-xs text-danger-fg hover:bg-danger-50 px-2 py-1.5 rounded m-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
             form: { class: "m-0", data: { turbo_frame: frame_id } } do %>
           <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i> Delete
         <% end %>

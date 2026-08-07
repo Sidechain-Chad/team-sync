@@ -1,5 +1,5 @@
 <div class="max-w-md mx-auto py-10 px-4">
-  <div class="bg-white p-6 rounded-lg shadow-sm border border-line">
+  <div class="bg-surface-0 p-6 rounded-lg shadow-sm border border-line">
 
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-xl font-bold text-ink-700">Board Settings</h2>
@@ -21,7 +21,7 @@
           <% if @board.avatar.attached? %>
              <%= image_tag @board.avatar, class: "h-16 w-16 rounded object-cover border" %>
           <% end %>
-          <%= f.file_field :avatar, class: "block w-full text-sm text-ink-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-100 file:text-brand-700 hover:file:bg-brand-100" %>
+          <%= f.file_field :avatar, class: "block w-full text-sm text-ink-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-100 file:text-brand-fg-hover hover:file:bg-brand-100" %>
         </div>
       </div>
 
@@ -31,11 +31,11 @@
           <% if @board.background.attached? %>
              <%= image_tag @board.background, class: "h-16 w-16 rounded object-cover border" %>
           <% end %>
-          <%= f.file_field :background, class: "block w-full text-sm text-ink-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-100 file:text-brand-700 hover:file:bg-brand-100" %>
+          <%= f.file_field :background, class: "block w-full text-sm text-ink-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-100 file:text-brand-fg-hover hover:file:bg-brand-100" %>
         </div>
         <% if @board.background.attached? %>
           <label class="flex items-center gap-2 text-sm text-ink-500 mt-2">
-            <%= check_box_tag "board[remove_background]", "1", false %>
+            <%= check_box_tag "board[remove_background]", "1", false, class: "accent-brand-600" %>
             Remove current background
           </label>
         <% end %>
@@ -43,7 +43,7 @@
 
       <div class="pt-4 border-t border-line flex justify-between items-center mt-6">
         <% if @board.owner?(current_user) %>
-          <%= link_to "Delete board", board_path(@board), data: { turbo_method: :delete, turbo_confirm: "Delete this entire board and all cards?" }, class: "text-danger-600/80 text-sm hover:text-danger-600" %>
+          <%= link_to "Delete board", board_path(@board), data: { turbo_method: :delete, turbo_confirm: "Delete this entire board and all cards?" }, class: "text-danger-fg-muted text-sm hover:text-danger-fg" %>
         <% else %>
           <span></span>
         <% end %>
@@ -72,7 +72,7 @@
       <% @board.board_users.includes(user: { avatar_attachment: :blob }).each do |membership| %>
         <% member = membership.user %>
 
-        <div class="flex justify-between items-center bg-white p-3 border rounded shadow-sm">
+        <div class="flex justify-between items-center bg-surface-0 p-3 border rounded shadow-sm">
           <div class="flex items-center space-x-3">
 
             <%= render "shared/avatar", user: member, size: "h-10 w-10", text_size: "text-sm",
@@ -87,7 +87,7 @@
 
           <% if member != current_user %>
             <% if @board.owner?(current_user) %>
-              <%= button_to "Remove", board_board_user_path(@board, membership), method: :delete, class: "text-danger-600/80 text-xs hover:text-danger-600 border border-danger-600/25 hover:bg-danger-50 px-3 py-1 rounded transition" %>
+              <%= button_to "Remove", board_board_user_path(@board, membership), method: :delete, class: "text-danger-fg-muted text-xs hover:text-danger-fg border border-danger-line hover:bg-danger-50 px-3 py-1 rounded transition" %>
             <% end %>
           <% else %>
              <span class="text-xs text-ink-300 italic px-3 py-1">Owner</span>

@@ -29,6 +29,10 @@ Rails.application.routes.draw do
   get   "account/settings",   to: "account#settings",       as: :account_settings
   patch "account/settings",   to: "account#update_settings"
   patch "account/deactivate", to: "account#deactivate",     as: :account_deactivate
+  # Its own endpoint rather than a field on account/settings: the switcher lives
+  # in the top-nav account menu, so it is reachable from every page in the app,
+  # and it saves one attribute via fetch without rendering anything.
+  patch "account/theme",      to: "account#update_theme",   as: :account_theme
   patch  "account/avatar",    to: "account#update_avatar",  as: :account_avatar
   delete "account/avatar",    to: "account#destroy_avatar"
 

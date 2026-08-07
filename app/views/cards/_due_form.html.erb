@@ -33,7 +33,7 @@
     <% if card.start_date.present? %>
       <button type="button"
               data-action="click->datepicker#clearStart"
-              class="text-[10px] font-medium text-ink-500 hover:text-danger-600 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 rounded">
+              class="text-[10px] font-medium text-ink-500 hover:text-danger-fg underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 rounded">
         Clear
       </button>
     <% end %>
@@ -45,7 +45,9 @@
       class: "w-full text-sm border border-line rounded px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-brand-700" %>
 
   <label class="flex items-center gap-2 text-sm text-ink-700 cursor-pointer py-1">
-    <%= f.check_box :completed, class: "rounded border-line text-brand-600 focus:ring-brand-700 h-4 w-4" %>
+    <%# accent-SUCCESS, not brand: completion is status, and the design system
+        reserves brand for actions and success for status/checkmarks. %>
+    <%= f.check_box :completed, class: "rounded border-line accent-success-600 focus:ring-brand-700 h-4 w-4" %>
     Mark as complete
   </label>
 
@@ -58,7 +60,7 @@
         clears too, not just the underlying value. %>
     <button type="button"
             data-action="click->datepicker#remove"
-            class="text-xs text-danger-600 hover:bg-danger-50 px-2.5 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
+            class="text-xs text-danger-fg hover:bg-danger-50 px-2.5 py-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1">
       <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i> Remove
     </button>
   </div>

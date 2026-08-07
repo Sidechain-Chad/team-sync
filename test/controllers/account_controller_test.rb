@@ -156,7 +156,7 @@ class AccountControllerTest < ActionDispatch::IntegrationTest
     patch account_profile_url, params: { user: { name: "New Name" } }
     follow_redirect!
 
-    assert_select "#flash div.bg-success-100.text-success-600" do
+    assert_select "#flash div.bg-success-100.text-success-fg" do
       assert_select "i.fa-circle-check"
       assert_select "span", text: "Profile updated."
     end

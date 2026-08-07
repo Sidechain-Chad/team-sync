@@ -8,7 +8,7 @@
     <div class="flex items-center justify-between mb-6 pb-4 border-b border-line">
       <div>
         <%= link_to board_path(@board),
-            class: "text-sm text-ink-500 hover:text-brand-600 flex items-center gap-1 mb-2" do %>
+            class: "text-sm text-ink-500 hover:text-brand-fg flex items-center gap-1 mb-2" do %>
           <i class="fa-solid fa-arrow-left text-xs" aria-hidden="true"></i>
           Back to <%= @board.name %>
         <% end %>
@@ -20,7 +20,7 @@
     </div>
 
     <% if @feed.empty? %>
-      <div class="bg-white rounded-lg shadow-sm border border-line text-center py-12">
+      <div class="bg-surface-0 rounded-lg shadow-sm border border-line text-center py-12">
         <i class="fa-solid fa-clock-rotate-left text-5xl text-ink-300 mb-4" aria-hidden="true"></i>
         <p class="text-ink-500">No activity yet.</p>
         <p class="text-sm text-ink-300 mt-1">Actions taken on this board's cards will show up here.</p>
@@ -29,7 +29,7 @@
       <%# Mixed feed of Activity and Comment rows (merged in BoardsController
           #activity), each with its own board-flavoured partial. The id is the
           append target for each "Load more" page — see activity.turbo_stream.erb. %>
-      <div id="activity_feed_rows" class="bg-white rounded-lg shadow-sm border border-line divide-y divide-line">
+      <div id="activity_feed_rows" class="bg-surface-0 rounded-lg shadow-sm border border-line divide-y divide-line">
         <%= render "boards/activity_rows", feed: @feed %>
       </div>
 

@@ -1,5 +1,12 @@
 <!DOCTYPE html>
-<html>
+<%# data-theme is the single switch the entire dark palette hangs off (see the
+    theme block in app/assets/tailwind/application.css). It goes on <html>, not
+    <body>, because Tailwind emits its token values on :root — the override has
+    to land on the same element to win the cascade, and being on the root also
+    means the theme applies to <body>'s own background before any content
+    renders. Rendered server-side from the stored preference so there is no
+    first-paint flash; "system" is resolved by CSS, never by JS. %>
+<html data-theme="<%= current_theme %>">
   <head>
     <title>TeamSync</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">

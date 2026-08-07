@@ -6,12 +6,12 @@
 
         <%# Avatar %>
         <%= render "shared/avatar", user: user, size: "h-7 w-7", text_size: "text-[10px]",
-            css_class: "border mr-2 group-hover:border-danger-600/25 group-hover:bg-danger-50 group-hover:text-danger-600 transition-colors" %>
+            css_class: "border mr-2 group-hover:border-danger-line group-hover:bg-danger-50 group-hover:text-danger-fg transition-colors" %>
 
         <%# Name info %>
         <div class="flex flex-col">
-          <span class="text-xs text-ink-700 font-medium group-hover:text-danger-600"><%= user.display_name %></span>
-          <span class="text-[10px] text-ink-300 group-hover:text-danger-600"><%= user.email %></span>
+          <span class="text-xs text-ink-700 font-medium group-hover:text-danger-fg"><%= user.display_name %></span>
+          <span class="text-[10px] text-ink-300 group-hover:text-danger-fg"><%= user.email %></span>
         </div>
 
       </div>
@@ -25,7 +25,7 @@
 
         <%# Avatar %>
         <%= render "shared/avatar", user: user, size: "h-7 w-7", text_size: "text-[10px]",
-            css_class: "mr-2 border border-line group-hover:bg-white group-hover:border-line",
+            css_class: "mr-2 border border-line group-hover:bg-surface-0 group-hover:border-line",
             fallback_class: "bg-surface-200 text-ink-500" %>
 
         <%# Name info %>

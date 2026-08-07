@@ -81,6 +81,26 @@ class AccountController < ApplicationController
     redirect_to account_settings_path, notice: "Notification preferences updated."
   end
 
+  # Appearance. Called by theme_controller.js via fetch, from the account menu
+  # in the top nav — so from any page in the app.
+  #
+  # Renders NOTHING on success. The client already applied the theme to <html>
+  # before this request went out, so there is no markup to send back; :no_content
+  # is the honest status and it also means this can never accidentally become a
+  # Turbo navigation that discards an open modal.
+  #
+  # An invalid theme is a 422, not a silent no-op: the only way to send one is a
+  # hand-crafted request or a bug in the switcher, and both deserve to be loud.
+  # The allowlist itself lives on the model (User::THEMES) because the value ends
+  # up in an HTML attribute.
+  def update_theme
+    if current_user.update(theme: params[:theme])
+      head :no_content
+    else
+      render json: { errors: current_user.errors[:theme] }, status: :unprocessable_entity
+    end
+  end
+
   # Deliberately a plain `save` (no :profile_update context) — that context
   # requires a non-blank name, which the demo user (and anyone else who's
   # never set one) doesn't have. Riding that context here would make an

@@ -9,9 +9,11 @@
         method: :patch,
         data: { turbo_frame: dom_id(checklist_item), controller: "autosubmit" },
         class: "flex items-center gap-3 w-full" do |f| %>
+      <%# accent-SUCCESS, not brand: this is a completion box, and the design system
+          reserves brand for actions and success for status/checkmarks. %>
       <%= f.check_box :completed,
           data: { action: "change->autosubmit#submit" },
-          class: "h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-700",
+          class: "h-4 w-4 rounded border-line accent-success-600 focus:ring-brand-700",
           aria: { label: "Mark \"#{checklist_item.content}\" as #{checklist_item.completed? ? 'incomplete' : 'complete'}" } %>
       <span class="text-sm <%= checklist_item.completed? ? 'line-through text-ink-300' : 'text-ink-700' %> flex-1">
         <%= checklist_item.content %>
@@ -27,7 +29,7 @@
         # making every checklist row ~44px tall, which is a redesign of the row,
         # not a tap-target fix. Widening costs nothing: the item text is a flex-1
         # sibling that simply reflows.
-        class: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-ink-300 hover:text-danger-600 transition-opacity bg-transparent border-0 cursor-pointer h-6 w-11 flex items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
+        class: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-ink-300 hover:text-danger-fg transition-opacity bg-transparent border-0 cursor-pointer h-6 w-11 flex items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1",
         title: "Delete item",
         aria: { label: "Delete item" } do %>
       <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>

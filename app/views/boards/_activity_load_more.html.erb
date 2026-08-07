@@ -22,7 +22,7 @@
     <%= link_to activity_board_path(board, page: next_page),
         id: "activity_load_more",
         data: { turbo_stream: true },
-        class: "inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink-700 bg-white border border-line rounded-lg shadow-sm hover:bg-surface-50 hover:border-ink-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" do %>
+        class: "inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink-700 bg-surface-0 border border-line rounded-lg shadow-sm hover:bg-surface-50 hover:border-ink-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1" do %>
       <i class="fa-solid fa-arrow-down text-xs text-ink-500" aria-hidden="true"></i>
       Load more
     <% end %>

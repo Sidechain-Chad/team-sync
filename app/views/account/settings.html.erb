@@ -4,7 +4,7 @@
     <%# Login & security — links out to Devise's own form rather than
         rebuilding it here (see devise/registrations/edit.html.erb, restyled
         but logic-untouched). %>
-    <div class="bg-white rounded-lg shadow-sm border border-line p-6">
+    <div class="bg-surface-0 rounded-lg shadow-sm border border-line p-6">
       <h2 class="text-sm font-bold text-ink-700 uppercase tracking-wide mb-1">Login & security</h2>
       <p class="text-sm text-ink-500 mb-4">Change the email address or password you sign in with.</p>
       <%= link_to edit_user_registration_path,
@@ -17,7 +17,7 @@
     <%# Notifications — in-app only (no email/desktop yet). One toggle per
         live trigger, sourced from Notification::PREFERENCE_TYPES so a new
         trigger only needs a row added there. %>
-    <div class="bg-white rounded-lg shadow-sm border border-line p-6">
+    <div class="bg-surface-0 rounded-lg shadow-sm border border-line p-6">
       <h2 class="text-sm font-bold text-ink-700 uppercase tracking-wide mb-1">Notifications</h2>
       <p class="text-sm text-ink-500 mb-4">Choose which in-app notifications you receive.</p>
 
@@ -28,7 +28,7 @@
                    name="user[notification_preferences][<%= type %>]"
                    value="1"
                    <%= "checked" if current_user.notifies?(type) %>
-                   class="mt-0.5 rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-700">
+                   class="mt-0.5 rounded border-line accent-brand-600 focus:ring-2 focus:ring-brand-700">
             <span>
               <span class="block text-sm font-semibold text-ink-700"><%= meta[:title] %></span>
               <span class="block text-sm text-ink-500"><%= meta[:description] %></span>
@@ -46,8 +46,8 @@
 
     <%# Danger zone — the one real, working control on this page: soft
         deactivation. %>
-    <div class="bg-white rounded-lg shadow-sm border-2 border-danger-600/40 p-6">
-      <h2 class="text-sm font-bold text-danger-600 uppercase tracking-wide mb-1">Danger zone</h2>
+    <div class="bg-surface-0 rounded-lg shadow-sm border-2 border-danger-line-strong p-6">
+      <h2 class="text-sm font-bold text-danger-fg uppercase tracking-wide mb-1">Danger zone</h2>
       <p class="text-sm text-ink-500 mb-1">Deactivate your account.</p>
       <ul class="text-sm text-ink-500 list-disc list-inside mb-4 space-y-0.5">
         <li>You'll be removed from every board and card you're a member of.</li>

@@ -8,7 +8,7 @@
     <div class="flex items-center justify-between px-4 py-3 border-b border-line">
       <h2 class="text-lg font-bold text-ink-700">Planner</h2>
       <%= link_to planner_path,
-          class: "text-xs text-brand-600 hover:text-brand-700 font-medium",
+          class: "text-xs text-brand-fg hover:text-brand-fg-hover font-medium",
           data: { turbo: false } do %>
         Open full calendar
         <i class="fa-solid fa-arrow-up-right-from-square text-[10px] ml-1"></i>
@@ -37,7 +37,7 @@
                       end
             %>
             <div class="flex items-baseline gap-2 mb-2">
-              <h3 class="text-xs font-bold uppercase tracking-wide <%= is_today ? 'text-brand-600' : 'text-ink-500' %>">
+              <h3 class="text-xs font-bold uppercase tracking-wide <%= is_today ? 'text-brand-fg' : 'text-ink-500' %>">
                 <%= label %>
               </h3>
               <% unless is_today || is_tomorrow %>
@@ -53,7 +53,7 @@
                     omitted, for a point. %>
                 <%= link_to card_path(card),
                     data: { turbo_frame: "modal", agenda_role: planner_agenda_role(card, day) },
-                    class: "block p-2 rounded bg-white border border-line hover:border-ink-300 hover:bg-surface-50 transition group" do %>
+                    class: "block p-2 rounded bg-surface-0 border border-line hover:border-ink-300 hover:bg-surface-50 transition group" do %>
                   <div class="flex items-start gap-2">
                     <%# Color stripe from first label (or gray if none) %>
                     <% color = card.labels.first&.color %>
