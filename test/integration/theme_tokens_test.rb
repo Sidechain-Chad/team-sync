@@ -7,11 +7,16 @@ require "test_helper"
 # bg-surface-* / text-ink-* utility at once. That is enormously cheaper than the
 # alternative, and it has exactly two failure modes, both silent:
 #
-#   1. A view introduces raw colour (bg-white, a Tailwind-palette gray, a hex).
-#      Raw colour cannot respond to a token override, so that element stays
-#      light forever while everything around it darkens. Nothing errors; the
-#      page just develops a white hole. That is what
-#      NoRawColourInViewsTest below is for.
+#   1. A view — or a Stimulus controller building markup in JS — introduces
+#      raw colour (bg-white, a Tailwind-palette gray, a hex). Raw colour cannot
+#      respond to a token override, so that element stays light forever while
+#      everything around it darkens. Nothing errors; the page just develops a
+#      white hole. That is what NoRawColourInViewsTest below is for. It scans
+#      both app/views and app/javascript: a controller that builds its own
+#      innerHTML (board_map_controller.js's error panel, gap_insert_controller.js's
+#      composer) is exactly as capable of hardcoding colour as an .erb file, and
+#      nothing about "it's JS, not a template" makes it visible to a scan that
+#      only reads *.erb.
 #
 #   2. The two token-mapping blocks drift apart. `[data-theme="dark"]` and the
 #      `[data-theme="system"]` copy inside the prefers-color-scheme media query
@@ -223,6 +228,20 @@ end
 # 92 opaque `bg-white` sites existed when dark mode was built. The pre-existing
 # "no raw grays" convention had not caught a single one, because white is not a
 # gray. That is the whole argument for enforcing this mechanically.
+#
+# Scans app/views AND app/javascript, for the same reason
+# NoBakedAlphaOnThemedTokensTest below does: a Stimulus controller that builds
+# markup with `innerHTML` is not a template, but it produces exactly the same
+# DOM as one, and a scan that stops at *.erb is blind to it. Two real instances
+# existed at the time this scope was added — board_map_controller.js's error
+# panel (`bg-white`, plus a `border-danger-600/25` caught by
+# NoBakedAlphaOnThemedTokensTest below) and gap_insert_controller.js's
+# card-insert composer (`bg-white`) — found by running the extended scan, not
+# hypothesised. The map panel's `text-danger-600` was fixed to `text-danger-fg`
+# alongside it — not something either guard flags (a bare fill token with no
+# alpha modifier isn't raw colour), but the same category of mistake: a FILL
+# used as a foreground, staying visually fixed while a REMAPPED surface
+# darkens around it.
 class NoRawColourInViewsTest < ActiveSupport::TestCase
   # Opaque white/black FILLS.
   #
@@ -252,7 +271,9 @@ class NoRawColourInViewsTest < ActiveSupport::TestCase
 
   # Hardcoded hex, including inside an arbitrary value like `text-[#BE451A]`.
   # The `(?<![\w&])` lookbehind keeps HTML entities (`&#39;`) out of it; ERB
-  # interpolation (`#{...}`) cannot match because `{` is not a hex digit.
+  # interpolation (`#{...}`) cannot match because `{` is not a hex digit. JS
+  # template interpolation (`${...}`) can't match for an even simpler reason —
+  # it starts with `$`, not `#`, so the leading character never lines up.
   HARDCODED_HEX =
     /(?<![\w&])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?![0-9a-fA-F\w])/
 
@@ -263,16 +284,29 @@ class NoRawColourInViewsTest < ActiveSupport::TestCase
     "hardcoded hex (add a token instead)"                                      => HARDCODED_HEX
   }.freeze
 
-  # Genuine exceptions. EMPTY, deliberately — every site in app/views was
-  # converted when dark mode landed. If you add an entry, say which token could
-  # not express it and why. "It was quicker" is not a reason; a white panel that
-  # cannot darken is a dark-mode bug waiting to be filed.
-  ALLOWLIST = [].freeze
+  # Scanned together: a colour-class string looks identical whether it sits in
+  # an .erb `class="..."` attribute or a JS template literal building innerHTML
+  # — same CHECKS, same offender format, so one glob covering both is simpler
+  # than two near-duplicate tests.
+  SCAN_GLOBS = %w[app/views/**/*.erb app/javascript/**/*.js].freeze
 
-  test "no view uses raw colour that a theme override cannot reach" do
+  # Genuine exceptions. Every *.erb site was converted when dark mode landed,
+  # so this stayed empty until app/javascript joined the scan turned up one
+  # real one that isn't fixable: board_map_controller.js's Mapbox
+  # `new mapboxgl.Marker({ color: "#BE451A" })` — Mapbox GL JS takes a CSS
+  # colour string for the marker SVG it draws internally, not an element you
+  # can hand a class or a CSS var(); it cannot read a custom property, so a
+  # literal hex is the only interface it exposes. It is already commented
+  # in-place as "must be kept in sync by hand with --color-brand-600". If you
+  # add another entry, say which token could not express it and why. "It was
+  # quicker" is not a reason; a white panel that cannot darken is a dark-mode
+  # bug waiting to be filed.
+  ALLOWLIST = %w[app/javascript/controllers/board_map_controller.js].freeze
+
+  test "no view or controller uses raw colour that a theme override cannot reach" do
     offenders = []
 
-    Dir.glob(Rails.root.join("app/views/**/*.erb")).sort.each do |path|
+    SCAN_GLOBS.flat_map { |g| Dir.glob(Rails.root.join(g)) }.sort.each do |path|
       rel = path.sub("#{Rails.root}/", "")
       next if ALLOWLIST.include?(rel)
 
@@ -286,9 +320,11 @@ class NoRawColourInViewsTest < ActiveSupport::TestCase
     end
 
     assert_empty offenders, <<~MSG
-      Raw colour found in app/views. Dark mode works by redefining token values
-      under a selector on <html>, so a literal colour is simply immune to it —
-      the element stays light while the page around it goes dark.
+      Raw colour found in app/views or app/javascript. Dark mode works by
+      redefining token values under a selector on <html>, so a literal colour
+      is simply immune to it — the element stays light while the page around
+      it goes dark. A Stimulus controller building innerHTML is just as capable
+      of this as an .erb template.
 
       Use the tokens: surface-* (fills), ink-* (text), line (borders),
       brand-fg / danger-fg / success-fg (coloured foregrounds),
@@ -315,7 +351,8 @@ class NoRawColourInViewsTest < ActiveSupport::TestCase
       %{<div class="border-slate-300 bg-zinc-50">},
       %{<div class="text-neutral-500 hover:bg-stone-100">},
       %{<div style="background: #ffffff">},                          # hex in a style attr
-      %{<i class="text-[#BE451A]">}                                  # hex in an arbitrary value
+      %{<i class="text-[#BE451A]">},                                 # hex in an arbitrary value
+      "      <div class=\"h-full flex items-center justify-center bg-white\">"  # JS template-literal innerHTML
     ]
 
     should_flag.each do |snippet|
@@ -348,15 +385,18 @@ class NoRawColourInViewsTest < ActiveSupport::TestCase
   end
 
   # Known limitation, asserted rather than left as folklore: the scan is
-  # line-based and does not parse ERB, so a COMMENT naming a banned class would
-  # be reported as an offender. NOTE: this note is about THIS class's patterns;
-  # NoBakedAlphaOnThemedTokensTest below shares the same limitation. Nothing in app/views does that today. Recorded
-  # here so the next person who hits it recognises it immediately instead of
-  # hunting for markup that isn't there — the fix is to break the class name up
-  # in the prose, not to add an ALLOWLIST entry for the whole file.
-  test "the scan is line-based and does not understand ERB comments" do
+  # line-based and does not parse ERB or JS, so a COMMENT naming a banned class
+  # would be reported as an offender — in either language. Nothing in
+  # app/views or app/javascript does that today. Recorded here so the next
+  # person who hits it recognises it immediately instead of hunting for markup
+  # that isn't there — the fix is to break the class name up in the prose, not
+  # to add an ALLOWLIST entry for the whole file. NoBakedAlphaOnThemedTokensTest
+  # below shares the same limitation.
+  test "the scan is line-based and does not understand ERB or JS comments" do
     assert_match OPAQUE_WHITE_BLACK, %{<%# a comment that says bg-white %>},
                  "if this ever stops being true the limitation note above is stale"
+    assert_match OPAQUE_WHITE_BLACK, %{// a JS comment that says bg-white for illustration},
+                 "the same line-based limitation applies to JS comments now that app/javascript is in scope"
   end
 end
 
@@ -384,8 +424,26 @@ end
 # The banned list is READ OUT OF THE STYLESHEET rather than restated here, so
 # adding a token to the dark mapping automatically extends this guard and there
 # is no second list to keep in sync. There is deliberately no allowlist: at the
-# time of writing every remaining alpha-on-token use in app/views is on a pinned
-# token, so the rule holds with no exceptions to explain.
+# time of writing every remaining alpha-on-token use in app/views and
+# app/javascript is on a pinned token, so the rule holds with no exceptions to
+# explain.
+#
+# Scans app/javascript alongside app/views for the same reason
+# NoRawColourInViewsTest above does — a controller's template-literal innerHTML
+# is not exempt just because it isn't a *.erb file. Extending the scan did NOT
+# turn up a new instance of THIS specific bug (an alpha directly on a remapped
+# token) in JS; it's mentioned here mainly so the rule's scope doesn't quietly
+# drift back to *.erb-only the next time someone edits this file.
+#
+# What extending the scan's PATHS does not do: widen the RULE. The rule is
+# "alpha directly on a token dark mode remaps." board_map_controller.js's
+# `border-danger-600/25` was a real bug of a DIFFERENT, narrower shape this
+# guard does not model — an alpha on a PINNED fill (danger-600, never remapped)
+# composited against a REMAPPED surface underneath it (danger-50/surface-0).
+# That was fixed by hand to `border-danger-line`, matching the ERB precedent,
+# but nothing here would catch a new `border-danger-600/25` written tomorrow,
+# in either app/views or app/javascript — pinned-fill-on-remapped-surface is a
+# real remaining hole, not a false sense of coverage from this commit.
 class NoBakedAlphaOnThemedTokensTest < ActiveSupport::TestCase
   CSS_PATH = Rails.root.join("app/assets/tailwind/application.css")
 
@@ -409,14 +467,16 @@ class NoBakedAlphaOnThemedTokensTest < ActiveSupport::TestCase
     /(?:^|[\s"'])(?:[a-z-]+:)*#{COLOUR_UTILITY}-#{names}\/\d+/
   end
 
-  test "no view bakes an opacity modifier into a token that dark mode remaps" do
+  SCAN_GLOBS = %w[app/views/**/*.erb app/javascript/**/*.js].freeze
+
+  test "no view or controller bakes an opacity modifier into a token that dark mode remaps" do
     tokens = remapped_tokens
     assert tokens.any?, "expected to read the dark mapping out of application.css"
 
     pattern = offence_pattern(tokens)
     offenders = []
 
-    Dir.glob(Rails.root.join("app/views/**/*.erb")).sort.each do |path|
+    SCAN_GLOBS.flat_map { |g| Dir.glob(Rails.root.join(g)) }.sort.each do |path|
       rel = path.sub("#{Rails.root}/", "")
       File.readlines(path).each_with_index do |line, i|
         offenders << "#{rel}:#{i + 1}  #{line.strip[0, 110]}" if line.match?(pattern)
@@ -452,7 +512,8 @@ class NoBakedAlphaOnThemedTokensTest < ActiveSupport::TestCase
       %{<div class="border border-danger-600/25">}.sub("danger-600", "danger-line"),
       %{<div class="bg-surface-0/50">},
       %{<div class="hover:border-line/40">},               # prefixed variant
-      %{<span class='text-ink-500/70'>}                    # single-quoted
+      %{<span class='text-ink-500/70'>},                   # single-quoted
+      '      <div class="rounded-lg ring-1 ring-ink-900/5">'  # JS template-literal innerHTML
     ]
     should_flag.each do |snippet|
       assert_match pattern, snippet, "guard FAILED TO FLAG: #{snippet}"

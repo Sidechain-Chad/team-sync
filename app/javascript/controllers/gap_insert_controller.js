@@ -197,7 +197,7 @@ export default class extends Controller {
     this.composerOpen = true
 
     const composer = document.createElement("div")
-    composer.className = "bg-white p-2 rounded shadow-sm border-2 border-brand-700"
+    composer.className = "bg-surface-0 p-2 rounded shadow-sm border-2 border-brand-700"
     composer.innerHTML = `
       <div class="space-y-2">
         <textarea class="w-full border-line rounded text-sm focus:ring-brand-700 focus:border-brand-700 p-2"

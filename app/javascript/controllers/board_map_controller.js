@@ -13,10 +13,10 @@ export default class extends Controller {
 
   showError(msg) {
     this.containerTarget.innerHTML = `
-      <div class="h-full flex flex-col items-center justify-center text-danger-600 gap-2 p-8 bg-white absolute inset-0 z-50">
-        <i class="fa-solid fa-circle-xmark text-3xl"></i>
+      <div class="h-full flex flex-col items-center justify-center text-danger-fg gap-2 p-8 bg-surface-0 absolute inset-0 z-50">
+        <i class="fa-solid fa-circle-xmark text-3xl" aria-hidden="true"></i>
         <p class="text-sm font-bold">Map failed to load.</p>
-        <code class="text-xs bg-danger-50 p-2 rounded border border-danger-600/25 text-center max-w-md">${msg}</code>
+        <code class="text-xs bg-danger-50 border border-danger-line text-danger-fg p-2 rounded text-center max-w-md">${this.escape(msg)}</code>
       </div>
     `
   }
