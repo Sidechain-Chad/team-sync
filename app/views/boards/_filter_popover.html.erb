@@ -46,7 +46,7 @@
                      data-category="due"
                      data-board-filter-target="checkbox"
                      data-action="change->board-filter#apply"
-                     class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
+                     class="rounded border-line accent-brand-600 focus:ring-2 focus:ring-brand-700">
               <%= label_text %>
             </label>
           <% end %>
@@ -64,7 +64,7 @@
                      data-category="label"
                      data-board-filter-target="checkbox"
                      data-action="change->board-filter#apply"
-                     class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
+                     class="rounded border-line accent-brand-600 focus:ring-2 focus:ring-brand-700">
               <span class="inline-block h-4 w-7 rounded <%= label_solid_class(label.color) %>" aria-hidden="true"></span>
               <span class="truncate"><%= label.name.presence || label.color.capitalize %></span>
             </label>
@@ -75,7 +75,7 @@
                    data-category="label"
                    data-board-filter-target="checkbox"
                    data-action="change->board-filter#apply"
-                   class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
+                   class="rounded border-line accent-brand-600 focus:ring-2 focus:ring-brand-700">
             No labels
           </label>
         </div>
@@ -92,7 +92,7 @@
                      data-category="member"
                      data-board-filter-target="checkbox"
                      data-action="change->board-filter#apply"
-                     class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
+                     class="rounded border-line accent-brand-600 focus:ring-2 focus:ring-brand-700">
               <%= render "shared/avatar", user: member, size: "h-5 w-5", text_size: "text-[9px]", css_class: "flex-shrink-0" %>
               <span class="truncate"><%= member.display_name %></span>
             </label>
@@ -103,7 +103,7 @@
                    data-category="member"
                    data-board-filter-target="checkbox"
                    data-action="change->board-filter#apply"
-                   class="rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
+                   class="rounded border-line accent-brand-600 focus:ring-2 focus:ring-brand-700">
             Unassigned
           </label>
         </div>

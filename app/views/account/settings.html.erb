@@ -28,7 +28,7 @@
                    name="user[notification_preferences][<%= type %>]"
                    value="1"
                    <%= "checked" if current_user.notifies?(type) %>
-                   class="mt-0.5 rounded border-line text-brand-fg focus:ring-2 focus:ring-brand-700">
+                   class="mt-0.5 rounded border-line accent-brand-600 focus:ring-2 focus:ring-brand-700">
             <span>
               <span class="block text-sm font-semibold text-ink-700"><%= meta[:title] %></span>
               <span class="block text-sm text-ink-500"><%= meta[:description] %></span>

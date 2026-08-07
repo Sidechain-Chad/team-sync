@@ -45,7 +45,9 @@
       class: "w-full text-sm border border-line rounded px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-brand-700" %>
 
   <label class="flex items-center gap-2 text-sm text-ink-700 cursor-pointer py-1">
-    <%= f.check_box :completed, class: "rounded border-line text-brand-fg focus:ring-brand-700 h-4 w-4" %>
+    <%# accent-SUCCESS, not brand: completion is status, and the design system
+        reserves brand for actions and success for status/checkmarks. %>
+    <%= f.check_box :completed, class: "rounded border-line accent-success-600 focus:ring-brand-700 h-4 w-4" %>
     Mark as complete
   </label>
 

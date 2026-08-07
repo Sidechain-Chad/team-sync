@@ -35,7 +35,7 @@
         </div>
         <% if @board.background.attached? %>
           <label class="flex items-center gap-2 text-sm text-ink-500 mt-2">
-            <%= check_box_tag "board[remove_background]", "1", false %>
+            <%= check_box_tag "board[remove_background]", "1", false, class: "accent-brand-600" %>
             Remove current background
           </label>
         <% end %>

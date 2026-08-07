@@ -9,9 +9,11 @@
         method: :patch,
         data: { turbo_frame: dom_id(checklist_item), controller: "autosubmit" },
         class: "flex items-center gap-3 w-full" do |f| %>
+      <%# accent-SUCCESS, not brand: this is a completion box, and the design system
+          reserves brand for actions and success for status/checkmarks. %>
       <%= f.check_box :completed,
           data: { action: "change->autosubmit#submit" },
-          class: "h-4 w-4 rounded border-line text-brand-fg focus:ring-brand-700",
+          class: "h-4 w-4 rounded border-line accent-success-600 focus:ring-brand-700",
           aria: { label: "Mark \"#{checklist_item.content}\" as #{checklist_item.completed? ? 'incomplete' : 'complete'}" } %>
       <span class="text-sm <%= checklist_item.completed? ? 'line-through text-ink-300' : 'text-ink-700' %> flex-1">
         <%= checklist_item.content %>
