@@ -150,6 +150,14 @@ class ThemeTokensTest < ActiveSupport::TestCase
     assert_nil mapping["--color-nav-fg"],
                "nav-fg must not be remapped in dark mode — it is light text on dark chrome in BOTH themes"
 
+    # nav-fg-muted exists BECAUSE the thing it replaced (text-ink-300 on the
+    # notification and help buttons) did invert, dropping those icons from
+    # 6.88:1 to 3.82:1 on a nav that had not moved. Remapping it here would
+    # reintroduce precisely that.
+    assert_nil mapping["--color-nav-fg-muted"],
+               "nav-fg-muted must not be remapped — it is the muted foreground on always-dark " \
+               "nav chrome, and it was split off ink-300 specifically to stop it inverting"
+
     # Scrim is not remapped either, and this one is worth pinning because it
     # looks like an oversight. 9 of its 11 uses are `bg-scrim/NN`, and Tailwind
     # bakes an opacity modifier into a literal at build time — so a dark value

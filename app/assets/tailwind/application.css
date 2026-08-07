@@ -93,16 +93,54 @@
      always-dark jobs moved out here and ink-900 went back to being purely
      the top of the text ramp.
 
-     Values are byte-identical to the ink-900 / gray-200 they replaced, so
-     splitting them changes nothing in light mode.
+     nav-bg / scrim / scrim-fg are byte-identical to the ink-900 / gray-200
+     they replaced, so splitting them changed nothing in light mode.
 
-     Deliberately NOT folded into each other: nav-fg (#E5E7EB) and
-     scrim-fg (#FAF6F2) are the two different light-text values already in
-     the codebase, and unifying them would be a real (if small) visual
-     change, which belongs nowhere near a mechanical tokenisation. Worth
-     unifying later on purpose. */
+     THESE ARE LITERAL HEXES ON PURPOSE, and this is the trap to know about:
+     writing `--color-nav-fg: var(--color-surface-200)` would look tidier and
+     would be a bug. surface-200 is remapped under [data-theme], so nav-fg
+     would follow it down to #322822 — dark-brown label text on an unchanged
+     dark-brown nav. A token that must NOT invert cannot be expressed as a
+     reference to one that does. Copy the value, don't point at it.
+
+     nav-fg was #E5E7EB — Tailwind gray-200, a cool blue-grey, and the one
+     genuinely off-palette colour left in the system. It sat at that value only
+     because the tokenisation commit deliberately froze the old `text-gray-200`
+     holdout at its exact hex to stay pixel-inert; warming it was the design
+     call deferred out of that commit. It is now surface-200's value, the
+     nearest existing warm-ramp step by luminance (0.8083 vs the old 0.7981 —
+     effectively the same lightness, just warm instead of cool), so it is
+     provably in-family rather than an invented hex. Measured against nav-bg:
+     12.73:1 before, 12.88:1 after — no regression, a marginal improvement.
+
+     This DOES change light mode, unlike the tokenisation commit, and that is
+     the point: the navs are dark chrome in both themes, so there is only one
+     nav-fg to warm and both themes see it. scrim-fg stays #FAF6F2 and is
+     still deliberately not folded into nav-fg — they are different lightnesses
+     doing different jobs (a label on nav chrome vs text on a scrim). */
   --color-nav-bg:   #2A211C;  /* top + bottom nav fill (was bg-ink-900)  */
-  --color-nav-fg:   #E5E7EB;  /* nav label text (was the text-gray-200 holdout) */
+  --color-nav-fg:   #EFE7DF;  /* nav label text. == surface-200's value, copied not referenced */
+
+  /* The MUTED counterpart, and the reason it had to exist:
+     the top nav's icon-only buttons (notifications, help) were `text-ink-300`.
+     ink-300 is a themeable text-ramp token, so it inverts — #B7A99D in light,
+     #8A7A6D in dark — while the nav underneath it stays #2A211C in both. That
+     dropped those two icons from 6.88:1 to 3.82:1 in dark mode: still over the
+     3:1 non-text floor, so not a defect, but a 45% contrast loss on
+     always-dark chrome and exactly the incoherence nav-bg/nav-fg were split
+     out to prevent.
+
+     The value is light-mode ink-300 unchanged, so light mode is byte-identical
+     and this is purely a de-inverting. It is already warm — ink-300 is off the
+     espresso ramp — so warming it was not needed, only pinning it.
+
+     NOT applied to the search magnifier icon or the search input's
+     placeholder, which stay ink-300 on purpose: the search field swaps to
+     `focus:bg-surface-0` when focused, so those two sit on nav chrome when
+     idle and on a themeable card surface when active. They are genuinely
+     dual-context and a pinned light value would make them near-invisible on
+     white in light mode. Themeable is the right answer there. */
+  --color-nav-fg-muted: #B7A99D;  /* == light-mode ink-300, pinned so it can't invert */
   --color-scrim:    #2A211C;  /* modal backdrops, image overlays, code blocks */
   --color-scrim-fg: #FAF6F2;  /* text on an always-dark fill             */
 
