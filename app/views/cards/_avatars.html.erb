@@ -8,7 +8,7 @@
       aria: { label: "Remove #{user.display_name} from card" } do %>
 
     <%= render "shared/avatar", user: user, size: "h-6 w-6", text_size: "text-[10px]",
-        css_class: "border ring-1 ring-white cursor-pointer hover:bg-danger-50 hover:text-danger-fg hover:ring-danger-600/25 transition-all" %>
+        css_class: "border ring-1 ring-white cursor-pointer hover:bg-danger-50 hover:text-danger-fg hover:ring-danger-line transition-all" %>
 
     <%# Pinned to the 24px avatar, not the 44px tap target around it: top-2.5 /
         right-2.5 is the button's 10px padding, then the original -1 offset. %>

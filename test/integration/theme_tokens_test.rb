@@ -129,7 +129,11 @@ class ThemeTokensTest < ActiveSupport::TestCase
       "text-ink-700"   => "--color-ink-700",
       "border-line"    => "--color-line",
       "text-brand-fg"  => "--color-brand-fg",
-      "bg-surface-200" => "--color-surface-200"
+      "bg-surface-200" => "--color-surface-200",
+      # A ring compiles through --tw-ring-color rather than a plain property,
+      # so it is its own code path — and it is the one that replaced a baked
+      # `ring-ink-900/5`, which is exactly the failure being guarded against.
+      "ring-hairline"  => "--color-hairline"
     }.each do |utility, token|
       rule = compiled[/\.#{Regexp.escape(utility)}\{[^}]*\}/]
       assert rule, "#{utility} is not in the compiled CSS — is it used anywhere?"
@@ -345,12 +349,139 @@ class NoRawColourInViewsTest < ActiveSupport::TestCase
 
   # Known limitation, asserted rather than left as folklore: the scan is
   # line-based and does not parse ERB, so a COMMENT naming a banned class would
-  # be reported as an offender. Nothing in app/views does that today. Recorded
+  # be reported as an offender. NOTE: this note is about THIS class's patterns;
+  # NoBakedAlphaOnThemedTokensTest below shares the same limitation. Nothing in app/views does that today. Recorded
   # here so the next person who hits it recognises it immediately instead of
   # hunting for markup that isn't there — the fix is to break the class name up
   # in the prose, not to add an ALLOWLIST entry for the whole file.
   test "the scan is line-based and does not understand ERB comments" do
     assert_match OPAQUE_WHITE_BLACK, %{<%# a comment that says bg-white %>},
                  "if this ever stops being true the limitation note above is stale"
+  end
+end
+
+# The third way dark mode rots, after raw colour and mapping drift.
+#
+# Tailwind v4 resolves an opacity modifier AT BUILD TIME into a literal:
+# `ring-ink-900/5` compiles to `--tw-ring-color:#2a211c0d`, with no var() left
+# in it. Every other colour utility keeps `var(--color-…)` and flips for free
+# when the variable is redefined — these cannot. They are frozen at their light
+# value in every theme, and they look completely correct in the source.
+#
+# That is only a BUG when the token in question is one dark mode actually
+# redefines. The distinction is the whole rule:
+#
+#   PINNED tokens  — scrim, and the -600 fills — mean the same colour in both
+#                    themes, so freezing them changes nothing. `bg-scrim/60` is
+#                    a backdrop that SHOULD stay dark; `bg-success-600/90` is a
+#                    hover step on a fill. Both are fine and both stay.
+#
+#   REMAPPED tokens — ink-*, surface-*, line, the -fg set, the tints — do flip,
+#                    and an alpha on one silently opts that site out of dark
+#                    mode. `ring-ink-900/5` measured 1.0:1 against the dark card
+#                    it sat on: eight dropdown edges that simply did not exist.
+#
+# The banned list is READ OUT OF THE STYLESHEET rather than restated here, so
+# adding a token to the dark mapping automatically extends this guard and there
+# is no second list to keep in sync. There is deliberately no allowlist: at the
+# time of writing every remaining alpha-on-token use in app/views is on a pinned
+# token, so the rule holds with no exceptions to explain.
+class NoBakedAlphaOnThemedTokensTest < ActiveSupport::TestCase
+  CSS_PATH = Rails.root.join("app/assets/tailwind/application.css")
+
+  # Every --color-* the dark mapping redefines, i.e. exactly the tokens whose
+  # value is theme-dependent and therefore cannot survive being baked.
+  def remapped_tokens
+    css = File.read(CSS_PATH)
+    start = css.index('[data-theme="dark"] {')
+    raise "could not find the dark mapping block" unless start
+
+    body = css[(css.index("{", start) + 1)...css.index("}", start)]
+    body.scan(/(--color-[\w-]+)\s*:/).flatten.map { |t| t.delete_prefix("--color-") }
+  end
+
+  COLOUR_UTILITY =
+    /(?:bg|text|ring|border|divide|outline|from|via|to|fill|stroke|placeholder|decoration|accent|caret|shadow)/
+
+  def offence_pattern(tokens)
+    # Longest first so `danger-line-strong` is tried before `danger-line`.
+    names = Regexp.union(tokens.sort_by { |t| -t.length })
+    /(?:^|[\s"'])(?:[a-z-]+:)*#{COLOUR_UTILITY}-#{names}\/\d+/
+  end
+
+  test "no view bakes an opacity modifier into a token that dark mode remaps" do
+    tokens = remapped_tokens
+    assert tokens.any?, "expected to read the dark mapping out of application.css"
+
+    pattern = offence_pattern(tokens)
+    offenders = []
+
+    Dir.glob(Rails.root.join("app/views/**/*.erb")).sort.each do |path|
+      rel = path.sub("#{Rails.root}/", "")
+      File.readlines(path).each_with_index do |line, i|
+        offenders << "#{rel}:#{i + 1}  #{line.strip[0, 110]}" if line.match?(pattern)
+      end
+    end
+
+    assert_empty offenders, <<~MSG
+      An opacity modifier is applied to a token that dark mode redefines.
+
+      Tailwind bakes `token/NN` into a literal at build time, so that site is
+      frozen at its LIGHT value and cannot respond to the dark override — the
+      exact failure that left the dropdown hairlines at 1.0:1 and the error-box
+      borders at 1.2:1 on dark surfaces.
+
+      Promote it to a real token pair instead: give it a light value equal to
+      today's composite (so light mode does not move) and a dark value measured
+      against the surface it actually sits on. See --color-hairline /
+      --color-danger-line in application.css for the shape.
+
+      An alpha on a PINNED token (scrim, brand-600/danger-600/success-600) is
+      fine and is not flagged — those mean the same colour in both themes.
+
+      #{offenders.join("\n  ")}
+    MSG
+  end
+
+  # A guard that cannot fail is decoration — prove both directions.
+  test "the guard flags remapped tokens and leaves pinned ones alone" do
+    pattern = offence_pattern(remapped_tokens)
+
+    should_flag = [
+      %{<div class="ring-1 ring-ink-900/5">},              # the 8 dropdown hairlines
+      %{<div class="border border-danger-600/25">}.sub("danger-600", "danger-line"),
+      %{<div class="bg-surface-0/50">},
+      %{<div class="hover:border-line/40">},               # prefixed variant
+      %{<span class='text-ink-500/70'>}                    # single-quoted
+    ]
+    should_flag.each do |snippet|
+      assert_match pattern, snippet, "guard FAILED TO FLAG: #{snippet}"
+    end
+
+    should_pass = [
+      %{<div class="bg-scrim/60">},                        # always-dark backdrop
+      %{<div class="bg-scrim/30 hover:bg-scrim/50">},
+      %{<button class="bg-danger-600 hover:bg-danger-600/90 text-white">},  # fill hover step
+      %{<div class="bg-success-600/90 text-white">},
+      %{<a class="hover:bg-white/10 ring-white/10">},      # translucent white — out of scope
+      %{<div class="ring-1 ring-hairline border border-danger-line">}       # the promoted form
+    ]
+    should_pass.each do |snippet|
+      refute_match pattern, snippet, "guard WRONGLY FLAGGED: #{snippet}"
+    end
+  end
+
+  # The promoted tokens must actually BE in the dark mapping — a light-only
+  # token would look promoted and behave exactly like the baked literal it
+  # replaced, which is the failure mode this whole commit exists to remove.
+  test "the promoted boundary tokens are themed, not merely renamed" do
+    tokens = remapped_tokens
+
+    %w[hairline danger-line danger-line-strong].each do |name|
+      assert_includes tokens, name,
+                      "--color-#{name} replaced a baked opacity modifier, so it MUST be " \
+                      "remapped in dark mode — otherwise it is the same frozen literal " \
+                      "under a nicer name"
+    end
   end
 end

@@ -87,7 +87,7 @@
 
           <% if member != current_user %>
             <% if @board.owner?(current_user) %>
-              <%= button_to "Remove", board_board_user_path(@board, membership), method: :delete, class: "text-danger-fg-muted text-xs hover:text-danger-fg border border-danger-600/25 hover:bg-danger-50 px-3 py-1 rounded transition" %>
+              <%= button_to "Remove", board_board_user_path(@board, membership), method: :delete, class: "text-danger-fg-muted text-xs hover:text-danger-fg border border-danger-line hover:bg-danger-50 px-3 py-1 rounded transition" %>
             <% end %>
           <% else %>
              <span class="text-xs text-ink-300 italic px-3 py-1">Owner</span>

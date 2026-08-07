@@ -65,11 +65,65 @@
      rounding step of at most 3/255 per channel — sub-perceptual, but not
      byte-identical, and worth knowing when diffing screenshots).
 
-     The remaining alpha-on-token utilities are left alone ON PURPOSE — see the
-     dark-mode block at the bottom for which ones degrade and why each is
-     acceptable. If you add a new one, ask first whether it needs to flip. */
+     THE RULE, now enforced by NoBakedAlphaOnThemedTokensTest rather than left
+     to judgement: an opacity modifier is fine on a token that is PINNED across
+     themes, and wrong on a token that is REMAPPED. `bg-scrim/60` is fine —
+     scrim is the same colour in both themes, so freezing it changes nothing.
+     `bg-success-600/90` and `bg-danger-600/90` are fine — those are fills, also
+     pinned, and the alpha is just a hover step. `ring-ink-900/5` was NOT fine,
+     because ink-900 flips to near-white and the frozen literal cannot follow.
+     The guard derives that list from this file, so it cannot drift.
+
+     BOUNDARIES PROMOTED OUT OF ALPHA. Note these three keep an ALPHA CHANNEL,
+     in 8-digit hex, and that is the whole trick — read this before "tidying"
+     them into solids:
+
+       Translucency was never the problem. The problem is that a MODIFIER
+       (`ring-ink-900/5`) is resolved by Tailwind at build time into a literal
+       with no var() left in it, so the theme override cannot reach it. A token
+       whose VALUE happens to be translucent is still emitted as
+       `var(--color-hairline)` and flips exactly like any other token.
+
+       Keeping the alpha is not just convenient, it is required for
+       correctness. A ring is painted OUTSIDE the border box, so what sits
+       behind it is not the panel — it is whatever the page is showing there:
+       the board wallpaper, the golden canvas, another card. A solid was tried
+       first and measured: over board 6's wallpaper the edge pixel went from
+       #A66925 (a 5% darkening, invisible, which is the intent) to #D1B494, a
+       visibly pale line — 414 changed pixels at a peak delta of 207/255 in
+       LIGHT mode, on a commit that is not allowed to change light mode. An
+       alpha adapts to its backdrop; a solid can only match one of them.
+
+       So each light value is the alpha it replaces, byte for byte, and light
+       mode does not move. Dark flips both the hue and the direction: the
+       hairline stops darkening its backdrop and starts lightening it, which is
+       the only thing that reads on a dark surface.
+
+     Contrast is measured against the surface each one actually sits on; 3:1 is
+     the bar for a non-text UI boundary, and the hairline is deliberately NOT
+     held to it — a panel edge at 3:1 would be a drawn border, not a hairline.
+     It only has to stop being invisible.
+
+       hairline           was `ring-ink-900/5`, on 8 dropdown/popover/panel
+                          edges. Dark mode composited it to #241D18 on #241D18
+                          — 1.0:1, an edge that did not exist, so floating
+                          menus had no boundary against the page behind them.
+
+       danger-line        was `border-danger-600/25`, on 6 error boxes and
+                          destructive hover states. 1.20:1 on the dark danger
+                          tint: a red warning box whose red border was gone.
+
+       danger-line-strong was `border-danger-600/40`, the 2px "Danger zone"
+                          edge on account settings and the Devise account page.
+                          1.34:1 in dark. It keeps its own token rather than
+                          folding into danger-line because it is a heavier
+                          boundary at a different alpha, and collapsing the two
+                          would visibly lighten a 2px border in light mode. */
   --color-danger-fg-muted: #C74949; /* == danger-600/80 over surface-0      */
   --color-surface-muted:   #FDFBF9; /* == surface-50/50 over surface-0      */
+  --color-hairline:           #2A211C0D; /* == ink-900/5     — 5% espresso  */
+  --color-danger-line:        #B91C1C40; /* == danger-600/25 — 25% crimson  */
+  --color-danger-line-strong: #B91C1C66; /* == danger-600/40 — 40% crimson  */
 
   /* Espresso & warm neutrals — the volume. */
   --color-ink-900:   #2A211C;  /* strongest text (NOT nav bg — see nav-bg) */
@@ -294,6 +348,17 @@
                                       role, so unlike the others it lightens in
                                       place with no split needed. */
 
+  /* Boundaries that used to be baked opacity modifiers. Still translucent —
+     see the long note in @theme for why that is required and not laziness.
+     The hairline REVERSES DIRECTION here: espresso-at-5% darkened its backdrop,
+     which is invisible on a dark page, so dark mode uses white-at-12% and
+     lightens it instead. Because all three keep an alpha they stay correct over
+     any backdrop, including the board wallpaper a popover can open on top of.
+     Composites below are against the surface each one actually sits on. */
+  --dark-hairline:           #FFFFFF1F;  /* white 12% — 1.44:1 on surface-0; line is 1.28:1 */
+  --dark-danger-line:        #F0918BA6;  /* 3.70:1 on danger-50, 3.84:1 on surface-0 */
+  --dark-danger-line-strong: #F0918BB3;  /* 4.23:1 on surface-0 — the heavier 2px edge */
+
   /* Tints — the soft fills those foregrounds sit on. Inverted from washes into
      shadows, same hue. */
   --dark-brand-100:   #3A211A;
@@ -354,6 +419,9 @@
   --color-danger-50: var(--dark-danger-50);
   --color-warn-100: var(--dark-warn-100);
   --color-success-100: var(--dark-success-100);
+  --color-hairline: var(--dark-hairline);
+  --color-danger-line: var(--dark-danger-line);
+  --color-danger-line-strong: var(--dark-danger-line-strong);
 }
 
 /* Match system — identical mapping, gated on the OS preference. Keep in lockstep
@@ -382,6 +450,9 @@
     --color-danger-50: var(--dark-danger-50);
     --color-warn-100: var(--dark-warn-100);
     --color-success-100: var(--dark-success-100);
+    --color-hairline: var(--dark-hairline);
+    --color-danger-line: var(--dark-danger-line);
+    --color-danger-line-strong: var(--dark-danger-line-strong);
   }
 }
 

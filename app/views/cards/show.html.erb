@@ -353,7 +353,7 @@
                 row; the global flash partial ends up behind the modal
                 because of z-index stacking). %>
             <% if flash.now[:alert].present? %>
-              <div class="ml-9 bg-danger-50 border border-danger-600/25 text-danger-fg text-sm px-3 py-2 rounded flex items-start gap-2"
+              <div class="ml-9 bg-danger-50 border border-danger-line text-danger-fg text-sm px-3 py-2 rounded flex items-start gap-2"
                    data-controller="flash"
                    data-flash-timeout-value="6000">
                 <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0"></i>

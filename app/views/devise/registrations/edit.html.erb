@@ -60,7 +60,7 @@
       <% end %>
     </div>
 
-    <div class="bg-surface-0 rounded-lg shadow-sm border-2 border-danger-600/40 p-6 mt-6">
+    <div class="bg-surface-0 rounded-lg shadow-sm border-2 border-danger-line-strong p-6 mt-6">
       <h2 class="text-sm font-bold text-danger-fg uppercase tracking-wide mb-1">Cancel my account</h2>
       <p class="text-sm text-ink-500 mb-4">
         This permanently deletes your account right away. If you'd rather keep your comment
@@ -70,7 +70,7 @@
       <%= button_to "Cancel my account", registration_path(resource_name),
           method: :delete,
           form: { data: { turbo_confirm: "Are you sure? This immediately and permanently deletes your account — it cannot be undone." } },
-          class: "bg-surface-0 border border-danger-600/40 hover:bg-danger-50 text-danger-fg text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors" %>
+          class: "bg-surface-0 border border-danger-line-strong hover:bg-danger-50 text-danger-fg text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors" %>
     </div>
   </div>
 </div>
