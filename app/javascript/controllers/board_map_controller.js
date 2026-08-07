@@ -1,14 +1,102 @@
 import { Controller } from "@hotwired/stimulus"
 
+// Mapbox GL JS — loaded lazily, from HERE rather than the layout <head>,
+// because only two views (boards/map, planner/map) ever mount this
+// controller, and the old layout-level <script>/<link> shipped 1.4MB of
+// parser-blocking JS to every board, card modal, and settings page that
+// never touches a map.
+//
+// A per-view `content_for :head` was considered and rejected: the layout
+// would then differ between a map page and a non-map page, and a HEAD
+// difference is exactly what makes Turbo Drive give up on a soft visit and
+// fall back to a full page reload on every navigation to or from a map
+// page — trading 1.4MB-on-every-page for a full reload on the pages that
+// matter most for this feature.
+//
+// It's a UMD bundle at this URL, not an ES module — `await import()` would
+// not give us `mapboxgl` — so this injects a plain <script> and reads the
+// global it attaches once the browser fires `load`.
+//
+// The promise is cached at MODULE scope, not per-instance, for two
+// reasons the brief calls out specifically:
+//   - two maps on one page would otherwise both inject the script and
+//     both wait on their own fetch, doubling the download for no reason.
+//   - a Turbo visit between board and map pages does not tear down the JS
+//     module registry (that's the whole point of a soft visit), so this
+//     variable — and, once resolved, `window.mapboxgl` itself — survives
+//     board → map → board → map navigation, and only the FIRST visit to a
+//     map page ever pays for the fetch.
+const MAPBOX_JS_URL  = "https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"
+const MAPBOX_CSS_URL = "https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css"
+
+let mapboxLoadPromise = null
+
+function loadMapboxGl() {
+  // Already loaded (a previous mount on this document, or a Turbo revisit
+  // that kept the module registry alive) — nothing to inject or wait on.
+  if (window.mapboxgl) return Promise.resolve(window.mapboxgl)
+  if (mapboxLoadPromise) return mapboxLoadPromise
+
+  mapboxLoadPromise = Promise.all([loadStylesheet(), loadScript()]).then(() => {
+    if (!window.mapboxgl) throw new Error("mapboxgl is undefined after the Mapbox script loaded.")
+    return window.mapboxgl
+  })
+
+  return mapboxLoadPromise
+}
+
+function loadStylesheet() {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`link[href="${MAPBOX_CSS_URL}"]`)
+    if (existing) {
+      // Stylesheets fire `load` even if already cached/parsed by the time
+      // a second listener attaches, so this is safe to add unconditionally.
+      existing.addEventListener("load", resolve)
+      existing.addEventListener("error", () => reject(new Error("Failed to load Mapbox GL CSS.")))
+      return
+    }
+
+    const link = document.createElement("link")
+    link.rel = "stylesheet"
+    link.href = MAPBOX_CSS_URL
+    link.addEventListener("load", resolve)
+    link.addEventListener("error", () => reject(new Error("Failed to load Mapbox GL CSS.")))
+    document.head.appendChild(link)
+  })
+}
+
+function loadScript() {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${MAPBOX_JS_URL}"]`)
+    if (existing) {
+      existing.addEventListener("load", resolve)
+      existing.addEventListener("error", () => reject(new Error("Failed to load Mapbox GL JS.")))
+      return
+    }
+
+    const script = document.createElement("script")
+    script.src = MAPBOX_JS_URL
+    script.addEventListener("load", resolve)
+    script.addEventListener("error", () => reject(new Error("Failed to load Mapbox GL JS.")))
+    document.head.appendChild(script)
+  })
+}
+
 export default class extends Controller {
   static targets = ["container", "data"]
 
   connect() {
-    try {
-      this.initMap()
-    } catch (error) {
-      this.showError(error.message)
-    }
+    loadMapboxGl()
+      .then(() => {
+        // The controller can be torn down (Turbo navigating away) while the
+        // script is still in flight — don't touch a disconnected target.
+        if (!this.element.isConnected) return
+        this.initMap()
+      })
+      .catch((error) => {
+        if (!this.element.isConnected) return
+        this.showError(error.message)
+      })
   }
 
   showError(msg) {

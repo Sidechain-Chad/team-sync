@@ -19,18 +19,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 
     <%# Mapbox public token, read by Stimulus controllers via
-        document.querySelector('meta[name="mapbox-token"]').content %>
+        document.querySelector('meta[name="mapbox-token"]').content. The
+        Mapbox GL JS/CSS themselves are NOT loaded here — only boards/map and
+        planner/map ever render a map, so board_map_controller.js injects
+        and caches them lazily on connect rather than shipping 1.4MB of
+        parser-blocking JS to every other page. %>
     <meta name="mapbox-token" content="<%= mapbox_public_token %>">
 
     <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "flatpickr", "data-turbo-track": "reload" %>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <%# Mapbox GL JS — loaded via CDN as a UMD global (window.mapboxgl).
-        data-turbo-track keeps it from re-injecting on Turbo navigation. %>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet" data-turbo-track="reload">
-    <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js" data-turbo-track="reload"></script>
 
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
