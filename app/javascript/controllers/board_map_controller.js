@@ -162,7 +162,7 @@ export default class extends Controller {
           .addTo(this.map)
       })
 
-      // FIX: Check if bounds actually have an area (meaning the cards aren't all in the exact same spot)
+      // Check if bounds actually have an area (meaning the cards aren't all in the exact same spot)
       const ne = bounds.getNorthEast()
       const sw = bounds.getSouthWest()
       const hasArea = (ne.lng !== sw.lng) || (ne.lat !== sw.lat)
@@ -170,9 +170,19 @@ export default class extends Controller {
       if (hasArea) {
         this.map.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 0 })
       } else {
-        // All cards share the exact same location. Just center it.
-        this.map.setCenter([sw.lng, sw.lat])
-        this.map.setZoom(14)
+        // All cards share the exact same location — jumpTo sets center AND
+        // zoom in one atomic camera move. Setting them as two separate calls
+        // (setCenter then setZoom) was the actual bug: the map still sits at
+        // its constructor's zoom: 1 when setCenter runs, and at zoom 1 the
+        // world's rendered height (512 * 2^1 = 1024px) is smaller than most
+        // real map containers — Mapbox's own "no room to pan past the poles"
+        // clamp then force-recenters latitude to the equator before setZoom
+        // ever gets a chance to reach 14. Longitude survives because that
+        // clamp only applies vertically; horizontal panning just wraps.
+        // fitBounds above never hits this because it derives center and zoom
+        // for the actual bounds together, so it's never briefly at zoom 1
+        // with a container taller than the world at that zoom.
+        this.map.jumpTo({ center: [sw.lng, sw.lat], zoom: 14 })
       }
     }
 
