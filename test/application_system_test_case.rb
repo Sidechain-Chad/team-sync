@@ -1,5 +1,6 @@
 require "test_helper"
 require "warden/test/helpers"
+require_relative "support/click_diagnostics"
 
 # System tests run a real headless Chrome against a real Puma. Read this before
 # writing one — several things in this app cannot be driven the obvious way.
@@ -54,6 +55,44 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   setup    { Warden.test_mode! }
   teardown { Warden.test_reset! }
+
+  # flake-root-cause investigation only — see test/support/click_diagnostics.rb.
+  # No-op unless CLICK_DIAGNOSTICS=1.
+  setup { ClickDiagnostics.clear! if ENV["CLICK_DIAGNOSTICS"] }
+  teardown { dump_click_diagnostics if ENV["CLICK_DIAGNOSTICS"] && !passed? }
+
+  def dump_click_diagnostics
+    puts "\n=== CLICK DIAGNOSTICS: #{self.class}##{name} (FAILED) ==="
+    # evaluate_script returns string-keyed hashes (JSON-like), not symbols —
+    # note for future edits of this file, since the first version of this
+    # dump silently printed nils by digging with symbol keys.
+    ClickDiagnostics.log.each_with_index do |e, i|
+      before_log = (e[:before] || {})["log"] || []
+      after_log  = (e[:after] || {})["log"] || []
+      new_events = after_log - before_log
+      reset = (e[:after] || {})["log"] && before_log.any? && after_log.empty?
+
+      puts "-- click #{i}: #{e[:label]}"
+      puts "   stale_before=#{e[:stale_before].inspect}  stale_after=#{e[:stale_after].inspect}"
+      puts "   before: #{e[:before].inspect}"
+      puts "   after:  #{e[:after].inspect}"
+      puts "   NEW TURBO EVENTS DURING CLICK (synchronous window only): #{new_events.inspect}" if new_events.any?
+      puts "   TURBO LOG WENT FROM NON-EMPTY TO EMPTY (context/window replaced under us)" if reset
+      puts "   error raised: #{e[:error]}" if e[:error]
+    end
+
+    # A free extra look: by the time a test has failed, Capybara's own 5s
+    # poll (or whatever the failing assertion's wait was) has already fully
+    # elapsed, at zero timing cost added by us. If the page is still alive,
+    # this shows whether the missing Turbo event(s) ever showed up late.
+    begin
+      final = Capybara.current_session.evaluate_script(ClickDiagnostics::SNAPSHOT_JS)
+      puts "-- final state at failure time (no delay added): #{final.inspect}"
+    rescue StandardError => e
+      puts "-- final state unavailable: #{e.message}"
+    end
+    puts "=== end click diagnostics ===\n"
+  end
 
   # Establish a signed-in session WITHOUT driving the login form.
   #

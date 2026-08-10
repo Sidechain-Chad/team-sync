@@ -53,11 +53,24 @@ class ThemeTransitionTest < ApplicationSystemTestCase
 
   private
 
+  # requestSubmit, not click_button/click_on — a plain click on this exact
+  # form's submit input is a documented flake (see
+  # ApplicationSystemTestCase's own comment on sign_in_as, and the dropdown/
+  # sortablejs feedback memory: "even the Devise sign-in form's
+  # input[type=submit]... no error, no console error, but the server log
+  # showed no POST request at all"). Caught it directly here too, during the
+  # flake-root-cause investigation: the click landed on a live, non-stale
+  # input, yet not one Turbo event fired and the page never navigated.
+  # requestSubmit() is a real browser-level form submission, not a Warden
+  # bypass — this test still needs the actual sign-in round trip to see the
+  # real post-redirect theme behavior, it just doesn't need to go through the
+  # one click this codebase already knows is unreliable on this form.
   def sign_in_and_land(user)
     visit new_user_session_path
     fill_in "Email", with: user.email
     fill_in "Password", with: "password"
-    click_button "Sign in"
+    submit = find("input[type=submit]")
+    page.evaluate_script("arguments[0].closest('form').requestSubmit(arguments[0])", submit)
     assert_current_path root_path
   end
 
