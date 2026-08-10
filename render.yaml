@@ -1,16 +1,56 @@
-# Render Blueprint: defines the web service + Postgres database in one file.
-# When you create a new Blueprint on Render and point it at this repo, Render
-# reads this file and provisions everything in one go.
+# Render Blueprint: defines the web service in this file. A Postgres database
+# used to be defined here too — see the commented-out `databases:` block below
+# for why that changed and what it means for the Render dashboard.
 #
-# Heads-up on the free Postgres plan: it expires 30 days after creation. Fine
-# for first deploys and sharing with one or two people, but switch to a paid
-# plan ($6/mo Basic-256mb) before that window closes if you're keeping data.
+# ---- Action Cable / live updates depend on Postgres LISTEN/NOTIFY ---------
+# Production uses `adapter: postgresql` for Action Cable (see config/cable.yml
+# — unchanged, not this file's concern). That adapter is built on Postgres's
+# LISTEN/NOTIFY, which needs a real, non-pooled backend connection to hold
+# open. Some managed/serverless Postgres providers (notably connection
+# poolers like PgBouncer in transaction-pooling mode, which several free
+# tiers default to) do NOT support LISTEN/NOTIFY over the pooled connection
+# string they hand you.
+#
+# If LISTEN/NOTIFY isn't available: EVERYTHING ELSE WORKS. Pages render,
+# forms submit, boards load — but nothing broadcasts. No live badge updates,
+# no card tiles appearing for other viewers, no board sync between two open
+# tabs. There is NO ERROR anywhere — this fails silently, exactly like the
+# health check gap this deploy fixes, so it has to be checked by hand rather
+# than assumed. See docs/deploy.md for the concrete verification step (two
+# browsers, one board, does a change in one appear in the other).
+#
+# If your chosen provider's pooled connection doesn't support it, in order of
+# preference:
+#   1. A SEPARATE, direct (non-pooled) connection string just for cable, if
+#      your provider offers one alongside the pooled one.
+#   2. Solid Cable (solid_cable gem) — swaps the Postgres LISTEN/NOTIFY
+#      adapter for a DB-table-backed one; works over a pooled connection
+#      since it polls rather than holding a session open. Real work: a new
+#      config/cable.yml adapter and a migration, not a config toggle.
+#   3. A free Redis tier (Upstash, Render's own) — the traditional Action
+#      Cable adapter, and the best-supported path if you'd rather not run
+#      Solid Cable.
 
-databases:
-  - name: team-sync-db
-    plan: free
-    databaseName: team_sync_production
-    user: team_sync
+# ---- Postgres database — COMMENTED OUT, superseded by an external Postgres.
+#
+# The free plan below expires 30 days after creation, which is what broke
+# db:migrate in bin/render-build.sh (set -o errexit then failed the whole
+# build) — the actual cause of the 23 failed deploys this fixes alongside the
+# health check. The plan going forward is a free EXTERNAL Postgres (Neon or
+# Supabase) instead, set by hand as DATABASE_URL on the web service below.
+#
+# NOT deleted outright: this blueprint previously provisioned a real
+# `team-sync-db` instance in the Render dashboard, and removing a database
+# block from a synced blueprint may have consequences there (detaching vs.
+# deleting the actual data/instance) that aren't safe to guess at from here.
+# That's a call for whoever runs the dashboard sync, not something to
+# resolve by silently deleting this block.
+#
+# databases:
+#   - name: team-sync-db
+#     plan: free
+#     databaseName: team_sync_production
+#     user: team_sync
 
 services:
   - type: web
@@ -20,16 +60,33 @@ services:
     region: oregon          # change if you want a closer region
     buildCommand: ./bin/render-build.sh
     startCommand: bundle exec puma -C config/puma.rb
-    healthCheckPath: /up
+    # /up (Rails' default) only proves the process booted — it never touches
+    # the database, which is exactly how 23 consecutive deploys reported
+    # healthy while every page 500'd. /healthz runs a real `SELECT 1` and
+    # returns 503 on failure. See HealthController.
+    healthCheckPath: /healthz
     envVars:
+      # Was `fromDatabase: {name: team-sync-db, property: connectionString}`,
+      # pointing at the `databases:` block above. That block is commented out
+      # (see the note there) — the plan is a free EXTERNAL Postgres (Neon or
+      # Supabase) instead, so this has to be set by hand in the dashboard to
+      # that provider's connection string. `sync: false` just means "Render
+      # doesn't manage this value"; it still must be set before deploying.
       - key: DATABASE_URL
-        fromDatabase:
-          name: team-sync-db
-          property: connectionString
+        sync: false        # set manually in the Render dashboard — external Postgres connection string
       - key: RAILS_MASTER_KEY
         sync: false        # set manually in the Render dashboard
       - key: CLOUDINARY_URL
         sync: false        # set manually in the Render dashboard
+      # Public Mapbox token — read by MapsHelper#mapbox_public_token. Was
+      # missing entirely from this file, so every map view rendered its error
+      # card on a fresh deploy. Public/client-side by design (it's a Mapbox
+      # PUBLIC token, meant to ship to the browser), but still `sync: false`
+      # rather than a literal value: it's an account-specific credential, not
+      # something to commit even though it isn't secret in the same way
+      # RAILS_MASTER_KEY is.
+      - key: MAPBOX_PUBLIC_TOKEN
+        sync: false        # set manually in the Render dashboard — public Mapbox token
       - key: RAILS_ENV
         value: production
       - key: RAILS_SERVE_STATIC_FILES
@@ -66,9 +123,39 @@ services:
       - key: SMTP_DOMAIN
         sync: false        # optional, defaults to APP_HOST
 
-  # Solid Queue supervisor. Without this service nothing processes jobs in
-  # production: config/recurring.yml schedules due_soon_scan hourly, but a
-  # schedule with no worker running is dead code.
+  # ---- Solid Queue worker — COMMENTED OUT, DO NOT UNCOMMENT WITHOUT READING
+  # THIS. `plan: starter` below is a PAID Render instance — syncing this
+  # blueprint with the block active risks provisioning and billing it, and
+  # the user has explicitly declined to pay for it right now.
+  #
+  # What this costs disabled: DueSoonScanJob (config/recurring.yml's hourly
+  # `due_soon_scan`) never runs in production. Due-date reminder
+  # notifications simply don't fire. Nothing else depends on this worker —
+  # every other feature in the app works without it. This is the known,
+  # accepted trade for staying on free-tier-only hosting.
+  #
+  # To re-enable: uncomment this entire block (every line below to the end of
+  # the file), confirm you want to pay for a Starter-plan background worker,
+  # then sync the blueprint.
+  #
+  # - type: worker
+  #   name: team-sync-worker
+  #   runtime: ruby
+  #   plan: starter           # background workers are NOT available on Render's free tier
+  #   region: oregon          # must match the web service and the database
+  #   buildCommand: ./bin/render-build.sh
+  #   startCommand: bundle exec ./bin/jobs
+  #   envVars:
+  #     - key: DATABASE_URL
+  #       sync: false        # set manually — same external Postgres connection string as the web service
+  #     - key: RAILS_MASTER_KEY
+  #       sync: false        # set manually in the Render dashboard
+  #     - key: CLOUDINARY_URL
+  #       sync: false        # set manually in the Render dashboard
+  #     - key: RAILS_ENV
+  #       value: production
+  #     - key: RAILS_LOG_TO_STDOUT
+  #       value: "true"
   #
   # `bundle exec ./bin/jobs` is the gem's own documented entry point (README:
   # "you are ready to start processing jobs by running bin/jobs"). It's a Thor
@@ -85,23 +172,3 @@ services:
   # so whichever service arrives second waits rather than racing. Reusing it
   # also guarantees the worker has a precompiled asset manifest, which matters
   # because the worker renders partials when broadcasting Turbo streams.
-  - type: worker
-    name: team-sync-worker
-    runtime: ruby
-    plan: starter           # background workers are NOT available on Render's free tier
-    region: oregon          # must match the web service and the database
-    buildCommand: ./bin/render-build.sh
-    startCommand: bundle exec ./bin/jobs
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: team-sync-db
-          property: connectionString
-      - key: RAILS_MASTER_KEY
-        sync: false        # set manually in the Render dashboard
-      - key: CLOUDINARY_URL
-        sync: false        # set manually in the Render dashboard
-      - key: RAILS_ENV
-        value: production
-      - key: RAILS_LOG_TO_STDOUT
-        value: "true"

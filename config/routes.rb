@@ -39,6 +39,11 @@ Rails.application.routes.draw do
   # 3. Health check (Standard Rails 7.1+)
   get "up" => "rails/health#show", as: :rails_health_check
 
+  # Database-backed health check for Render's healthCheckPath — /up above
+  # never touches the database, which is why it stayed green through 23
+  # deploys that all 500'd. See HealthController.
+  get "healthz" => "health#show", as: :health_check
+
   # --- APP RESOURCES ---
 
   resources :boards do
