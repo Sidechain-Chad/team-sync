@@ -1,0 +1,28 @@
+<%# Shared help-centre chrome — sidebar of every article by category, content
+    in the main column. Deliberately plainer than the rest of the app: this
+    should read as product documentation, not a board page. Signed-in users
+    still see the normal top nav above this (rendered by the layout); signed
+    out, this is the whole page, which is the point of a public help centre. %>
+<div class="canvas-golden min-h-screen">
+  <div class="max-w-6xl mx-auto px-4 py-10">
+    <div class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-2">
+        <i class="fa-regular fa-circle-question text-brand-fg text-xl" aria-hidden="true"></i>
+        <h1 class="font-display text-2xl font-bold text-ink-700">Help centre</h1>
+      </div>
+
+      <%= link_to (user_signed_in? ? boards_path : new_user_session_path),
+          class: "text-sm font-medium text-ink-500 hover:text-ink-900 hover:bg-surface-200 rounded-md px-3 py-2 transition-colors" do %>
+        <%= user_signed_in? ? "Back to boards" : "Sign in" %>
+      <% end %>
+    </div>
+
+    <div class="lg:flex lg:gap-10">
+      <%= render "help/sidebar", articles_by_category: articles_by_category, active_slug: local_assigns[:active_slug] %>
+
+      <div class="flex-1 min-w-0 bg-surface-0 rounded-lg border border-line shadow-sm p-8">
+        <%= yield %>
+      </div>
+    </div>
+  </div>
+</div>

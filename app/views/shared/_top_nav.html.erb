@@ -128,7 +128,8 @@
     </div>
   </div>
 
-  <%# Help — placeholder. Two stub items so the menu doesn't look empty.
+  <%# Help — "Help center" links to the real /help help centre (HelpController).
+      "Send feedback" is still a stub; no destination exists for it yet.
       Hidden below `sm` for the same overflow reason as Notifications above. %>
   <div class="relative hidden sm:block"
        data-controller="dropdown"
@@ -151,10 +152,10 @@
         <h3 class="text-sm font-semibold">Help</h3>
       </div>
       <div class="py-1">
-        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors">
+        <%= link_to help_index_path, class: "flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors" do %>
           <i class="fa-regular fa-circle-question text-ink-500 w-4 text-center" aria-hidden="true"></i>
           <span>Help center</span>
-        </a>
+        <% end %>
         <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors">
           <i class="fa-regular fa-paper-plane text-ink-500 w-4 text-center" aria-hidden="true"></i>
           <span>Send feedback</span>
