@@ -1,22 +1,110 @@
 import { Controller } from "@hotwired/stimulus"
 
+// Mapbox GL JS — loaded lazily, from HERE rather than the layout <head>,
+// because only two views (boards/map, planner/map) ever mount this
+// controller, and the old layout-level <script>/<link> shipped 1.4MB of
+// parser-blocking JS to every board, card modal, and settings page that
+// never touches a map.
+//
+// A per-view `content_for :head` was considered and rejected: the layout
+// would then differ between a map page and a non-map page, and a HEAD
+// difference is exactly what makes Turbo Drive give up on a soft visit and
+// fall back to a full page reload on every navigation to or from a map
+// page — trading 1.4MB-on-every-page for a full reload on the pages that
+// matter most for this feature.
+//
+// It's a UMD bundle at this URL, not an ES module — `await import()` would
+// not give us `mapboxgl` — so this injects a plain <script> and reads the
+// global it attaches once the browser fires `load`.
+//
+// The promise is cached at MODULE scope, not per-instance, for two
+// reasons the brief calls out specifically:
+//   - two maps on one page would otherwise both inject the script and
+//     both wait on their own fetch, doubling the download for no reason.
+//   - a Turbo visit between board and map pages does not tear down the JS
+//     module registry (that's the whole point of a soft visit), so this
+//     variable — and, once resolved, `window.mapboxgl` itself — survives
+//     board → map → board → map navigation, and only the FIRST visit to a
+//     map page ever pays for the fetch.
+const MAPBOX_JS_URL  = "https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"
+const MAPBOX_CSS_URL = "https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css"
+
+let mapboxLoadPromise = null
+
+function loadMapboxGl() {
+  // Already loaded (a previous mount on this document, or a Turbo revisit
+  // that kept the module registry alive) — nothing to inject or wait on.
+  if (window.mapboxgl) return Promise.resolve(window.mapboxgl)
+  if (mapboxLoadPromise) return mapboxLoadPromise
+
+  mapboxLoadPromise = Promise.all([loadStylesheet(), loadScript()]).then(() => {
+    if (!window.mapboxgl) throw new Error("mapboxgl is undefined after the Mapbox script loaded.")
+    return window.mapboxgl
+  })
+
+  return mapboxLoadPromise
+}
+
+function loadStylesheet() {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`link[href="${MAPBOX_CSS_URL}"]`)
+    if (existing) {
+      // Stylesheets fire `load` even if already cached/parsed by the time
+      // a second listener attaches, so this is safe to add unconditionally.
+      existing.addEventListener("load", resolve)
+      existing.addEventListener("error", () => reject(new Error("Failed to load Mapbox GL CSS.")))
+      return
+    }
+
+    const link = document.createElement("link")
+    link.rel = "stylesheet"
+    link.href = MAPBOX_CSS_URL
+    link.addEventListener("load", resolve)
+    link.addEventListener("error", () => reject(new Error("Failed to load Mapbox GL CSS.")))
+    document.head.appendChild(link)
+  })
+}
+
+function loadScript() {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${MAPBOX_JS_URL}"]`)
+    if (existing) {
+      existing.addEventListener("load", resolve)
+      existing.addEventListener("error", () => reject(new Error("Failed to load Mapbox GL JS.")))
+      return
+    }
+
+    const script = document.createElement("script")
+    script.src = MAPBOX_JS_URL
+    script.addEventListener("load", resolve)
+    script.addEventListener("error", () => reject(new Error("Failed to load Mapbox GL JS.")))
+    document.head.appendChild(script)
+  })
+}
+
 export default class extends Controller {
   static targets = ["container", "data"]
 
   connect() {
-    try {
-      this.initMap()
-    } catch (error) {
-      this.showError(error.message)
-    }
+    loadMapboxGl()
+      .then(() => {
+        // The controller can be torn down (Turbo navigating away) while the
+        // script is still in flight — don't touch a disconnected target.
+        if (!this.element.isConnected) return
+        this.initMap()
+      })
+      .catch((error) => {
+        if (!this.element.isConnected) return
+        this.showError(error.message)
+      })
   }
 
   showError(msg) {
     this.containerTarget.innerHTML = `
-      <div class="h-full flex flex-col items-center justify-center text-danger-600 gap-2 p-8 bg-white absolute inset-0 z-50">
-        <i class="fa-solid fa-circle-xmark text-3xl"></i>
+      <div class="h-full flex flex-col items-center justify-center text-danger-fg gap-2 p-8 bg-surface-0 absolute inset-0 z-50">
+        <i class="fa-solid fa-circle-xmark text-3xl" aria-hidden="true"></i>
         <p class="text-sm font-bold">Map failed to load.</p>
-        <code class="text-xs bg-danger-50 p-2 rounded border border-danger-600/25 text-center max-w-md">${msg}</code>
+        <code class="text-xs bg-danger-50 border border-danger-line text-danger-fg p-2 rounded text-center max-w-md">${this.escape(msg)}</code>
       </div>
     `
   }
@@ -74,7 +162,7 @@ export default class extends Controller {
           .addTo(this.map)
       })
 
-      // FIX: Check if bounds actually have an area (meaning the cards aren't all in the exact same spot)
+      // Check if bounds actually have an area (meaning the cards aren't all in the exact same spot)
       const ne = bounds.getNorthEast()
       const sw = bounds.getSouthWest()
       const hasArea = (ne.lng !== sw.lng) || (ne.lat !== sw.lat)
@@ -82,9 +170,19 @@ export default class extends Controller {
       if (hasArea) {
         this.map.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 0 })
       } else {
-        // All cards share the exact same location. Just center it.
-        this.map.setCenter([sw.lng, sw.lat])
-        this.map.setZoom(14)
+        // All cards share the exact same location — jumpTo sets center AND
+        // zoom in one atomic camera move. Setting them as two separate calls
+        // (setCenter then setZoom) was the actual bug: the map still sits at
+        // its constructor's zoom: 1 when setCenter runs, and at zoom 1 the
+        // world's rendered height (512 * 2^1 = 1024px) is smaller than most
+        // real map containers — Mapbox's own "no room to pan past the poles"
+        // clamp then force-recenters latitude to the equator before setZoom
+        // ever gets a chance to reach 14. Longitude survives because that
+        // clamp only applies vertically; horizontal panning just wraps.
+        // fitBounds above never hits this because it derives center and zoom
+        // for the actual bounds together, so it's never briefly at zoom 1
+        // with a container taller than the world at that zoom.
+        this.map.jumpTo({ center: [sw.lng, sw.lat], zoom: 14 })
       }
     }
 

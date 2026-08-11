@@ -19,7 +19,9 @@ class Notification < ApplicationRecord
     "removed_from_card" => { title: "You're removed from a card", description: "Someone removes you as a member from a card" },
     "due_soon"          => { title: "Due dates",                  description: "When a card you're on is coming due" },
     "moved"             => { title: "Cards moved",                description: "Cards you're watching are moved between lists" },
-    "archived"          => { title: "Cards archived",             description: "Cards you're watching are archived" }
+    "archived"          => { title: "Cards archived",             description: "Cards you're watching are archived" },
+    "attachment_added"  => { title: "Attachments added",          description: "Attachments are added to cards you're watching" },
+    "cards_created"     => { title: "Cards created",              description: "Cards are added to boards you're watching" }
   }.freeze
 
   scope :unread, -> { where(read_at: nil) }
@@ -97,6 +99,8 @@ class Notification < ApplicationRecord
     when "due_soon"          then "is due soon"
     when "moved"             then "moved this card"
     when "archived"          then "archived this card"
+    when "attachment_added"  then "added an attachment to this card"
+    when "cards_created"     then "added a card to this board"
     else "sent you a notification"
     end
   end

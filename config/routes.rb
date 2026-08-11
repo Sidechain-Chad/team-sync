@@ -39,6 +39,11 @@ Rails.application.routes.draw do
   # 3. Health check (Standard Rails 7.1+)
   get "up" => "rails/health#show", as: :rails_health_check
 
+  # Database-backed health check for Render's healthCheckPath — /up above
+  # never touches the database, which is why it stayed green through 23
+  # deploys that all 500'd. See HealthController.
+  get "healthz" => "health#show", as: :health_check
+
   # --- APP RESOURCES ---
 
   resources :boards do
@@ -58,6 +63,10 @@ Rails.application.routes.draw do
       get :activity
       get :map
       patch :toggle_favorite
+      # Per-board subscription, widening Card#subscribers for every card on the
+      # board. Named like cards#toggle_watch, the closest precedent — same
+      # shape: one join row, created or destroyed.
+      patch :toggle_watch
       # Close/reopen the whole board. NOT named :archive — that member route
       # already exists above and means "show this board's archived CARDS".
       patch :close

@@ -73,14 +73,20 @@ class BoardFilterPersistenceTest < ApplicationSystemTestCase
     # The checkbox state is re-derived too, not just the card visibility — a
     # filtered board that shows no active filter is how you strand someone
     # wondering where their cards went.
-    find("button[aria-label='Filter cards']").click
+    open_filter_popover
     assert find("input[data-category='label'][value='#{@label.id}']").checked?
   end
 
   private
 
+  def open_filter_popover
+    verified_interaction("open the filter popover", effect: -> { has_selector?("[data-dropdown-target='menu']", text: "Filter cards") }) do
+      find("button[aria-label='Filter cards']").click
+    end
+  end
+
   def filter_by_label
-    find("button[aria-label='Filter cards']").click
+    open_filter_popover
     find("input[data-category='label'][value='#{@label.id}']").check
 
     # Close the popover so it can't intercept later clicks. Esc goes to
@@ -90,18 +96,23 @@ class BoardFilterPersistenceTest < ApplicationSystemTestCase
   end
 
   def add_a_card(title)
-    find("#list_#{@list.id}_new_card a", text: "Add a card").click
-
-    # The trigger frame swaps to the inline form.
-    assert_selector "#list_#{@list.id}_new_card textarea"
+    verified_interaction("open the add-card composer", effect: -> { has_selector?("#list_#{@list.id}_new_card textarea") }) do
+      find("#list_#{@list.id}_new_card a", text: "Add a card").click
+    end
 
     find("#list_#{@list.id}_new_card textarea").fill_in with: title
-    find("#list_#{@list.id}_new_card input[type='submit']").click
 
-    # cards#create's turbo_stream response renders no card (that's a broadcast),
-    # so the record is the only proof the create actually completed.
-    assert_eventually(message: "the card was never created") do
-      @list.cards.exists?(title: title)
+    # cards#create's turbo_stream response renders no card (that's a
+    # broadcast), so the record existing is the only observable proof the
+    # create actually completed — and it doubles as the effect predicate for
+    # the submit click itself, the same known-flaky class of interaction as
+    # the trigger click above. Not perfectly idempotent (a slow-but-successful
+    # first submit followed by a retry could create two cards with the same
+    # title, harmless under this suite's transactional fixtures but worth
+    # knowing) — the demonstrated failure mode is the request never firing at
+    # all, not it firing slowly, and the generous poll below favors that.
+    verified_interaction("submit the new card", effect: -> { @list.cards.exists?(title: title) }, poll: 4) do
+      find("#list_#{@list.id}_new_card input[type='submit']").click
     end
   end
 end

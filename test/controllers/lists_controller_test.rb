@@ -700,6 +700,25 @@ class ListsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # --- TRAP 3: bulk list copy must not notify cards_created ---
+  #
+  # List#copy_to calls Card#copy_to per card at the MODEL level, so
+  # CardsController#copy's cards_created trigger never reaches it — a 20-card
+  # list copy would otherwise mean 20 notifications per board watcher for one
+  # click. Same reasoning, same shape, as "archive_all_cards notifies nobody"
+  # above: this test is what pins the trigger's placement.
+  test "copy notifies nobody for cards_created, however many cards and board watchers" do
+    list, = populated_list
+    list.cards.create!(title: "Second card")
+    watcher = User.create!(email: "list-copy-watcher@example.com", password: "password")
+    @board.board_users.create!(user: watcher)
+    BoardWatcher.create!(board: @board, user: watcher)
+
+    assert_no_difference -> { Notification.where(action: "cards_created").count } do
+      post copy_list_url(list), params: { name: "Silent copy" }, as: :turbo_stream
+    end
+  end
+
   test "copying an empty list works" do
     empty = @board.lists.create!(name: "Empty")
 

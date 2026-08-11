@@ -26,7 +26,9 @@ class CardModalCloseTest < ApplicationSystemTestCase
 
     # aria-label rather than the glyph — the ✕ is a Font Awesome <i>, which has
     # no text for Capybara to match on.
-    find("a[aria-label='Close card']").click
+    verified_interaction("close the modal via the X", effect: -> { has_no_selector?("[data-modal-target='dialog']") }) do
+      find("a[aria-label='Close card']").click
+    end
 
     assert_modal_closed
   end
@@ -95,13 +97,20 @@ class CardModalCloseTest < ApplicationSystemTestCase
       "panel is #{gutter}px wide) — the modal panel may now span the full viewport, " \
       "in which case this test needs a different way to reach the backdrop"
 
-    backdrop.click(x: offset_x, y: 0)
+    verified_interaction("click the modal backdrop", effect: -> { has_no_selector?("[data-modal-target='dialog']") }) do
+      backdrop.click(x: offset_x, y: 0)
+    end
   end
 
   def open_modal
-    find("#card_#{@card.id} a[data-turbo-frame='modal']", match: :first).click
+    # Same shape as the click captured misfiring during the flake-root-cause
+    # investigation (CardCreationTest's add-card trigger): an anchor inside a
+    # turbo-frame-scoped element, opening via a frame navigation rather than a
+    # page-level Drive visit.
+    verified_interaction("open the card modal", effect: -> { has_selector?("[data-modal-target='dialog']") }) do
+      find("#card_#{@card.id} a[data-turbo-frame='modal']", match: :first).click
+    end
 
-    assert_selector "[data-modal-target='dialog']"
     assert_selector "[role='dialog'][aria-modal='true']"
   end
 

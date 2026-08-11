@@ -30,11 +30,17 @@ class CardDragTest < ApplicationSystemTestCase
 
     assert_selector "#list_#{@source.id}_cards #card_#{@card.id}"
 
-    drag_card_to @card, @target
+    # A drag isn't a click, so this isn't the click-race under investigation,
+    # but CardDrag is one of the originally affected tests and the same
+    # bounded-retry treatment applies: retry the WHOLE gesture (not a longer
+    # wait) if SortableJS's optimistic DOM move never happens. drag_card_to
+    # already drives real, trusted pointer events (Selenium's Actions API),
+    # so retrying it doesn't introduce the JS-dispatched-click problem the
+    # primitive is built to avoid.
+    verified_interaction("drag the card to the target list", effect: -> { has_selector?("#list_#{@target.id}_cards #card_#{@card.id}") }, poll: 3) do
+      drag_card_to @card, @target
+    end
 
-    # SortableJS mutates the DOM optimistically, so the card should be in the
-    # target column immediately — before, and independently of, the PATCH.
-    assert_selector "#list_#{@target.id}_cards #card_#{@card.id}"
     assert_no_selector "#list_#{@source.id}_cards #card_#{@card.id}"
 
     # cards#move answers `head :ok` and re-renders nothing, so the record is the

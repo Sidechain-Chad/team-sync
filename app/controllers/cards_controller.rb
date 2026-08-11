@@ -41,6 +41,11 @@ class CardsController < ApplicationController
 
     if @card.save
       @card.log_activity(current_user, "created", @list.name)
+      # One call site covers BOTH branches below (gap-insert and bottom-append)
+      # since it runs before they split — a card is "created" identically
+      # either way, so there's no reason for the two paths to notify
+      # separately and risk drifting apart.
+      notify_card_created(@card, @list)
 
       if requested_position.present?
         @card.insert_at(resolved_move_position(requested_position, @list))
@@ -166,6 +171,15 @@ class CardsController < ApplicationController
       end
 
       if result.success?
+        # One notification per subscriber per REQUEST, not per file: the service
+        # attaches every valid file in a single #attach call, so this guard is on
+        # whether the request added anything at all, not a loop over new_attachments.
+        if new_attachments.any?
+          @card.subscribers.each do |subscriber|
+            Notification.deliver(recipient: subscriber, actor: current_user, notifiable: @card, action: "attachment_added")
+          end
+        end
+
         # Decide what to send back. Modal-wide refresh is needed when
         # something *visible inside the modal body* changed — attachments,
         # location, or the list (the header's list-name pill and the
@@ -315,6 +329,14 @@ class CardsController < ApplicationController
       # real page with a flash, not a raw 500.
       return redirect_to @card, alert: "Couldn't copy this card: #{e.record.errors.full_messages.to_sentence}"
     end
+
+    # A copy is a new card appearing on the board — same "created" event as
+    # #create, from the board watchers' point of view. Deliberately UNLIKE list
+    # copy and board copy: those call Card#copy_to per card at the MODEL level
+    # (List#copy_to, Board#copy_to), which this controller-level trigger never
+    # reaches, so a 20-card list copy stays silent by construction rather than
+    # needing its own guard here.
+    notify_card_created(new_card, target_list)
 
     # Land on the copy, board still visible behind it (same as opening any
     # other card) — not a full-page redirect_to card_path, which leaves the
@@ -786,6 +808,19 @@ class CardsController < ApplicationController
 
     @card.subscribers.each do |subscriber|
       Notification.deliver(recipient: subscriber, actor: current_user, notifiable: @card, action: "moved")
+    end
+  end
+
+  # "Cards created" notification (cards_created). Audience is the board's
+  # WATCHERS ONLY, not `card.subscribers` (members ∪ card watchers ∪ board
+  # watchers) — a brand-new card has no members or card watchers of its own
+  # yet, and notifying every board MEMBER on every card created would be
+  # exactly the spam Trello avoids by not having this be a thing at all.
+  # Board watching is deliberately the only way in to this audience.
+  # `deliver` already skips the actor.
+  def notify_card_created(card, list)
+    list.board.watchers.each do |watcher|
+      Notification.deliver(recipient: watcher, actor: current_user, notifiable: card, action: "cards_created")
     end
   end
 

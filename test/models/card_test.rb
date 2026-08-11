@@ -283,6 +283,27 @@ class CardTest < ActiveSupport::TestCase
     assert_equal original_count, card.reload.attachments.count
   end
 
+  # Card#copy_to attaches blobs at the model level (attach(blob), never through
+  # AttachmentsController or CardsController#update), so the controller-level
+  # attachment_added trigger simply never fires here — no guard was added to
+  # copy_to for this, and none should be needed. Asserting it so the absence is
+  # deliberate, not an untested gap: a five-attachment card must not spam every
+  # subscriber on a bulk copy.
+  test "copy_to notifies nobody even when the source card has subscribers and attachments" do
+    card = cards(:one)
+    card.attachments.attach(fixture_file_upload("test.png", "image/png"), fixture_file_upload("test.txt", "text/plain"))
+    member = User.create!(email: "copy-sub-member@example.com", password: "password")
+    watcher = User.create!(email: "copy-sub-watcher@example.com", password: "password")
+    card.list.board.board_users.create!(user: member)
+    card.list.board.board_users.create!(user: watcher)
+    card.members << member
+    CardWatcher.create!(card: card, user: watcher)
+
+    assert_no_difference "Notification.count" do
+      card.copy_to(list: card.list, title: "Copy", user: users(:one))
+    end
+  end
+
   # --- start_date / due_date range validation ---
 
   test "start_date on or before due_date is valid" do
@@ -405,6 +426,48 @@ class CardTest < ActiveSupport::TestCase
 
     assert_equal [both], card.reload.subscribers
     assert_equal 1, card.subscribers.count(both), "must appear exactly once"
+  end
+
+  # --- board watching widens subscribers too ---
+
+  test "subscribers includes a board watcher who is neither a card member nor a card watcher" do
+    card = bare_card
+    board_watcher = User.create!(email: "sub-board-watcher@example.com", password: "password")
+    BoardWatcher.create!(board: card.list.board, user: board_watcher)
+
+    assert_equal [board_watcher], card.reload.subscribers
+    assert_not_includes card.members, board_watcher
+    assert_not_includes card.watchers, board_watcher
+  end
+
+  test "subscribers unions members, card watchers, and board watchers" do
+    card = bare_card
+    member = users(:one)
+    card_watcher = User.create!(email: "sub-triple-card@example.com", password: "password")
+    board_watcher = User.create!(email: "sub-triple-board@example.com", password: "password")
+    card.members << member
+    CardWatcher.create!(card: card, user: card_watcher)
+    BoardWatcher.create!(board: card.list.board, user: board_watcher)
+
+    assert_equal [member, card_watcher, board_watcher].sort_by(&:id), card.reload.subscribers.sort_by(&:id)
+  end
+
+  test "subscribers dedupes someone who is both a board watcher and a card member" do
+    card = bare_card
+    both = users(:one)
+    card.members << both
+    BoardWatcher.create!(board: card.list.board, user: both)
+
+    assert_equal [both], card.reload.subscribers
+    assert_equal 1, card.subscribers.count(both), "must appear exactly once"
+  end
+
+  test "a board watcher of a DIFFERENT board is not a subscriber" do
+    card = bare_card
+    other_board_watcher = User.create!(email: "sub-other-board@example.com", password: "password")
+    BoardWatcher.create!(board: boards(:two), user: other_board_watcher)
+
+    assert_empty card.reload.subscribers
   end
 
   test "watched_by? reflects the join row" do

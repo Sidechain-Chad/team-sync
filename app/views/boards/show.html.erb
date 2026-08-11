@@ -76,6 +76,10 @@
             <i class="fa-solid fa-box-archive text-ink-500 w-4 text-center" aria-hidden="true"></i>
             <span>Archived items</span>
           <% end %>
+
+          <%# Watch board — per-user subscription to every card's notifications
+              on this board, and to new cards being added. %>
+          <%= render "boards/watch_menu_item", board: @board %>
         </div>
 
         <%# Copy board — NOT owner-gated (matching BoardsController#copy): anyone

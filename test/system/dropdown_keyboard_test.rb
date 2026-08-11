@@ -26,9 +26,8 @@ class DropdownKeyboardTest < ApplicationSystemTestCase
   end
 
   test "Escape closes an open dropdown and returns focus to the trigger" do
-    @trigger.click
+    open_dropdown
 
-    assert_selector "[data-dropdown-target='menu']", text: "Board menu"
     assert_equal "true", @trigger[:"aria-expanded"]
 
     press_escape
@@ -39,16 +38,17 @@ class DropdownKeyboardTest < ApplicationSystemTestCase
   end
 
   test "clicking outside closes the dropdown without moving focus to the trigger" do
-    @trigger.click
-    assert_selector "[data-dropdown-target='menu']", text: "Board menu"
+    open_dropdown
 
     # A deliberately inert target: the "Automation (coming soon)" placeholder is
     # a real focusable button outside the dropdown that navigates nowhere. Using
     # it means the click cannot accidentally open a card or follow a link, and
     # focus provably lands somewhere that is NOT the trigger.
-    find("button[aria-label='Automation (coming soon)']").click
+    outside = find("button[aria-label='Automation (coming soon)']")
+    verified_interaction("click outside the open dropdown", effect: -> { has_no_selector?("[data-dropdown-target='menu']", text: "Board menu") }) do
+      outside.click
+    end
 
-    assert_no_selector "[data-dropdown-target='menu']", text: "Board menu"
     assert_equal "false", @trigger[:"aria-expanded"]
 
     # The pointer already put focus where the user clicked — pulling it back to
@@ -57,17 +57,24 @@ class DropdownKeyboardTest < ApplicationSystemTestCase
   end
 
   test "aria-expanded is not left stale after toggling closed" do
-    @trigger.click
+    open_dropdown
     assert_equal "true", @trigger[:"aria-expanded"]
 
-    @trigger.click
+    verified_interaction("re-click trigger to close the dropdown", effect: -> { has_no_selector?("[data-dropdown-target='menu']", text: "Board menu") }) do
+      @trigger.click
+    end
 
-    assert_no_selector "[data-dropdown-target='menu']", text: "Board menu"
     assert_equal "false", @trigger[:"aria-expanded"],
       "a closed menu reporting aria-expanded=true is worse than no attribute at all"
   end
 
   private
+
+  def open_dropdown
+    verified_interaction("open the board-title dropdown", effect: -> { has_selector?("[data-dropdown-target='menu']", text: "Board menu") }) do
+      @trigger.click
+    end
+  end
 
   def focused?(element)
     page.evaluate_script("document.activeElement === arguments[0]", element)
