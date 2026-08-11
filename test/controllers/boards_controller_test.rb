@@ -2,6 +2,7 @@ require "test_helper"
 
 class BoardsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   setup do
     # Real avatar/cover attaches in this file trigger Active Storage's
@@ -55,6 +56,74 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match(/turbo-stream action="replace" target="starred_section"/, response.body)
     assert_no_match "fa-star text-yellow-400", response.body
+  end
+
+  # --- #toggle_watch (board-level) ---
+
+  test "should toggle board watch via patch" do
+    assert_difference "BoardWatcher.count", 1 do
+      patch toggle_watch_board_url(@board), as: :turbo_stream
+    end
+    assert_response :success
+    assert @board.watched_by?(@user)
+
+    assert_difference "BoardWatcher.count", -1 do
+      patch toggle_watch_board_url(@board), as: :turbo_stream
+    end
+    assert_response :success
+    assert_not @board.watched_by?(@user)
+  end
+
+  test "toggle_watch response replaces only the watch menu item" do
+    patch toggle_watch_board_url(@board), as: :turbo_stream
+
+    assert_response :success
+    assert_match(/turbo-stream action="replace" target="#{ActionView::RecordIdentifier.dom_id(@board, :watch_menu_item)}"/, response.body)
+    assert_match "Stop watching", response.body
+  end
+
+  test "toggle_watch a second time renders Watch board again" do
+    patch toggle_watch_board_url(@board), as: :turbo_stream
+    patch toggle_watch_board_url(@board), as: :turbo_stream
+
+    assert_response :success
+    assert_match "Watch board", response.body
+  end
+
+  # Per-user state — same reasoning as CardsController#toggle_watch: the boards
+  # index isn't a broadcast target either, but the board's own show page IS
+  # subscribed to its Turbo stream, so this proves toggling doesn't leak there.
+  test "toggle_watch broadcasts NOTHING to the board stream" do
+    stream = Turbo::StreamsChannel.send(:stream_name_from, @board)
+
+    broadcasts = capture_broadcasts(stream) do
+      patch toggle_watch_board_url(@board), as: :turbo_stream
+    end
+
+    assert_empty broadcasts,
+                 "watching is per-user state — broadcasting it would show one user's state to every viewer"
+  end
+
+  test "toggle_watch is scoped: a user without board access cannot watch it and 404s" do
+    other = boards(:two) # owned by users(:two); @user has no access
+
+    assert_no_difference "BoardWatcher.count" do
+      patch toggle_watch_board_url(other), as: :turbo_stream
+    end
+    assert_response :not_found
+  end
+
+  test "a board member (not just the owner) can watch a board" do
+    member = User.create!(email: "board-watch-member@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    sign_out @user
+    sign_in member
+
+    assert_difference "BoardWatcher.count", 1 do
+      patch toggle_watch_board_url(@board), as: :turbo_stream
+    end
+    assert_response :success
+    assert @board.watched_by?(member)
   end
 
   test "a plain GET of the board page never carries the one-shot completion pop, even with completed cards present" do
@@ -311,7 +380,11 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     # current_user). The helper below watches a card in every list, so a
     # per-card or per-list lookup would show up as growth in the equality
     # assertion rather than hiding under this ceiling.
-    assert_operator small, :<=, 22
+    # Bumped 22 -> 23 for the board-title menu's new watch toggle
+    # (board.watched_by?(current_user) in boards/_watch_menu_item) — one
+    # fixed-cost lookup on the current user's own board_watchers row, once per
+    # page load, independent of card count.
+    assert_operator small, :<=, 23
 
     assert_equal small, large, "query count must not grow with card count (N+1 regression)"
   end
@@ -1360,6 +1433,39 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
 
     copied = Board.find_by!(name: "Watchless Copy").lists.order(:position).first.cards.first
     assert_empty copied.watchers, "a watch is a personal subscription — not copied"
+  end
+
+  # Board watchers are a personal subscription too, same reasoning as card
+  # watchers above — Board#copy_to never references board_watchers at all, so
+  # this is really asserting an absence rather than a strip step.
+  test "board watchers are not copied" do
+    board, = rich_board
+    BoardWatcher.create!(board: board, user: @user)
+    watcher = User.create!(email: "board-copy-watcher@example.com", password: "password")
+    board.board_users.create!(user: watcher)
+    BoardWatcher.create!(board: board, user: watcher)
+
+    post copy_board_url(board), params: { name: "Board Watchless Copy" }
+
+    copy = Board.find_by!(name: "Board Watchless Copy")
+    assert_empty copy.watchers, "board watching is personal — not copied"
+  end
+
+  # --- TRAP: bulk board copy must not notify cards_created ---
+  #
+  # Board#copy_to calls List#copy_to per list, which calls Card#copy_to per
+  # card, all at the MODEL level — CardsController#copy's cards_created
+  # trigger never reaches any of it. A multi-list, multi-card board copy would
+  # otherwise mean one notification per card per board watcher for one click.
+  test "board copy notifies nobody for cards_created, however many cards and board watchers" do
+    board, = rich_board
+    watcher = User.create!(email: "board-copy-cards-created-watcher@example.com", password: "password")
+    board.board_users.create!(user: watcher)
+    BoardWatcher.create!(board: board, user: watcher)
+
+    assert_no_difference -> { Notification.where(action: "cards_created").count } do
+      post copy_board_url(board), params: { name: "Silent Board Copy" }
+    end
   end
 
   test "copy creates NO per-card activities" do

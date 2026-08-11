@@ -122,22 +122,37 @@ class Card < ApplicationRecord
     latitude.present? && longitude.present?
   end
 
-  # Everyone who should hear about this card: its members plus anyone watching
-  # it. THE audience for card-level notification triggers — `comment` (see
-  # Comment's after_create_commit) and `due_soon` (DueSoonScanJob) both fan out
-  # over this rather than over `members`.
+  # Everyone who should hear about this card: its members, anyone watching the
+  # CARD, and anyone watching the card's BOARD. THE audience for card-level
+  # notification triggers — `comment` (see Comment's after_create_commit),
+  # `due_soon` (DueSoonScanJob), `moved`, `archived`, and `attachment_added`
+  # (CardsController/AttachmentsController) all fan out over this rather than
+  # over `members`. Board watching widens this method ONCE rather than each of
+  # those five call sites needing its own board-watcher lookup.
+  #
+  # FIREWALL WARNING, said plainly because it's easy to miss when reading any
+  # ONE of the five triggers in isolation: a board watcher gets notified about
+  # EVERY comment, move, archive, and attachment across EVERY card on that
+  # board. That's a firehose by design — it's what opting in to board-level
+  # watching means, and it's Trello's own behaviour — but it's a real property
+  # of a busy board, not a bug, so don't be surprised by the notification
+  # volume a single board watch can generate.
   #
   # Deliberately NOT the audience for `added_to_card` (that one is about the
-  # person being added) or `mention` (a mention reaches you whether or not you're
-  # a member or a watcher).
+  # person being added), `removed_from_card` (about the person removed), or
+  # `mention` (a mention reaches you whether or not you're a member, a card
+  # watcher, or a board watcher).
   #
-  # Deduped, so being both a member and a watcher still means exactly one
-  # notification. `|` on the loaded arrays rather than a UNION query: both
-  # associations are already preloaded everywhere this is called from
-  # (DueSoonScanJob includes both; Comment reaches it through an in-memory card),
-  # and a scope here would issue a query per card in the scan.
+  # Deduped, so being a member, a card watcher, AND a board watcher all at once
+  # still means exactly one notification. `|` on the loaded arrays rather than a
+  # UNION query: `members`/`watchers` are already preloaded everywhere this is
+  # called from in a loop (DueSoonScanJob includes both plus the board-watcher
+  # path — see its own comment), and a scope here would issue a query per card
+  # in the scan. `list.board.watchers` is NOT preloadable the same way through a
+  # plain `.to_a` call — see DueSoonScanJob's `includes` for how that path stays
+  # flat instead.
   def subscribers
-    members.to_a | watchers.to_a
+    members.to_a | watchers.to_a | list.board.watchers.to_a
   end
 
   # Mirrors Board#favorited_by? — same shape for the same kind of thing (a

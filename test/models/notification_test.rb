@@ -195,6 +195,14 @@ class NotificationTest < ActiveSupport::TestCase
     assert_equal "removed you from this card", Notification.new(action: "removed_from_card").message
   end
 
+  test "message renders added an attachment to this card" do
+    assert_equal "added an attachment to this card", Notification.new(action: "attachment_added").message
+  end
+
+  test "message renders added a card to this board" do
+    assert_equal "added a card to this board", Notification.new(action: "cards_created").message
+  end
+
   test "the three new actions respect a false preference through notifies?" do
     user = User.create!(email: "new-types-prefs@example.com", password: "password",
                         notification_preferences: { "moved" => false, "archived" => false,

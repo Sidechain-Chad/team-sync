@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_06_191015) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_07_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_trgm"
   enable_extension "plpgsql"
@@ -73,6 +73,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_06_191015) do
     t.datetime "updated_at", null: false
     t.index ["board_id"], name: "index_board_users_on_board_id"
     t.index ["user_id"], name: "index_board_users_on_user_id"
+  end
+
+  create_table "board_watchers", force: :cascade do |t|
+    t.bigint "board_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["board_id", "user_id"], name: "index_board_watchers_on_board_id_and_user_id", unique: true
+    t.index ["board_id"], name: "index_board_watchers_on_board_id"
+    t.index ["user_id"], name: "index_board_watchers_on_user_id"
   end
 
   create_table "boards", force: :cascade do |t|
@@ -348,6 +358,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_06_191015) do
   add_foreign_key "board_favorites", "users"
   add_foreign_key "board_users", "boards"
   add_foreign_key "board_users", "users"
+  add_foreign_key "board_watchers", "boards"
+  add_foreign_key "board_watchers", "users"
   add_foreign_key "boards", "users"
   add_foreign_key "card_labels", "cards"
   add_foreign_key "card_labels", "labels"

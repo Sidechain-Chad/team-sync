@@ -13,6 +13,28 @@ class AttachmentsControllerTest < ActionDispatch::IntegrationTest
     @attachment = fixture_file_upload('test/fixtures/files/test.png', 'image/png')
     @card.attachments.attach(@attachment)
     @active_storage_attachment = @card.attachments.last
+
+    # Notification.deliver's after_create_commit broadcasts via a Turbo Streams
+    # job — see NotificationTest for why this needs the :test adapter under
+    # transactional fixtures + the app's default :async adapter.
+    @old_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
+  end
+
+  teardown do
+    ActiveJob::Base.queue_adapter = @old_adapter
+  end
+
+  # A member and a WATCHER-who-is-not-a-member, neither of them the actor.
+  # Mirrors CardsControllerTest#two_subscribers_on.
+  def two_subscribers_on(card)
+    member = User.create!(email: "attach-sub-member-#{card.id}@example.com", password: "password")
+    watcher = User.create!(email: "attach-sub-watcher-#{card.id}@example.com", password: "password")
+    @board.board_users.create!(user: member)
+    @board.board_users.create!(user: watcher)
+    card.members << member
+    CardWatcher.create!(card: card, user: watcher)
+    [member, watcher]
   end
 
   test "should redirect destroy when not logged in" do
@@ -178,5 +200,43 @@ class AttachmentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_no_match(/target="#{ActionView::RecordIdentifier.dom_id(@card)}"/, response.body)
+  end
+
+  # --- `attachment_added` notification (tiptap description-editor inline upload) ---
+
+  test "the tiptap inline upload path notifies subscribers, including a watcher who is not a member" do
+    sign_in @user
+    member, watcher = two_subscribers_on(@card)
+    file = fixture_file_upload("test.png", "image/png")
+
+    assert_difference -> { Notification.where(action: "attachment_added").count }, 2 do
+      post card_attachments_url(@card), params: { file: file }
+    end
+
+    assert_response :success
+    recipients = Notification.where(action: "attachment_added").map(&:recipient)
+    assert_equal [member, watcher].sort_by(&:id), recipients.sort_by(&:id)
+    assert_not_includes recipients, @user, "the actor is never notified about their own action"
+  end
+
+  test "a rejected tiptap upload notifies nobody" do
+    sign_in @user
+    two_subscribers_on(@card)
+    file = fixture_file_upload("test.png", "application/x-ruby")
+
+    assert_no_difference -> { Notification.where(action: "attachment_added").count } do
+      post card_attachments_url(@card), params: { file: Rack::Test::UploadedFile.new(file.path, "application/x-ruby", true, original_filename: "test.rb") }
+    end
+
+    assert_response :unprocessable_entity
+  end
+
+  test "destroying an attachment notifies nobody" do
+    sign_in @user
+    two_subscribers_on(@card)
+
+    assert_no_difference -> { Notification.count } do
+      delete card_attachment_url(@card, @active_storage_attachment), as: :turbo_stream
+    end
   end
 end

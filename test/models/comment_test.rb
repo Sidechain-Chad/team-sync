@@ -263,4 +263,57 @@ class CommentTest < ActiveSupport::TestCase
     assert_equal both, Notification.last.recipient
     assert_equal 1, both.notifications.where(action: "comment").count
   end
+
+  # --- board watching widens this trigger's audience too ---
+
+  def board_watcher_on(card, email:)
+    user = User.create!(email: email, password: "password")
+    card.list.board.board_users.create!(user: user)
+    BoardWatcher.create!(board: card.list.board, user: user)
+    user
+  end
+
+  test "a BOARD WATCHER who is neither a card member nor a card watcher is notified of a new comment" do
+    card = cards(:one)
+    commenter = users(:one)
+    watcher = board_watcher_on(card, email: "comment-board-watcher@example.com")
+
+    assert_difference "Notification.count", 1 do
+      card.comments.create!(content: "Board-wide watching works", user: commenter)
+    end
+
+    notification = Notification.last
+    assert_equal watcher, notification.recipient
+    assert_equal commenter, notification.actor
+    assert_equal "comment", notification.action
+    assert_not_includes card.members, watcher
+    assert_not_includes card.watchers, watcher
+  end
+
+  test "someone who is BOTH a board watcher and a card member is notified exactly once" do
+    card = cards(:one)
+    commenter = users(:one)
+    both = users(:two)
+    card.list.board.board_users.create!(user: both)
+    card.members << both
+    BoardWatcher.create!(board: card.list.board, user: both)
+
+    assert_difference "Notification.count", 1 do
+      card.comments.create!(content: "Only one of these, please, board edition", user: commenter)
+    end
+
+    assert_equal both, Notification.last.recipient
+    assert_equal 1, both.notifications.where(action: "comment").count
+  end
+
+  test "a board watcher with the comment preference OFF gets nothing" do
+    card = cards(:one)
+    commenter = users(:one)
+    watcher = board_watcher_on(card, email: "comment-board-watcher-pref-off@example.com")
+    watcher.update!(notification_preferences: { "comment" => false })
+
+    assert_no_difference "Notification.count" do
+      card.comments.create!(content: "Muted for this board watcher", user: commenter)
+    end
+  end
 end

@@ -12,12 +12,14 @@ class User < ApplicationRecord
   has_many :activities,    dependent: :nullify   # historical — preserve the audit trail
   has_many :board_favorites, dependent: :destroy
   has_many :card_watchers,   dependent: :destroy   # current state, like card_members
+  has_many :board_watchers,  dependent: :destroy   # current state, like card_watchers
   has_many :notifications, foreign_key: :recipient_id, dependent: :destroy
 
   has_many :shared_boards,    through: :board_users, source: :board
   has_many :favorited_boards, through: :board_favorites, source: :board
   has_many :assigned_cards,   through: :card_members, source: :card
   has_many :watched_cards,    through: :card_watchers, source: :card
+  has_many :watched_boards,   through: :board_watchers, source: :board
 
   # :chip is 2x a h-8 chip (comment/activity/nav rows); :thumb is for the
   # h-16 profile identity block. NOT preprocessed — on Cloudinary these
@@ -82,6 +84,9 @@ class User < ApplicationRecord
       # card_members. Without this a deactivated user keeps accruing comment and
       # due_soon notifications for every card they were watching.
       card_watchers.destroy_all
+      # Same reasoning, board-level: without this a deactivated account keeps
+      # accruing notifications for every board it watched.
+      board_watchers.destroy_all
     end
   end
 

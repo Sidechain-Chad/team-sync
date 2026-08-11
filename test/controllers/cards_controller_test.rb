@@ -752,6 +752,92 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # --- `cards_created` notification ---
+  #
+  # Audience is the board's WATCHERS ONLY, minus the actor — never
+  # card.subscribers (members ∪ card watchers ∪ board watchers): a brand-new
+  # card has no members or card watchers of its own, so notifying every board
+  # MEMBER on every card created would be the spam Trello deliberately avoids.
+  # Board watching is deliberately the only way in to this audience.
+
+  def board_watcher_on(board, email:)
+    watcher = User.create!(email: email, password: "password")
+    board.board_users.create!(user: watcher)
+    BoardWatcher.create!(board: board, user: watcher)
+    watcher
+  end
+
+  test "create (bottom-append, no explicit position) notifies a board watcher" do
+    watcher = board_watcher_on(@board_one, email: "cards-created-append@example.com")
+
+    assert_difference -> { Notification.where(action: "cards_created").count }, 1 do
+      post list_cards_url(@list_three), params: { card: { title: "New Card" } }, as: :turbo_stream
+    end
+
+    notification = Notification.where(action: "cards_created").last
+    assert_equal watcher, notification.recipient
+    assert_equal @user, notification.actor
+    assert_equal Card.find_by!(title: "New Card"), notification.notifiable
+  end
+
+  test "create (gap-insert, explicit position) notifies a board watcher too" do
+    @list_three.cards.create!(title: "Existing")
+    watcher = board_watcher_on(@board_one, email: "cards-created-gap@example.com")
+
+    assert_difference -> { Notification.where(action: "cards_created").count }, 1 do
+      post list_cards_url(@list_three), params: { card: { title: "Inserted", position: 1 } }, as: :turbo_stream
+    end
+
+    assert_equal [watcher], Notification.where(action: "cards_created").map(&:recipient)
+  end
+
+  test "creating a card never notifies its own creator" do
+    board_watcher_on(@board_one, email: "cards-created-not-actor@example.com")
+    # The actor themself also watches the board — must still get nothing.
+    BoardWatcher.create!(board: @board_one, user: @user)
+
+    post list_cards_url(@list_three), params: { card: { title: "Solo Card" } }, as: :turbo_stream
+
+    assert_not_includes Notification.where(action: "cards_created").map(&:recipient), @user
+  end
+
+  test "a board with no watchers notifies nobody when a card is created" do
+    assert_no_difference -> { Notification.where(action: "cards_created").count } do
+      post list_cards_url(@list_three), params: { card: { title: "Unwatched Board Card" } }, as: :turbo_stream
+    end
+  end
+
+  test "a board watcher with Cards created turned off is not notified" do
+    watcher = board_watcher_on(@board_one, email: "cards-created-pref-off@example.com")
+    watcher.update!(notification_preferences: { "cards_created" => false })
+
+    assert_no_difference -> { Notification.where(action: "cards_created").count } do
+      post list_cards_url(@list_three), params: { card: { title: "Muted Card" } }, as: :turbo_stream
+    end
+  end
+
+  # A copied card is a new card appearing on the board, same "created" event
+  # from a board watcher's point of view as #create.
+  test "copy notifies a board watcher, and excludes the actor" do
+    watcher = board_watcher_on(@board_one, email: "cards-created-copy@example.com")
+    BoardWatcher.create!(board: @board_one, user: @user)
+
+    assert_difference -> { Notification.where(action: "cards_created").count }, 1 do
+      post copy_card_url(@card), params: { list_id: @list_three.id, title: "Copied Card" }
+    end
+
+    assert_equal [watcher], Notification.where(action: "cards_created").map(&:recipient)
+  end
+
+  test "unarchive does not notify board watchers — restoring a card is not creating one" do
+    @card.archive!
+    board_watcher_on(@board_one, email: "cards-created-unarchive@example.com")
+
+    assert_no_difference -> { Notification.where(action: "cards_created").count } do
+      patch unarchive_card_url(@card)
+    end
+  end
+
   test "copy: 404 for a target list on a board the user has no access to at all" do
     assert_no_difference -> { Card.count } do
       post copy_card_url(@card), params: { list_id: @list_two.id, title: "Nope" }
@@ -1585,6 +1671,18 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     [member, watcher]
   end
 
+  # A board watcher who is neither a member nor a card watcher of `card` — the
+  # widened THIRD leg of Card#subscribers (members ∪ card watchers ∪ board
+  # watchers). Only used for a handful of proof-of-wiring tests below; the
+  # exhaustive union/dedup behavior itself is pinned at the model level in
+  # CardTest.
+  def board_watcher_subscriber_on(card)
+    watcher = User.create!(email: "sub-board-watcher-#{card.id}@example.com", password: "password")
+    @board_one.board_users.create!(user: watcher)
+    BoardWatcher.create!(board: card.list.board, user: watcher)
+    watcher
+  end
+
   test "moving a card BETWEEN lists notifies its subscribers, including a watcher who is not a member" do
     member, watcher = two_subscribers_on(@card)
 
@@ -1598,6 +1696,16 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes recipients, @user, "the actor is never notified about their own action"
     assert_not_includes @card.reload.members, watcher, "the watcher must not be a member"
     assert_equal @card, Notification.where(action: "moved").first.notifiable
+  end
+
+  test "moving a card notifies a BOARD watcher who is neither a member nor a card watcher" do
+    board_watcher = board_watcher_subscriber_on(@card)
+
+    assert_difference -> { Notification.where(action: "moved").count }, 1 do
+      patch move_card_url(@card), params: { card: { list_id: @list_three.id, position: 1 } }, as: :json
+    end
+
+    assert_equal [board_watcher], Notification.where(action: "moved").map(&:recipient)
   end
 
   # TRAP 1: #move also handles reordering WITHIN a list. Without the guard in
@@ -1658,6 +1766,16 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
     assert @card.reload.archived?
   end
 
+  test "archiving a card notifies a BOARD watcher who is neither a member nor a card watcher" do
+    board_watcher = board_watcher_subscriber_on(@card)
+
+    assert_difference -> { Notification.where(action: "archived").count }, 1 do
+      patch archive_card_url(@card)
+    end
+
+    assert_equal [board_watcher], Notification.where(action: "archived").map(&:recipient)
+  end
+
   test "a subscriber with Cards archived turned off is not notified" do
     member, watcher = two_subscribers_on(@card)
     watcher.update!(notification_preferences: { "archived" => false })
@@ -1687,6 +1805,79 @@ class CardsControllerTest < ActionDispatch::IntegrationTest
 
     assert_no_difference -> { Notification.count } do
       patch move_card_url(bare), params: { card: { list_id: @list_one.id, position: 1 } }, as: :json
+    end
+  end
+
+  # --- `attachment_added` notification (modal Attach form, via CardAttachmentService) ---
+
+  test "attaching a file via the modal notifies subscribers, including a watcher who is not a member" do
+    member, watcher = two_subscribers_on(@card)
+    file = fixture_file_upload("test.png", "image/png")
+
+    assert_difference -> { Notification.where(action: "attachment_added").count }, 2 do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    recipients = Notification.where(action: "attachment_added").map(&:recipient)
+    assert_equal [member, watcher].sort_by(&:id), recipients.sort_by(&:id)
+    assert_not_includes recipients, @user, "the actor is never notified about their own action"
+    assert_equal @card, Notification.where(action: "attachment_added").first.notifiable
+  end
+
+  test "attaching a file notifies a BOARD watcher who is neither a member nor a card watcher" do
+    board_watcher = board_watcher_subscriber_on(@card)
+    file = fixture_file_upload("test.png", "image/png")
+
+    assert_difference -> { Notification.where(action: "attachment_added").count }, 1 do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    assert_equal [board_watcher], Notification.where(action: "attachment_added").map(&:recipient)
+  end
+
+  # THE headline guard: a five-file upload is still ONE event, so each subscriber
+  # gets exactly one notification — not one per file.
+  test "attaching multiple files in one request notifies each subscriber exactly once" do
+    member, watcher = two_subscribers_on(@card)
+    files = [fixture_file_upload("test.png", "image/png"), fixture_file_upload("test.txt", "text/plain")]
+
+    assert_difference -> { Notification.where(action: "attachment_added").count }, 2 do
+      patch card_url(@card), params: { card: { attachments: files } }, as: :turbo_stream
+    end
+
+    assert_equal [member, watcher].sort_by(&:id),
+                 Notification.where(action: "attachment_added").map(&:recipient).sort_by(&:id)
+  end
+
+  test "a rejected attachment (disallowed type) notifies nobody" do
+    two_subscribers_on(@card)
+    file = fixture_file_upload("test.png", "application/x-ghostscript")
+    file.instance_variable_set(:@original_filename, "test.exe")
+
+    assert_no_difference -> { Notification.where(action: "attachment_added").count } do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    assert_response :success
+  end
+
+  test "a subscriber with Attachments added turned off is not notified" do
+    member, watcher = two_subscribers_on(@card)
+    member.update!(notification_preferences: { "attachment_added" => false })
+    file = fixture_file_upload("test.png", "image/png")
+
+    assert_difference -> { Notification.where(action: "attachment_added").count }, 1 do
+      patch card_url(@card), params: { card: { attachments: [file] } }, as: :turbo_stream
+    end
+
+    assert_equal [watcher], Notification.where(action: "attachment_added").map(&:recipient)
+  end
+
+  test "a modal update with no attachments notifies nobody for attachment_added" do
+    two_subscribers_on(@card)
+
+    assert_no_difference -> { Notification.where(action: "attachment_added").count } do
+      patch card_url(@card), params: { card: { title: "Renamed, no attachment" } }, as: :turbo_stream
     end
   end
 

@@ -9,6 +9,13 @@ class Board < ApplicationRecord
   has_many :board_favorites, dependent: :destroy
   has_many :favorited_by_users, through: :board_favorites, source: :user
 
+  # Watching: receive this board's cards' notifications, and be told when a
+  # card is added, without being a member of any specific card. Widens
+  # Card#subscribers (members ∪ card watchers ∪ board watchers) for every card
+  # on this board — see that method for the audience it does and doesn't reach.
+  has_many :board_watchers, dependent: :destroy
+  has_many :watchers, through: :board_watchers, source: :user
+
   # :tile is a named variant. NOT preprocessed — on Cloudinary it's only a
   # fallback (see boards/_cover.html.erb / MediaHelper#media_transform_url,
   # which builds Cloudinary's own transformation URL instead), and
@@ -85,7 +92,9 @@ class Board < ApplicationRecord
   #          this is exactly what card attachments already do).
   # Not copied: favourites (personal), closed_at (a copy is always open,
   #          regardless of the source), archived cards, comments, activities, card
-  #          watchers (personal subscription — same reasoning as card copy).
+  #          watchers AND board watchers (personal subscription — same reasoning
+  #          as card copy; a board watcher is simply never referenced anywhere
+  #          in this method, so there's nothing to strip).
   #
   # board_users ARE copied deliberately: those users already had access to the
   # source, and leaving them out would strand copied card_members on a board they
@@ -135,6 +144,16 @@ class Board < ApplicationRecord
   def favorited_by?(user)
     return false unless user
     board_favorites.exists?(user_id: user.id)
+  end
+
+  # Mirrors Card#watched_by? — same shape for the same kind of per-user toggle.
+  # `exists?` costs one query per render, fine for the single board a page
+  # shows; the boards-index tile calls this once per tile (see #watched_by?
+  # in the tile partial), which is the same cost the favorite star already
+  # pays per tile.
+  def watched_by?(user)
+    return false unless user
+    board_watchers.exists?(user_id: user.id)
   end
 
   def owner?(user)

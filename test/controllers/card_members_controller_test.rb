@@ -191,4 +191,27 @@ class CardMembersControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal [other], Notification.where(action: "removed_from_card").map(&:recipient)
   end
+
+  # added_to_card/removed_from_card target the SPECIFIC person being added or
+  # removed — they never consult Card#subscribers, so board watching (which
+  # only widens the five audience-based types) must not leak into them. A board
+  # watcher unrelated to this card getting notified here would be a regression
+  # in the OTHER direction from the one board watching is meant to fix.
+  test "a board watcher unrelated to this add/remove is not notified" do
+    board_watcher = User.create!(email: "unrelated-board-watcher@example.com", password: "password")
+    @board.board_users.create!(user: board_watcher)
+    BoardWatcher.create!(board: @board, user: board_watcher)
+    target = users(:two)
+    @board.board_users.create!(user: target)
+
+    assert_difference -> { Notification.where(action: "added_to_card").count }, 1 do
+      post card_members_url(@card, user_id: target.id), as: :turbo_stream
+    end
+    assert_equal [target], Notification.where(action: "added_to_card").map(&:recipient)
+
+    assert_difference -> { Notification.where(action: "removed_from_card").count }, 1 do
+      delete card_member_url(@card, user_id: target.id), as: :turbo_stream
+    end
+    assert_equal [target], Notification.where(action: "removed_from_card").map(&:recipient)
+  end
 end

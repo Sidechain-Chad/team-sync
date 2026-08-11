@@ -11,6 +11,10 @@ class AttachmentsController < ApplicationController
       @card.attachments.reload
       broadcast_card_update
 
+      @card.subscribers.each do |subscriber|
+        Notification.deliver(recipient: subscriber, actor: current_user, notifiable: @card, action: "attachment_added")
+      end
+
       # Return the URL of the freshly-attached file so the editor can insert it.
       attachment = result.attachments.first
       render json: { url: url_for(attachment), filename: attachment.filename.to_s }

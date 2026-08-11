@@ -277,6 +277,43 @@ class BoardsController < ApplicationController
     end
   end
 
+  # Watch / stop watching this board — receive its cards' notifications and be
+  # told when a card is added, without being a member of any specific card.
+  # Same shape as #toggle_favorite: find the join row, destroy it if present,
+  # create it if not.
+  #
+  # Scoped through all_boards (not set_owned_board): any board member may
+  # watch, same as favoriting — this is a personal subscription, not something
+  # that affects other viewers.
+  #
+  # DELIBERATELY NO BOARD BROADCAST, same reasoning as CardsController#toggle_watch
+  # and #toggle_favorite: watch state is per-user, and the boards index isn't a
+  # Turbo Stream target anyway, so there is nothing here for another viewer to
+  # see live. The response replaces only the actor's own menu item.
+  def toggle_watch
+    @board = current_user.all_boards.find(params[:id])
+    watch = current_user.board_watchers.find_by(board: @board)
+
+    if watch
+      watch.destroy
+    else
+      # find_or_create_by!, not create!, so a double-submit is a no-op rather
+      # than a RecordNotUnique from the unique index.
+      current_user.board_watchers.find_or_create_by!(board: @board)
+    end
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.replace(
+          helpers.dom_id(@board, :watch_menu_item),
+          partial: "boards/watch_menu_item",
+          locals: { board: @board }
+        )
+      end
+      format.html { redirect_to @board }
+    end
+  end
+
   private
 
   # 1-based page for the activity feed. Anything junk, zero or negative reads as

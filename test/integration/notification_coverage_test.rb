@@ -81,7 +81,7 @@ class NotificationCoverageTest < ActiveSupport::TestCase
   test "the scan finds every action currently in use" do
     found = delivered_actions.map(&:first).uniq.sort
 
-    assert_equal %w[added_to_card archived comment due_soon mention moved removed_from_card], found,
+    assert_equal %w[added_to_card archived attachment_added cards_created comment due_soon mention moved removed_from_card], found,
                  "the deliver-call scan found #{found.inspect} — if delivery moved behind a wrapper, " \
                  "update ACTION_KWARG or this guard is passing vacuously"
   end

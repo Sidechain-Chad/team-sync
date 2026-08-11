@@ -63,6 +63,10 @@ Rails.application.routes.draw do
       get :activity
       get :map
       patch :toggle_favorite
+      # Per-board subscription, widening Card#subscribers for every card on the
+      # board. Named like cards#toggle_watch, the closest precedent — same
+      # shape: one join row, created or destroyed.
+      patch :toggle_watch
       # Close/reopen the whole board. NOT named :archive — that member route
       # already exists above and means "show this board's archived CARDS".
       patch :close

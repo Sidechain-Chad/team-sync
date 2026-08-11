@@ -13,10 +13,26 @@
     </div>
   <% end %>
 
-  <%# Already-starred boards keep their star visible; others fade in on
-      hover — or on keyboard focus, so the button is reachable via Tab. %>
-  <div class="absolute top-2 right-2 transition-opacity duration-300 ease-out [&_i]:drop-shadow-md <%= board.favorited_by?(current_user) ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" %>">
-    <%= render "boards/star_button", board: board %>
+  <%# Watch eye + star, top-right corner. The eye is a plain server-rendered
+      indicator (not a toggle — watching is toggled from the board's own
+      title menu), always visible while watching: unlike the star's own
+      fade-in wrapper below, its opacity must NOT be keyed off favorited_by?,
+      or a watched-but-unfavorited board would hide it until hover. Safe to
+      render per-user here, unlike a card tile: the boards index isn't a
+      Turbo Stream broadcast target, so there's no shared-HTML-shows-one-
+      user's-state problem (see boards/_star_button's own precedent). %>
+  <div class="absolute top-2 right-2 flex items-center gap-1 [&_i]:drop-shadow-md">
+    <% if board.watched_by?(current_user) %>
+      <span class="h-8 w-8 flex items-center justify-center text-white" title="You're watching this board" aria-label="You're watching this board">
+        <i class="fa-solid fa-eye text-xs" aria-hidden="true"></i>
+      </span>
+    <% end %>
+
+    <%# Already-starred boards keep their star visible; others fade in on
+        hover — or on keyboard focus, so the button is reachable via Tab. %>
+    <div class="transition-opacity duration-300 ease-out <%= board.favorited_by?(current_user) ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" %>">
+      <%= render "boards/star_button", board: board %>
+    </div>
   </div>
 
   <% if board.user == current_user %>
