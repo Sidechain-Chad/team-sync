@@ -65,13 +65,26 @@ class ThemeTransitionTest < ApplicationSystemTestCase
   # bypass — this test still needs the actual sign-in round trip to see the
   # real post-redirect theme behavior, it just doesn't need to go through the
   # one click this codebase already knows is unreliable on this form.
+  #
+  # Wrapped in verified_interaction anyway, per the lead worth carrying
+  # forward: the FIRST reproduction of this bypassed click entirely via
+  # requestSubmit, and STILL zero Turbo events fired — not even
+  # turbo:submit-start, which only makes sense if Turbo's own listeners
+  # were not yet active on the page, not if input delivery were the
+  # problem. requestSubmit isn't a "click" in the hit-testing sense the
+  # primitive's no-JS-clicks rule is about, so retrying it here doesn't
+  # reintroduce that risk — and every retry captures exactly the readiness
+  # data (Turbo started?, Stimulus controller count) that would confirm or
+  # kill that theory, across every future run.
   def sign_in_and_land(user)
     visit new_user_session_path
     fill_in "Email", with: user.email
     fill_in "Password", with: "password"
     submit = find("input[type=submit]")
-    page.evaluate_script("arguments[0].closest('form').requestSubmit(arguments[0])", submit)
-    assert_current_path root_path
+
+    verified_interaction("submit the sign-in form via requestSubmit", effect: -> { current_path == root_path }) do
+      page.evaluate_script("arguments[0].closest('form').requestSubmit(arguments[0])", submit)
+    end
   end
 
   def emulate_color_scheme(scheme)

@@ -1,6 +1,7 @@
 require "test_helper"
 require "warden/test/helpers"
 require_relative "support/click_diagnostics"
+require_relative "support/verified_interaction"
 
 # System tests run a real headless Chrome against a real Puma. Read this before
 # writing one — several things in this app cannot be driven the obvious way.
@@ -152,6 +153,94 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       sleep 0.05
     end
   end
+
+  # ==========================================================================
+  # VERIFIED INTERACTION — see test/support/verified_interaction.rb for the
+  # rationale. Replaces "click and assert" with "click, assert the effect
+  # shows up, and if it doesn't, click again" — bounded, observable, and
+  # instrumented, not a longer wait.
+  #
+  # `effect` is a zero-arg predicate (typically a Capybara `has_selector?`
+  # call) — polled for up to `poll` seconds after each attempt, using the
+  # same bounded busy-poll as assert_eventually, not a single check.
+  # The block performs the actual interaction and MUST use a real,
+  # hit-tested Capybara action (`.click`, `.send_keys`, etc.) — never an
+  # `evaluate_script`-dispatched synthetic event, which bypasses hit-testing
+  # and the obscured-element check that would otherwise catch a genuine
+  # tap-target overlap bug hiding behind a "just retry" mask.
+  #
+  # Every retry is recorded (see VerifiedInteraction.log) and printed in a
+  # named, per-interaction summary at the end of the whole run — a retry is
+  # never silent. An interaction needing more than
+  # VerifiedInteraction::RETRY_ALARM_THRESHOLD retries fails the test
+  # outright, even if the effect eventually appeared: burning through nearly
+  # the whole retry budget is itself the signal something is wrong, not
+  # something a passing assertion should be allowed to hide.
+  def verified_interaction(label, effect:, poll: 2)
+    test_name = "#{self.class}##{name}"
+    attempt = 0
+    retry_states = [] # one captured readiness snapshot per FAILED attempt, in order
+
+    loop do
+      attempt += 1
+      yield
+
+      if poll_for(poll, &effect)
+        retries = attempt - 1
+        # ONE log entry per call, recorded exactly once here on the way out —
+        # not one per attempt — or a single interaction that needed one
+        # retry would inflate the run's retry total by double-counting it.
+        VerifiedInteraction.log << { test: test_name, label: label, retries: retries, exhausted: false, states: retry_states }
+        if retries > VerifiedInteraction::RETRY_ALARM_THRESHOLD
+          flunk(
+            "#{label}: only took effect on attempt #{attempt} of #{VerifiedInteraction::MAX_ATTEMPTS} — " \
+            "exceeds the #{VerifiedInteraction::RETRY_ALARM_THRESHOLD}-retry alarm threshold, even though it " \
+            "eventually worked. #{readiness_summary(retry_states.last)}"
+          )
+        end
+        return
+      end
+
+      state = capture_interaction_readiness
+      retry_states << state
+      puts "  [verified_interaction retry #{attempt}] #{test_name} : #{label} — #{readiness_summary(state)}"
+
+      if attempt >= VerifiedInteraction::MAX_ATTEMPTS
+        VerifiedInteraction.log << { test: test_name, label: label, retries: attempt, exhausted: true, states: retry_states }
+        flunk(
+          "#{label}: no effect after #{attempt} attempts (interaction retried, never took). #{readiness_summary(state)}"
+        )
+      end
+    end
+  end
+
+  private
+
+  # Bounded busy-poll that returns true/false rather than flunking — the
+  # difference from assert_eventually is that the CALLER decides what "not
+  # yet true" means (retry the action), not this helper.
+  def poll_for(timeout)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+    loop do
+      return true if yield
+      return false if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+      sleep 0.05
+    end
+  end
+
+  def capture_interaction_readiness
+    page.evaluate_script(VerifiedInteraction::READINESS_JS)
+  rescue StandardError => e
+    { jsError: e.message }
+  end
+
+  def readiness_summary(state)
+    "Turbo started=#{state["turboStarted"].inspect}, " \
+    "Stimulus controllers=#{state["stimulusControllerCount"].inspect}/#{VerifiedInteraction::EXPECTED_STIMULUS_CONTROLLERS}, " \
+    "#{state["msSinceLastTurboLoad"]&.round}ms since last turbo:load"
+  end
+
+  public
 
   # ==========================================================================
   # Drag a card onto another list. THE hard-won bit of this file.

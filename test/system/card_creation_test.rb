@@ -62,16 +62,22 @@ class CardCreationTest < ApplicationSystemTestCase
   end
 
   def add_a_card(title)
-    find("#list_#{@list.id}_new_card a", text: "Add a card").click
-    assert_selector "#list_#{@list.id}_new_card textarea"
+    # This exact click — an anchor inside a turbo-frame, opening an inline
+    # composer — is the site directly captured misfiring during the
+    # flake-root-cause investigation: delivered to a live, non-stale element,
+    # with zero Turbo events, and no effect. Prime candidate for the retry
+    # primitive rather than a longer wait.
+    verified_interaction("open the add-card composer", effect: -> { has_selector?("#list_#{@list.id}_new_card textarea") }) do
+      find("#list_#{@list.id}_new_card a", text: "Add a card").click
+    end
 
     find("#list_#{@list.id}_new_card textarea").fill_in with: title
-    find("#list_#{@list.id}_new_card input[type='submit']").click
 
-    # The create renders no card (broadcast), so the record is the only signal
-    # that the round trip finished before we click again.
-    assert_eventually(message: "the card was never created") do
-      @list.cards.exists?(title: title)
+    # The create renders no card (broadcast), so the record existing is the
+    # only signal the round trip finished — and it doubles as the effect
+    # predicate for the submit click, the same class of interaction.
+    verified_interaction("submit the new card", effect: -> { @list.cards.exists?(title: title) }, poll: 4) do
+      find("#list_#{@list.id}_new_card input[type='submit']").click
     end
   end
 end
