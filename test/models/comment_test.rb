@@ -160,6 +160,73 @@ class CommentTest < ActiveSupport::TestCase
     end
   end
 
+  # --- highlighting a mention in the rendered comment (Arc 2 follow-up) ---
+  #
+  # highlighted_content must never diverge from mentioned_users — it's built
+  # from mentioned_users directly, not a second copy of the regex — so these
+  # pin the same boundary and false-positive cases already proven above,
+  # this time against the rendered HTML rather than notification count.
+
+  test "a real member mention is wrapped in a highlight mark" do
+    card = cards(:one)
+    commenter = users(:one)
+    bob = User.create!(email: "bob@example.com", password: "password", name: "Bob")
+    card.list.board.board_users.create!(user: bob)
+    comment = card.comments.create!(content: "Hey @Bob take a look", user: commenter)
+
+    assert_equal 'Hey <mark class="bg-warn-100 text-ink-900 rounded px-0.5">@Bob</mark> take a look',
+                 comment.highlighted_content
+  end
+
+  test "an @name matching no board member is not highlighted" do
+    card = cards(:one)
+    commenter = users(:one)
+    comment = card.comments.create!(content: "@Nobody is around to see this", user: commenter)
+
+    assert_equal "@Nobody is around to see this", comment.highlighted_content
+  end
+
+  test "highlighting respects the same name-boundary as notification: @Jo does not highlight John" do
+    card = cards(:one)
+    commenter = users(:one)
+    john = User.create!(email: "john@example.com", password: "password", name: "John")
+    card.list.board.board_users.create!(user: john)
+    comment = card.comments.create!(content: "@Jo where are you?", user: commenter)
+
+    assert_equal "@Jo where are you?", comment.highlighted_content
+  end
+
+  test "highlighting does not phantom-mention a member whose name matches an email domain" do
+    card = cards(:one)
+    commenter = users(:one)
+    bob = User.create!(email: "bob@example.com", password: "password", name: "Bob")
+    card.list.board.board_users.create!(user: bob)
+    comment = card.comments.create!(content: "ping john@Bob.com about this", user: commenter)
+
+    assert_equal "ping john@Bob.com about this", comment.highlighted_content
+  end
+
+  test "highlighted_content still escapes HTML in the comment body" do
+    card = cards(:one)
+    commenter = users(:one)
+    comment = card.comments.create!(content: "<script>alert('x')</script> @Nobody", user: commenter)
+
+    assert_no_match(/<script>/, comment.highlighted_content)
+    assert_match "&lt;script&gt;", comment.highlighted_content
+  end
+
+  test "highlighted_content and mentioned_users agree on the same input" do
+    card = cards(:one)
+    commenter = users(:one)
+    bob = User.create!(email: "bob@example.com", password: "password", name: "Bob")
+    card.list.board.board_users.create!(user: bob)
+    comment = card.comments.create!(content: "@Bob and @Nobody, take a look", user: commenter)
+
+    assert_equal [bob], comment.mentioned_users
+    assert_match(/<mark[^>]*>@Bob<\/mark>/, comment.highlighted_content)
+    assert_no_match(/<mark[^>]*>@Nobody<\/mark>/, comment.highlighted_content)
+  end
+
   # --- watching: a comment reaches the card's SUBSCRIBERS, not just its members ---
   #
   # Watching widens the audience of the existing `comment` trigger. It adds no new
