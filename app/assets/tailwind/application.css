@@ -313,37 +313,78 @@
      relative luminance) against the surface each token actually sits on, not
      eyeballed. */
 
-  /* Surfaces. NOTE the ordering flips relative to light mode, on purpose: in
-     light mode a higher number is DARKER (a chip recessed into a white card);
-     in dark mode a higher number is LIGHTER, because dark UIs signal elevation
-     by getting lighter, not darker. surface-0 stays "the raised card" in both,
-     which is what keeps `bg-surface-0` meaning the same thing semantically. */
-  --dark-surface-50:  #16120F;  /* page floor — the darkest thing on screen  */
-  --dark-surface-100: #1C1714;  /* modal canvas, sits under cards            */
-  --dark-surface-0:   #241D18;  /* cards + panels, raised off the floor      */
-  --dark-surface-200: #322822;  /* chips, wells, hover fills ON a card       */
-  --dark-surface-300: #40342B;  /* the deeper hover step above surface-200   */
-  --dark-surface-muted: #1E1814; /* dimmed cells — darker than a card        */
-  --dark-line:        #3A2F27;  /* borders, visible on surface-0 without shouting */
+  /* Surfaces, SECOND PASS. The first pass kept the light-mode saturation
+     (~19-20%) and only inverted lightness, which produced two compounding
+     problems visible on a real screen recording: every surface sat within
+     2-5 points of L of its neighbour (surface-50 to surface-300 spanned just
+     7.25%-20.98%), and at that saturation and that low a lightness, the
+     espresso hue read as an undifferentiated brown field rather than a
+     neutral dark UI. Trello's dark surfaces are near-neutral greys with
+     clearly stepped lightness, and get their identity from persimmon/labels
+     instead — that is the model this pass follows.
 
-  /* Text ramp, inverted. ink-900 is the strongest, as in light mode. */
-  --dark-ink-900: #FAF6F2;      /* 15.45:1 on surface-0 */
-  --dark-ink-700: #EDE4DB;      /* 13.23:1 on surface-0 — body + headings */
-  --dark-ink-500: #B3A498;      /*  6.87:1 on surface-0,  5.94:1 on surface-200 */
-  --dark-ink-300: #8A7A6D;      /*  4.02:1 — placeholders/disabled. Compare
-                                    LIGHT mode's ink-300, which is 2.29:1 on
-                                    white: this is the same role, measurably
-                                    better, so it is not a regression. */
+     Fix: saturation cut to 5-7% (down from ~19-20%) — "a hint of warmth" per
+     the brief, not brown — and the lightness ramp widened, UNEVENLY on
+     purpose, not by a uniform step. surface-0 (cards) is the surface with the
+     most fixed-hex text sitting on it (ink-*, and the -fg foregrounds used for
+     links/destructive actions), so its lightening is capped, not chosen freely:
+     16% is the highest L this hue/saturation can reach before
+     --dark-danger-fg-muted (a real destructive-link colour, not a token this
+     pass is allowed to touch) drops below 4.5:1 AA. surface-200/300 (chips,
+     hover fills) only ever pair with ink-700 or brighter in the views — never
+     ink-500/ink-300 — so they had far more contrast margin to spend and moved
+     the most (+16% and +24% respectively vs. the ~+5% available to surface-0).
+     NOTE the ordering still flips relative to light mode, on purpose: in light
+     mode a higher number is DARKER (a chip recessed into a white card); in
+     dark mode a higher number is LIGHTER, because dark UIs signal elevation by
+     getting lighter, not darker. surface-0 stays "the raised card" in both,
+     which is what keeps `bg-surface-0` meaning the same thing semantically. */
+  --dark-surface-50:  #0D0D0C;  /* page floor — the darkest thing on screen. L=5%,  was #16120F (L=7.25%, S=18.9%) */
+  --dark-surface-muted: #151413; /* dimmed cells — darker than a card.       L=8%,  was #1E1814 (L=9.80%, S=20.0%) */
+  --dark-surface-100: #1D1C1B;  /* modal canvas, sits under cards.           L=11%, was #1C1714 (L=9.41%, S=16.7%) */
+  --dark-surface-0:   #2B2927;  /* cards + panels, raised off the floor.     L=16%, was #241D18 (L=11.76%, S=20.0%) —
+                                    capped here, see the block comment above. */
+  --dark-surface-200: #413D3A;  /* chips, wells, hover fills ON a card.      L=24%, was #322822 (L=16.47%, S=19.0%) */
+  --dark-surface-300: #56524D;  /* the deeper hover step above surface-200.  L=32%, was #40342B (L=20.98%, S=19.6%) */
+  --dark-line:        #68615A;  /* borders — now the brightest neutral step, L=38%, was #3A2F27 (L=19.02%, S=19.6%).
+                                    Shadows can't theme (see the note at the bottom of this
+                                    block), so with the ramp above widened, the border is
+                                    what has to carry elevation on its own — 2.4-3.2:1 against
+                                    surface-50 through surface-0, 2.38:1 against surface-0
+                                    specifically, down to 1.27:1 against surface-300 (the one
+                                    step it sits closest to). */
+
+  /* Text ramp, inverted. ink-900 is the strongest, as in light mode. Values
+     unchanged by the surface pass above; contrast figures below are
+     RECOMPUTED against the new surfaces (previous figures are in git
+     history). Every real ink/surface pairing in the views stays >= 4.5:1
+     except ink-300, which already ran below AA before this pass (see its own
+     note) and is documented as exempt for that reason. */
+  --dark-ink-900: #FAF6F2;      /* 13.48:1 on surface-0 (was 15.45:1) */
+  --dark-ink-700: #EDE4DB;      /* 11.54:1 on surface-0 (was 13.23:1) — body + headings.
+                                    6.17:1 on surface-300, the lightest surface it's ever
+                                    paired with (buttons/links) — still clears AA there. */
+  --dark-ink-500: #B3A498;      /*  5.99:1 on surface-0 (was 6.87:1) — the conversation
+                                    column and its nested comment text. Not actually paired
+                                    with surface-200/300 in the views (those pair with
+                                    ink-700 only), so its margin there is not load-bearing. */
+  --dark-ink-300: #8A7A6D;      /*  3.51:1 on surface-0 (was 4.02:1) — placeholders/disabled,
+                                    already below the 4.5:1 AA floor before this pass (LIGHT
+                                    mode's ink-300 is 2.29:1 on white for the same reason: this
+                                    token has never been AA-critical body text, by design). */
 
   /* Foregrounds — LIGHTENED. This is the deliberate deviation from "same hues,
      inverted lightness": brand-600 (#BE451A) on a near-black surface is a
      3.0:1 accent, which is not a link colour. Each of these is the lightest
      step of its own hue already in the palette where one existed. */
-  --dark-brand-fg:       #F9906B;  /* == the existing brand-400. 7.30:1 */
-  --dark-brand-fg-hover: #FCBCA6;  /* a lighter step above it. 10.19:1   */
-  --dark-danger-fg:      #F0918B;  /* 7.22:1 on surface-0, 6.80:1 on the danger tint */
-  --dark-danger-fg-muted:#E0736C;  /* 5.41:1 — the de-emphasised destructive link */
-  --dark-success-fg:     #A9CC63;  /* 9.10:1 on surface-0, 7.79:1 on the success tint */
+  --dark-brand-fg:       #F9906B;  /* == the existing brand-400. 6.37:1 on surface-0 (was 7.30:1) */
+  --dark-brand-fg-hover: #FCBCA6;  /* a lighter step above it. 8.89:1 on surface-0 (was 10.19:1) */
+  --dark-danger-fg:      #F0918B;  /* 6.30:1 on surface-0 (was 7.22:1), 6.80:1 on the danger tint (unchanged) */
+  --dark-danger-fg-muted:#E0736C;  /* 4.72:1 on surface-0 (was 5.41:1) — the de-emphasised destructive
+                                       link. The tightest margin in this file post-pass: surface-0's L
+                                       was capped specifically so this stays >= 4.5:1 AA. Do not lighten
+                                       surface-0 further without rechecking this number first. */
+  --dark-success-fg:     #A9CC63;  /* 7.94:1 on surface-0 (was 9.10:1), 7.79:1 on the success tint (unchanged) */
   --dark-warn-700:       #EDB45F;  /* 7.43:1 on the warn tint. warn-700 has no fill
                                       role, so unlike the others it lightens in
                                       place with no split needed. */
@@ -351,13 +392,19 @@
   /* Boundaries that used to be baked opacity modifiers. Still translucent —
      see the long note in @theme for why that is required and not laziness.
      The hairline REVERSES DIRECTION here: espresso-at-5% darkened its backdrop,
-     which is invisible on a dark page, so dark mode uses white-at-12% and
-     lightens it instead. Because all three keep an alpha they stay correct over
-     any backdrop, including the board wallpaper a popover can open on top of.
-     Composites below are against the surface each one actually sits on. */
-  --dark-hairline:           #FFFFFF1F;  /* white 12% — 1.44:1 on surface-0; line is 1.28:1 */
-  --dark-danger-line:        #F0918BA6;  /* 3.70:1 on danger-50, 3.84:1 on surface-0 */
-  --dark-danger-line-strong: #F0918BB3;  /* 4.23:1 on surface-0 — the heavier 2px edge */
+     which is invisible on a dark page, so dark mode uses white and lightens it
+     instead. Because all three keep an alpha they stay correct over any
+     backdrop, including the board wallpaper a popover can open on top of.
+     Composites below are against the surface each one actually sits on.
+
+     hairline's alpha DOUBLED in this pass, from white-12% to white-25% —
+     "roughly 12% white and nearly invisible" was the exact complaint, and with
+     shadows unable to theme (see the note at the bottom of this block),
+     hairline and line are the ONLY elevation cues left in dark mode, so this
+     one had to move a lot, not a little. */
+  --dark-hairline:           #FFFFFF40;  /* white 25% — 2.27:1 on surface-0 (was 1.44:1); line is 2.38:1 (was 1.28:1) */
+  --dark-danger-line:        #F0918BA6;  /* 3.70:1 on danger-50 (unchanged), 3.53:1 on surface-0 (was 3.84:1) */
+  --dark-danger-line-strong: #F0918BB3;  /* 3.86:1 on surface-0 (was 4.23:1) — the heavier 2px edge */
 
   /* Tints — the soft fills those foregrounds sit on. Inverted from washes into
      shadows, same hue. */
@@ -492,11 +539,64 @@ body {
    page"). Leaving it at cream would have left those three pages a bright canvas
    with dark cards floating on it — the one combination dark mode exists to
    avoid. So it darkens, keeping the same two warm glows, which now read as a
-   faint bloom instead of daylight. */
+   faint bloom instead of daylight. Dark value brought into the same near-
+   neutral 5% saturation as the surface pass above (was 23.6% — same brown-field
+   problem as the surfaces); ink-500 measures 7.61:1 there (was 7.08:1). */
 :root { --canvas-golden-stop: #F1E6DA; }
-[data-theme="dark"] { --canvas-golden-stop: #221A15; }
+[data-theme="dark"] { --canvas-golden-stop: #151413; }
 @media (prefers-color-scheme: dark) {
-  [data-theme="system"] { --canvas-golden-stop: #221A15; }
+  [data-theme="system"] { --canvas-golden-stop: #151413; }
+}
+
+/* Dark treatment for the GENERATED board-cover gradients
+   (board_cover_gradient_classes) — reverses the earlier decision to leave
+   board backgrounds untouched. A fully-saturated warm gradient sitting behind
+   dark list columns/cards turned out to be a large part of the muddiness the
+   screen recording flagged, the same complaint as the surface tokens above.
+   Photo backgrounds already carry their own dark scrim (see the inline style
+   in boards/show.html.erb) and are untouched here.
+
+   Kept to ONE token (--board-cover-gradient-scrim) so it is trivially
+   revertible: delete this rule block and the "board-cover-gradient" class
+   from the two views that add it (boards/show.html.erb, boards/_cover.html.erb).
+   The Ruby helper (BOARD_COVER_GRADIENTS, board_cover_gradient_classes) is
+   NOT touched — the palette a board ID maps to is unchanged, so tiles stay
+   exactly as distinct from each other as before, and this also makes the
+   dark treatment correctly reactive to "Match system": the helper runs
+   server-side and cannot know an OS-level preference (see the big comment
+   at the top of this file on why "system" is resolved by prefers-color-scheme
+   and never JS), but a CSS custom property gated the same way as every other
+   token here can.
+
+   Layered onto Tailwind's own --tw-gradient-stops rather than reimplementing
+   the 8-entry palette in CSS — confirmed present in the compiled output
+   (`.bg-gradient-to-br{background-image:linear-gradient(var(--tw-gradient-stops))}`)
+   before relying on it. A second background-image LAYER (not a filter, not a
+   positioned overlay) was chosen deliberately: `.board-canvas` has real
+   content (the header, the lists) as normal-flow children, so a `filter` on
+   the element would desaturate that content too, not just its background;
+   and `.board-canvas` is the horizontally-scrolling element itself, so an
+   absolutely-positioned overlay child would scroll out of alignment with it.
+   A second `background-image` layer has neither problem — it is the same
+   property as the gradient it sits on top of, so it always moves and clips
+   exactly like the layer beneath it. */
+.board-cover-gradient {
+  --board-cover-gradient-scrim: transparent;
+  background-image:
+    linear-gradient(var(--board-cover-gradient-scrim), var(--board-cover-gradient-scrim)),
+    linear-gradient(var(--tw-gradient-stops));
+}
+[data-theme="dark"] .board-cover-gradient {
+  /* Near-neutral, matching --dark-surface-50 — desaturates AND darkens the
+     gradient underneath at once, at an opacity heavy enough to be the
+     dominant read but not so heavy the 8 palette hues stop being
+     distinguishable from each other (boards must stay visually distinct). */
+  --board-cover-gradient-scrim: rgb(13 13 12 / 62%);
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .board-cover-gradient {
+    --board-cover-gradient-scrim: rgb(13 13 12 / 62%);
+  }
 }
 
 /* ============================================================

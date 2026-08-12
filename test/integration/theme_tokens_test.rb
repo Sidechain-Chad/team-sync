@@ -215,6 +215,73 @@ class ThemeTokensTest < ActiveSupport::TestCase
       assert mapping[fg], "#{fg} must be lightened in dark mode to stay legible on a dark surface"
     end
   end
+
+  # Pins the "surface separation" pass: dark surfaces used to sit within
+  # 2-5 points of L% of their neighbour (surface-50 to surface-300 spanned
+  # just 7.25%-20.98%), which read as a single undifferentiated field rather
+  # than distinct planes. A future edit could flatten this again one token at
+  # a time without ever looking wrong in isolation — this test is what makes
+  # that fail loudly instead of shipping.
+  # 2.5, not the ~3 the ramp mostly hits, to leave headroom for hex rounding
+  # (HSL math over 8-bit hex channels doesn't land on exact integers) without
+  # weakening the intent: the OLD ramp's smallest adjacent gaps were 1.01-2.35,
+  # and one pair (surface-muted/surface-100) was inverted (muted was actually
+  # LIGHTER), so 2.5 as a floor is already a strictly stronger, and correctly
+  # ordered, guarantee than what shipped before this pass.
+  MIN_ADJACENT_SURFACE_L_GAP = 2.5
+
+  # Same complaint's other half: those surfaces were also ~19-20% saturated,
+  # which at low lightness reads as an undifferentiated brown field rather
+  # than a neutral dark UI (this is legitimately hard to see in isolation —
+  # it is a "screen recording" bug, not a per-token one — hence measuring it
+  # here rather than trusting review-by-eye a second time).
+  MAX_DARK_SURFACE_SATURATION = 10.0
+
+  def hex_to_hsl(hex)
+    hex = hex.delete("#")
+    r, g, b = [0, 2, 4].map { |i| hex[i, 2].to_i(16) / 255.0 }
+    max = [r, g, b].max
+    min = [r, g, b].min
+    l = (max + min) / 2.0
+    d = max - min
+    s = d.zero? ? 0 : d / (1 - (2 * l - 1).abs)
+    [l * 100, s * 100]
+  end
+
+  test "adjacent dark surface tokens differ in lightness by a visible amount" do
+    dark_values = declarations_after(":root {").to_h
+
+    # Elevation order, darkest to lightest — see the block comment above
+    # --dark-surface-50 in application.css for why this isn't alphabetical
+    # or declaration order.
+    ordered = %w[
+      --dark-surface-50 --dark-surface-muted --dark-surface-100
+      --dark-surface-0 --dark-surface-200 --dark-surface-300 --dark-line
+    ]
+
+    lightness = ordered.to_h { |name| [name, hex_to_hsl(dark_values.fetch(name))[0]] }
+
+    lightness.each_cons(2) do |(name_a, l_a), (name_b, l_b)|
+      gap = (l_b - l_a).round(2)
+      assert_operator gap, :>=, MIN_ADJACENT_SURFACE_L_GAP,
+                      "#{name_a} (L=#{l_a.round(2)}%) and #{name_b} (L=#{l_b.round(2)}%) are only " \
+                      "#{gap} points of lightness apart — below the #{MIN_ADJACENT_SURFACE_L_GAP} " \
+                      "minimum this test pins. Surfaces this close read as one plane, not two."
+    end
+  end
+
+  test "dark surface tokens stay near-neutral, not tinted brown" do
+    dark_values = declarations_after(":root {").to_h
+
+    %w[--dark-surface-50 --dark-surface-muted --dark-surface-100
+       --dark-surface-0 --dark-surface-200 --dark-surface-300 --dark-line].each do |name|
+      _l, s = hex_to_hsl(dark_values.fetch(name))
+      assert_operator s, :<=, MAX_DARK_SURFACE_SATURATION,
+                      "#{name} is #{s.round(1)}% saturated — above the " \
+                      "#{MAX_DARK_SURFACE_SATURATION}% ceiling this test pins. Dark surfaces should " \
+                      "read as near-neutral grey with a hint of warmth, not a tinted brown field."
+    end
+  end
 end
 
 # The guard that stops dark mode rotting.
