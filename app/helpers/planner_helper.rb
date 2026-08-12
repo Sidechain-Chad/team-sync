@@ -24,18 +24,33 @@ module PlannerHelper
   end
 
   # Bar segments drop the left stripe on continuation cells and square off the
-  # inner edges, so consecutive cells read as one continuous bar. Negative
-  # margins bleed the fill across the day cell's own padding. :point returns
-  # the untouched chip classes — the pre-start_date look, byte for byte.
+  # inner edges, so consecutive cells in the SAME row read as one continuous
+  # bar — negative margins bleed the fill across the day cell's own padding
+  # to close the gutter between them. :point returns the untouched chip
+  # classes — the pre-start_date look, byte for byte.
+  #
+  # Row edges are the exception: the grid is 42 independent cells, so a
+  # :middle/:end segment landing on Sunday (grid column 1) has no cell to its
+  # left in the same row to bleed toward, and a :start/:middle segment on
+  # Saturday (column 7) has none to its right — bleeding there ran the fill
+  # past the cell's own edge with nothing on the other side to meet it,
+  # instead of just capping it. Rounding the cap at a row edge, the same way
+  # a real :start/:end already does, is what makes each row's portion of a
+  # wrapped range read as a clean segment of one continuing bar rather than a
+  # cut-off fragment.
   def planner_chip_or_bar_classes(card, day)
     fill = planner_chip_fill_classes(card)
+    segment = planner_segment(card, day)
+    return "#{planner_chip_classes(card)} rounded" if segment == :point
 
-    case planner_segment(card, day)
-    when :start  then "#{fill} border-l-4 #{planner_chip_stripe_class(card)} rounded-l rounded-r-none -mr-1.5"
-    when :middle then "#{fill} rounded-none -mx-1.5"
-    when :end    then "#{fill} rounded-l-none rounded-r -ml-1.5"
-    else              "#{planner_chip_classes(card)} rounded"
-    end
+    cap_left  = segment == :start || day.sunday?
+    cap_right = segment == :end   || day.saturday?
+
+    classes = [fill]
+    classes << "border-l-4 #{planner_chip_stripe_class(card)}" if segment == :start
+    classes << (cap_left  ? "rounded-l" : "rounded-l-none -ml-1.5")
+    classes << (cap_right ? "rounded-r" : "rounded-r-none -mr-1.5")
+    classes.join(" ")
   end
 
   # A range card's full span, for the agenda row: "Aug 3–5" within one month,
