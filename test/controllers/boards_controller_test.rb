@@ -465,6 +465,48 @@ class BoardsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to board_url(Board.find_by!(name: "Valid Board Name"))
   end
 
+  # --- unmatched invite addresses on create ---
+  #
+  # invite_users silently dropped any email with no matching account, and
+  # #create always flashed "Board created successfully!" regardless — the
+  # first flow a new user hits, with no signal that half their invites did
+  # nothing. These pin that the board still gets created AND the unmatched
+  # addresses are named, matching BoardUsersController#create's "User not
+  # found. Check the email." wording rather than a separate phrasing.
+
+  test "board create with a mix of matched and unmatched emails adds the matched ones and names only the unmatched" do
+    invitee = User.create!(email: "real@example.com", password: "password")
+
+    post boards_url, params: { board: { name: "Mixed Invites" }, emails: "#{invitee.email}, ghost@example.com" }
+
+    board = Board.find_by!(name: "Mixed Invites")
+    assert_redirected_to board_url(board)
+    assert_includes board.board_users.map(&:user), invitee
+    follow_redirect!
+    assert_match "User not found for ghost@example.com. Check the email.", flash[:notice]
+    assert_no_match "real@example.com", flash[:notice]
+  end
+
+  test "board create with all unmatched emails names all of them" do
+    post boards_url, params: { board: { name: "All Unmatched" }, emails: "ghost1@example.com, ghost2@example.com" }
+
+    board = Board.find_by!(name: "All Unmatched")
+    assert_redirected_to board_url(board)
+    follow_redirect!
+    assert_match "Users not found for ghost1@example.com, ghost2@example.com. Check the emails.", flash[:notice]
+  end
+
+  test "board create with all matched emails shows no unmatched warning" do
+    invitee = User.create!(email: "real2@example.com", password: "password")
+
+    post boards_url, params: { board: { name: "All Matched" }, emails: invitee.email }
+
+    board = Board.find_by!(name: "All Matched")
+    assert_redirected_to board_url(board)
+    follow_redirect!
+    assert_equal "Board created successfully!", flash[:notice]
+  end
+
   test "the board form shows no error message before submission" do
     get new_board_url
 

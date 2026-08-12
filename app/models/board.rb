@@ -170,16 +170,23 @@ class Board < ApplicationRecord
   after_create :seed_default_labels
   after_create :seed_default_lists
 
+  # Returns the subset of addresses that matched no account, so the caller
+  # can report them — self-invites are matched (and silently skipped) rather
+  # than reported, same as before.
   def invite_users(emails_string, inviter)
-    return if emails_string.blank?
+    return [] if emails_string.blank?
 
-    emails = emails_string.split(',').map(&:strip)
+    emails = emails_string.split(',').map(&:strip).reject(&:blank?)
+    unmatched = []
     emails.each do |email|
       user = User.find_by(email: email)
-      if user && user != inviter
+      if user.nil?
+        unmatched << email
+      elsif user != inviter
         board_users.find_or_create_by(user: user)
       end
     end
+    unmatched
   end
 
   private
