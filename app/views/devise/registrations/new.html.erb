@@ -1,11 +1,11 @@
 <% footer = capture do %>
   Already have an account?
-  <%= link_to "Sign in", new_session_path(resource_name), class: "hover:text-white transition-colors underline-offset-2 hover:underline font-semibold" %>
+  <%= link_to "Sign in", new_session_path(resource_name), class: "hover:text-ink-900 transition-colors underline-offset-2 hover:underline font-semibold" %>
 <% end %>
 
 <%= render "devise/shared/auth_card",
            title: "Create your account",
-           subtitle: "Get started with TeamSync — it's free.",
+           subtitle: "Get started with TeamSync. It's free.",
            footer_links: footer do %>
 
   <%= render "devise/shared/error_messages", resource: resource %>
