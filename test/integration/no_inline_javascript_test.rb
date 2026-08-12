@@ -66,11 +66,19 @@ class NoInlineJavascriptTest < ActiveSupport::TestCase
   # convention this guards is that none of it leaks into app/views.
   SCAN_GLOBS = %w[app/views/**/*.erb].freeze
 
-  def scan
+  # root defaults to Rails.root so the real guard scans the live app/views;
+  # the canary test below passes an isolated tmp dir instead. Writing the
+  # canary directly into app/views was tried first and was flaky: this suite
+  # runs parallelized (test_helper.rb), so a canary file sitting in the real
+  # app/views — even briefly, even inside a begin/ensure — could be caught
+  # mid-flight by this test's own main scan running in a different worker
+  # process at the same time. Scanning an isolated root removes the shared
+  # mutable state instead of trying to sequence around it.
+  def scan(root = Rails.root)
     offenders = []
 
-    SCAN_GLOBS.flat_map { |g| Dir.glob(Rails.root.join(g)) }.sort.each do |path|
-      rel = path.sub("#{Rails.root}/", "")
+    SCAN_GLOBS.flat_map { |g| Dir.glob(root.join(g)) }.sort.each do |path|
+      rel = path.sub("#{root}/", "")
 
       File.readlines(path).each_with_index do |line, i|
         CHECKS.each do |label, pattern|
@@ -135,34 +143,33 @@ class NoInlineJavascriptTest < ActiveSupport::TestCase
   end
 
   # The strongest proof: inject one real violation of each banned form into
-  # an actual file under app/views, run the SAME scan the guard test above
-  # runs, and confirm it is reported with its file and line number — then
-  # revert. This is the "confirm each fails with file and line, revert"
-  # requested for this guard specifically, over and above the regex-only
-  # proof above.
+  # an actual file — under an isolated tmp directory, not the live app/views
+  # (see the comment on `scan` for why) — run the SAME scan the guard test
+  # above runs, and confirm it is reported with its file and line number, then
+  # let Dir.mktmpdir clean up. This is the "confirm each fails with file and
+  # line, revert" requested for this guard specifically, over and above the
+  # regex-only proof above.
   test "the guard flags a real injected violation with file and line, in both forms" do
-    canary_path = Rails.root.join("app/views/__inline_js_guard_canary__.html.erb")
+    Dir.mktmpdir do |tmp_root|
+      root = Pathname.new(tmp_root)
+      canary_dir = root.join("app/views")
+      FileUtils.mkdir_p(canary_dir)
+      canary_path = canary_dir.join("canary.html.erb")
 
-    begin
       File.write(canary_path, <<~ERB)
         <div>before</div>
         <button onclick="doStuff()">Click</button>
         <%= link_to "x", "/y", onclick: "doStuff()" %>
       ERB
 
-      offenders = scan
-      canary_offenders = offenders.select { |o| o.include?("__inline_js_guard_canary__") }
+      offenders = scan(root)
 
-      attribute_hit = canary_offenders.find { |o| o.start_with?("app/views/__inline_js_guard_canary__.html.erb:2") }
-      hash_hit = canary_offenders.find { |o| o.start_with?("app/views/__inline_js_guard_canary__.html.erb:3") }
+      attribute_hit = offenders.find { |o| o.start_with?("app/views/canary.html.erb:2") }
+      hash_hit = offenders.find { |o| o.start_with?("app/views/canary.html.erb:3") }
 
       assert attribute_hit, "expected the onclick=\"...\" attribute on line 2 to be flagged with its line number"
       assert hash_hit, "expected the onclick: \"...\" hash option on line 3 to be flagged with its line number"
-    ensure
-      File.delete(canary_path) if File.exist?(canary_path)
     end
-
-    refute File.exist?(canary_path), "the canary file must not survive this test"
   end
 
   # Known limitation, matching NoRawColourInViewsTest's own note: the scan is
