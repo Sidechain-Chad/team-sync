@@ -623,6 +623,65 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
     assert_match(/data-planner-segment="end"/, response.body)
   end
 
+  # --- grid tidy-up: row-wrap seams (Item 2) ---
+  #
+  # May 4-12, 2026 crosses a week boundary at Saturday the 9th / Sunday the
+  # 10th — the exact seam the brief flagged. A :middle segment landing on
+  # Saturday (the grid's last column) or Sunday (the first column of the next
+  # row) has no same-row neighbour to bleed its negative margin toward; before
+  # this pass it bled anyway, off the edge of the grid. Now it caps with a
+  # rounded corner instead, the same as a real :start/:end already did.
+
+  test "a middle segment landing on the last column of a row caps its right edge instead of bleeding off the grid" do
+    card = cards(:one)
+    card.update!(title: "Grid Bar Card 91",
+                 start_date: Time.utc(2026, 5, 4, 9, 0),
+                 due_date:   Time.utc(2026, 5, 12, 17, 0))
+
+    get planner_url(year: 2026, month: 5)
+
+    cell = cell_html_for(Date.new(2026, 5, 9)) # Saturday — row-end, not the range's real end
+    assert_match(/data-planner-segment="middle"/, cell)
+    assert_match "rounded-r", cell
+    assert_no_match(/(?<!-)mr-1\.5/, cell, "a row-end middle segment must not bleed past the grid's right edge")
+  end
+
+  test "a middle segment landing on the first column of a row caps its left edge instead of bleeding off the grid" do
+    card = cards(:one)
+    card.update!(title: "Grid Bar Card 91",
+                 start_date: Time.utc(2026, 5, 4, 9, 0),
+                 due_date:   Time.utc(2026, 5, 12, 17, 0))
+
+    get planner_url(year: 2026, month: 5)
+
+    cell = cell_html_for(Date.new(2026, 5, 10)) # Sunday — row-start, not the range's real start
+    assert_match(/data-planner-segment="middle"/, cell)
+    assert_match "rounded-l", cell
+    assert_no_match(/(?<!-)ml-1\.5/, cell, "a row-start middle segment must not bleed past the grid's left edge")
+  end
+
+  test "a middle segment mid-row still bleeds into its neighbours, unlike the row edges above" do
+    card = cards(:one)
+    card.update!(title: "Grid Bar Card 91",
+                 start_date: Time.utc(2026, 5, 4, 9, 0),
+                 due_date:   Time.utc(2026, 5, 12, 17, 0))
+
+    get planner_url(year: 2026, month: 5)
+
+    cell = cell_html_for(Date.new(2026, 5, 6)) # Wednesday — an ordinary mid-row day
+    assert_match(/data-planner-segment="middle"/, cell)
+    assert_match "-ml-1.5", cell
+    assert_match "-mr-1.5", cell
+  end
+
+  test "the day grid draws its lines once, not per cell" do
+    get planner_url(year: 2026, month: 5)
+
+    assert_response :success
+    assert_no_match "border-r", response.body
+    assert_no_match "last:border-r-0", response.body
+  end
+
   test "panel query count stays flat as the number of range cards grows" do
     small = count_queries_for_panel(range_cards: 3)
     large = count_queries_for_panel(range_cards: 6)
@@ -646,6 +705,21 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
   # link's own title= attribute.
   def chip_count_for(card)
     response.body.scan(/href="#{Regexp.escape(card_path(card))}"/).size
+  end
+
+  # The single day cell's markup, keyed off its data-day attribute (mirrors
+  # panel_days_for's use of the panel's own data-agenda-day marker) — lets a
+  # test assert on classes within ONE cell instead of the whole grid, so
+  # "no bleed here" doesn't accidentally pass just because some OTHER day's
+  # cell still bleeds.
+  def cell_html_for(date)
+    marker = %(data-day="#{date.iso8601}")
+    start = response.body.index(marker)
+    assert start, "expected to find a day cell for #{date}"
+    # Cells are flat siblings; the next data-day="..." (or the grid's own
+    # closing tags, for the last cell) bounds this one.
+    stop = response.body.index('data-day="', start + marker.length) || response.body.length
+    response.body[start...stop]
   end
 
   # Which agenda day-groups a card is rendered under, ascending. Keyed off the

@@ -85,16 +85,23 @@
       <% end %>
     </div>
 
-    <%# Day cells. grid-rows-6 fixes the row count so cells stay equal-height. %>
-    <div class="grid grid-cols-7 grid-rows-6">
+    <%# Day cells. grid-rows-6 fixes the row count so cells stay equal-height.
+        Grid lines are drawn ONCE, via gap-px + a bg-line fill showing through
+        the gaps, rather than per-cell border-r/border-b — the old approach
+        put a border-r on every cell in a flat 42-cell list, and :last-child
+        only matches cell #42 (bottom-right), so every Saturday in the other
+        5 rows doubled up against the container's own right border. A shared
+        gap has no "last cell" special case to get wrong. %>
+    <div class="grid grid-cols-7 grid-rows-6 gap-px bg-line">
       <% @days.each do |day| %>
         <%
           in_current_month = day.month == @month
           is_today         = day == Date.current
           cards_today      = @cards_by_day[day] || []
         %>
-        <div class="min-h-[110px] border-r border-b border-line p-1.5 last:border-r-0
-                    <%= 'bg-surface-muted' unless in_current_month %>">
+        <div class="min-h-[110px] p-1.5
+                    <%= in_current_month ? 'bg-surface-0' : 'bg-surface-muted' %>"
+             data-day="<%= day.iso8601 %>">
 
           <%# Date number — highlighted if today %>
           <div class="flex items-center justify-end mb-1">
