@@ -536,16 +536,32 @@ body {
    board_cover_gradient_classes. .canvas-golden is neither of those: it is the
    page wrapper behind the boards index, planner and archive, i.e. app chrome,
    and the block comment above has always said so ("Excludes the board show
-   page"). Leaving it at cream would have left those three pages a bright canvas
-   with dark cards floating on it — the one combination dark mode exists to
-   avoid. So it darkens, keeping the same two warm glows, which now read as a
-   faint bloom instead of daylight. Dark value brought into the same near-
-   neutral 5% saturation as the surface pass above (was 23.6% — same brown-field
-   problem as the surfaces); ink-500 measures 7.61:1 there (was 7.08:1). */
+   page").
+
+   Dark mode goes FLAT here, not just darker — the layered radial glows plus a
+   diagonal linear-gradient read as a smudge on a dark page (the exact
+   complaint this pass fixes), where the same layering read as atmosphere on
+   a light one. Light mode's three-layer background is untouched below;
+   dark mode replaces the whole `background` shorthand with a single flat
+   colour, dropping both radial glows entirely — a flat page-level canvas
+   with no ambient light source reads as calmer chrome behind saturated
+   board tiles/list panels, not as a colour statement of its own.
+
+   --canvas-golden-stop is repurposed rather than replaced: in light mode it
+   is still the gradient's bottom stop; in dark mode .canvas-golden's own
+   rule below points `background` at it directly as a flat fill, slightly
+   darker than --dark-surface-50 (the page floor every other canvas-less page
+   uses) so this wrapper still reads as intentional chrome rather than "no
+   background set". ink-500 measures 8.19:1 on it (was 7.61:1 against the old
+   gradient's darkest point, itself already above the 4.5:1 AA floor). */
 :root { --canvas-golden-stop: #F1E6DA; }
-[data-theme="dark"] { --canvas-golden-stop: #151413; }
+[data-theme="dark"] { --canvas-golden-stop: #0A0908; }
 @media (prefers-color-scheme: dark) {
-  [data-theme="system"] { --canvas-golden-stop: #151413; }
+  [data-theme="system"] { --canvas-golden-stop: #0A0908; }
+}
+[data-theme="dark"] .canvas-golden { background: var(--canvas-golden-stop); }
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .canvas-golden { background: var(--canvas-golden-stop); }
 }
 
 /* Dark treatment for the GENERATED board-cover gradients
