@@ -529,6 +529,7 @@ body {
       rgb(245 158 11 / 0.08), transparent 55%),    /* faint amber counter-glow, top-left */
     linear-gradient(180deg, var(--color-surface-50) 0%, var(--canvas-golden-stop) 100%);
 }
+:root { --canvas-golden-stop: #F1E6DA; }
 
 /* INTERPRETATION, flagged because the brief's "warm gradients stay unchanged"
    could be read either way. What stays untouched is BOARD backgrounds — the
@@ -538,30 +539,45 @@ body {
    and the block comment above has always said so ("Excludes the board show
    page").
 
-   Dark mode goes FLAT here, not just darker — the layered radial glows plus a
-   diagonal linear-gradient read as a smudge on a dark page (the exact
-   complaint this pass fixes), where the same layering read as atmosphere on
-   a light one. Light mode's three-layer background is untouched below;
-   dark mode replaces the whole `background` shorthand with a single flat
-   colour, dropping both radial glows entirely — a flat page-level canvas
-   with no ambient light source reads as calmer chrome behind saturated
-   board tiles/list panels, not as a colour statement of its own.
+   SECOND PASS: the first pass went flat, dropping both radial glows, because
+   a diagonal gradient plus glows read as a smudge against a near-black
+   backdrop. Flat fixed the smudge but over-corrected: the flat fill was
+   #0A0908 (L=3.5%), which read as near-black and "too dark" against the
+   board canvas beside it. This pass keeps dark mode a GRADIENT — just the
+   shared neutral charcoal one below, not the old warm layered treatment —
+   so these pages are lifted well off near-black AND stay cohesive with the
+   board canvas rather than reintroducing a second, different-looking
+   treatment. Light mode's three-layer background is untouched. */
 
-   --canvas-golden-stop is repurposed rather than replaced: in light mode it
-   is still the gradient's bottom stop; in dark mode .canvas-golden's own
-   rule below points `background` at it directly as a flat fill, slightly
-   darker than --dark-surface-50 (the page floor every other canvas-less page
-   uses) so this wrapper still reads as intentional chrome rather than "no
-   background set". ink-500 measures 8.19:1 on it (was 7.61:1 against the old
-   gradient's darkest point, itself already above the 4.5:1 AA floor). */
-:root { --canvas-golden-stop: #F1E6DA; }
-[data-theme="dark"] { --canvas-golden-stop: #0A0908; }
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] { --canvas-golden-stop: #0A0908; }
+/* THE SHARED DARK-MODE CHARCOAL GRADIENT. One recipe, two consumers:
+   .canvas-golden below (app chrome — home, planner, planner map, archived
+   items) and .board-canvas-gradient further down (the board show page's
+   canvas). Both stops sit above --dark-surface-200 (the list column, L=24%)
+   at every point, not just on average, so the canvas stays the lightest of
+   the three planes (card L=16% < list L=24% < canvas L=26-34%) exactly like
+   the flat fill it replaces did. FULLY NEUTRAL (S=0%), deliberately more
+   neutral than the "hint of warmth" the rest of the dark surface ramp uses —
+   measured, not assumed: a warm-hued base here COMPOUNDS with the per-board
+   tint below (both skew the same direction), pushing every warm-palette
+   board toward the same muddy brown instead of reading as its own hue. A
+   neutral base is what keeps the tint's hue legible as a wash rather than a
+   colour statement of the base itself. The one axis these two consumers
+   actually differ on is --board-canvas-dark-tint (see .board-canvas-gradient
+   below): app chrome never sets it, so it stays pure charcoal; the board
+   canvas sets it per-board for a low-alpha hue wash on top of this same
+   base. */
+:root {
+  --charcoal-canvas-from: #424242; /* L=25.9%, S=0% */
+  --charcoal-canvas-to:   #575757; /* L=34.1%, S=0% */
 }
-[data-theme="dark"] .canvas-golden { background: var(--canvas-golden-stop); }
+
+[data-theme="dark"] .canvas-golden {
+  background: linear-gradient(135deg, var(--charcoal-canvas-from), var(--charcoal-canvas-to));
+}
 @media (prefers-color-scheme: dark) {
-  [data-theme="system"] .canvas-golden { background: var(--canvas-golden-stop); }
+  [data-theme="system"] .canvas-golden {
+    background: linear-gradient(135deg, var(--charcoal-canvas-from), var(--charcoal-canvas-to));
+  }
 }
 
 /* Dark treatment for the GENERATED board-cover gradients
@@ -631,19 +647,37 @@ body {
     linear-gradient(var(--board-canvas-gradient-tint), var(--board-canvas-gradient-tint)),
     linear-gradient(var(--tw-gradient-stops));
 }
+/* SECOND PASS: the first pass made --board-canvas-gradient-tint fully OPAQUE
+   grey, which replaced the hue entirely — fixing the brown-on-brown problem,
+   but at the cost of every board looking identical, which turned out to be
+   worth keeping. This pass swaps the base for the SAME shared charcoal
+   gradient .canvas-golden uses above (cohesive with app chrome, and already
+   verified to keep the card/list/canvas plane ordering intact), and restores
+   per-board distinctiveness as a LOW-ALPHA wash layered on top rather than
+   the full-saturation gradient light mode shows — full saturation here is
+   exactly the "brown mush" failure mode to avoid.
+
+   The wash is a SEPARATE variable, --board-canvas-dark-tint (not the
+   existing --board-canvas-gradient-tint, which stays "transparent" in dark
+   mode too, unused by this rule) so it can be set unconditionally by a
+   per-board utility class (board_canvas_tint_classes in BoardsHelper,
+   index-aligned with BOARD_COVER_GRADIENTS) without leaking into light mode:
+   light mode's rule above never references --board-canvas-dark-tint, so the
+   class is inert there. Each tint is one of the 8 palette anchors at 6%
+   alpha — enough to be perceptible and to keep two boards visibly different,
+   measured low enough that even the most saturated anchor (honey) composites
+   under 9% saturation over this base, not the flat-brown result a heavier
+   wash would produce. */
 [data-theme="dark"] .board-canvas-gradient {
-  /* OPAQUE, unlike --board-cover-gradient-scrim above — this fully replaces
-     the warm gradient underneath instead of darkening it, which is the
-     actual ask ("replace the hue entirely ... rather than layer another
-     scrim on top of it"). #474747, neutral grey (S=0%, L=27.8%) — measured
-     to land ~4pt lighter than --dark-surface-200 (the list column, L=24%),
-     so lists/cards read as raised planes against this canvas rather than
-     one undifferentiated dark field. */
-  --board-canvas-gradient-tint: #474747;
+  background-image:
+    linear-gradient(var(--board-canvas-dark-tint, transparent), var(--board-canvas-dark-tint, transparent)),
+    linear-gradient(135deg, var(--charcoal-canvas-from), var(--charcoal-canvas-to));
 }
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] .board-canvas-gradient {
-    --board-canvas-gradient-tint: #474747;
+    background-image:
+      linear-gradient(var(--board-canvas-dark-tint, transparent), var(--board-canvas-dark-tint, transparent)),
+      linear-gradient(135deg, var(--charcoal-canvas-from), var(--charcoal-canvas-to));
   }
 }
 
