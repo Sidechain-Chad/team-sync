@@ -682,6 +682,137 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
     assert_no_match "last:border-r-0", response.body
   end
 
+  # --- per-week lane assignment (Item 3) ---
+  #
+  # Each day cell used to stack its own chips independently — a spanning
+  # card's vertical position depended on whatever ELSE fell on that
+  # particular day, so a bar visibly stepped up and down across a week
+  # instead of reading as one straight line. These pin
+  # PlannerHelper#planner_week_lanes, which assigns every spanning card a
+  # lane index that's stable for its whole week row, rendered via the
+  # view's data-planner-lane attribute. August 9-22, 2026 is two full
+  # Sunday-Saturday weeks, matching the exact seam the brief flagged.
+
+  test "a range spanning a full week occupies the same lane index in every cell of that row" do
+    board = @user.boards.create!(name: "Lane Test Board 1")
+    list  = board.lists.create!(name: "L", position: 1)
+    spanning = list.cards.create!(title: "Full Week Span", position: 1,
+                                   start_date: Date.new(2026, 8, 9).noon,
+                                   due_date:   Date.new(2026, 8, 15).noon)
+
+    # Point chips scattered unevenly across the row — different counts on
+    # different days — is exactly what used to displace the bar to a
+    # different stack position from one cell to the next.
+    { Date.new(2026, 8, 10) => 2, Date.new(2026, 8, 12) => 1, Date.new(2026, 8, 14) => 3 }.each do |date, count|
+      count.times do |i|
+        list.cards.create!(title: "Noise #{date.iso8601} #{i}", position: 2 + i, due_date: date.noon)
+      end
+    end
+
+    get planner_url(year: 2026, month: 8)
+    assert_response :success
+
+    (Date.new(2026, 8, 9)..Date.new(2026, 8, 15)).each do |date|
+      assert_equal 0, lane_for(spanning, date),
+                   "expected #{spanning.title} to stay in lane 0 on #{date}, regardless of how many point " \
+                   "chips share that day"
+    end
+  end
+
+  test "a range that starts mid-week and another that starts later get different lanes and do not collide" do
+    board = @user.boards.create!(name: "Lane Test Board 2")
+    list  = board.lists.create!(name: "L", position: 1)
+    mid_week = list.cards.create!(title: "Mid Week Start", position: 1,
+                                   start_date: Date.new(2026, 8, 11).noon, # Tuesday
+                                   due_date:   Date.new(2026, 8, 13).noon) # Thursday
+    starts_later = list.cards.create!(title: "Starts Later", position: 2,
+                                       start_date: Date.new(2026, 8, 12).noon, # Wednesday: overlaps mid_week
+                                       due_date:   Date.new(2026, 8, 14).noon) # Friday
+
+    get planner_url(year: 2026, month: 8)
+    assert_response :success
+
+    overlap_day = Date.new(2026, 8, 12)
+    lane_a = lane_for(mid_week, overlap_day)
+    lane_b = lane_for(starts_later, overlap_day)
+
+    assert_not_nil lane_a, "expected #{mid_week.title} to have a lane on #{overlap_day}"
+    assert_not_nil lane_b, "expected #{starts_later.title} to have a lane on #{overlap_day}"
+    refute_equal lane_a, lane_b, "overlapping ranges must not share a lane"
+  end
+
+  test "point chips render below the spanning lanes" do
+    board = @user.boards.create!(name: "Lane Test Board 3")
+    list  = board.lists.create!(name: "L", position: 1)
+    spanning = list.cards.create!(title: "Spanning Card", position: 1,
+                                   start_date: Date.new(2026, 8, 9).noon,
+                                   due_date:   Date.new(2026, 8, 11).noon)
+    point = list.cards.create!(title: "Point Card", position: 2, due_date: Date.new(2026, 8, 10).noon)
+
+    get planner_url(year: 2026, month: 8)
+    assert_response :success
+
+    cell = cell_html_for(Date.new(2026, 8, 10))
+    spanning_index = cell.index(%(href="#{card_path(spanning)}"))
+    point_index    = cell.index(%(href="#{card_path(point)}"))
+
+    assert spanning_index, "expected the spanning card's chip in this cell"
+    assert point_index, "expected the point card's chip in this cell"
+    assert_operator spanning_index, :<, point_index,
+                    "point chips must render below (after, in DOM order) the spanning lanes, so they can never " \
+                    "displace a bar"
+  end
+
+  test "row-boundary caps still apply correctly when a card shares its row with another lane" do
+    board = @user.boards.create!(name: "Lane Test Board 4")
+    list  = board.lists.create!(name: "L", position: 1)
+    # Crosses the Aug 15/16 week boundary, in lane 0.
+    crossing = list.cards.create!(title: "Crossing Range", position: 1,
+                                   start_date: Date.new(2026, 8, 9).noon,
+                                   due_date:   Date.new(2026, 8, 22).noon)
+    # Confined to the middle of the same row, so it packs into lane 1
+    # alongside `crossing`'s lane 0 without ever overlapping it.
+    list.cards.create!(title: "Short Range", position: 2,
+                        start_date: Date.new(2026, 8, 12).noon,
+                        due_date:   Date.new(2026, 8, 14).noon)
+
+    get planner_url(year: 2026, month: 8)
+    assert_response :success
+
+    saturday = Date.new(2026, 8, 15) # this row's last column — a real seam, not the range's true end
+    assert_equal 0, lane_for(crossing, saturday)
+
+    cell = cell_html_for(saturday)
+    href = %(href="#{card_path(crossing)}")
+    idx  = cell.index(href)
+    tag  = cell[cell.rindex("<a ", idx)..cell.index(">", idx)]
+    assert_match(/data-planner-segment="middle"/, tag)
+    assert_includes tag, "rounded-r", "the row-boundary cap must still apply with a second lane present"
+  end
+
+  test "lane assignment is stable across repeated renders of the same data" do
+    board = @user.boards.create!(name: "Lane Test Board 5")
+    list  = board.lists.create!(name: "L", position: 1)
+    a = list.cards.create!(title: "Stable A", position: 1,
+                            start_date: Date.new(2026, 8, 9).noon,  due_date: Date.new(2026, 8, 12).noon)
+    b = list.cards.create!(title: "Stable B", position: 2,
+                            start_date: Date.new(2026, 8, 10).noon, due_date: Date.new(2026, 8, 13).noon)
+    c = list.cards.create!(title: "Stable C", position: 3,
+                            start_date: Date.new(2026, 8, 12).noon, due_date: Date.new(2026, 8, 14).noon)
+    overlap_day = Date.new(2026, 8, 12) # all three cards are active on this day
+
+    get planner_url(year: 2026, month: 8)
+    assert_response :success
+    first_lanes = [a, b, c].map { |card| lane_for(card, overlap_day) }
+
+    get planner_url(year: 2026, month: 8)
+    assert_response :success
+    second_lanes = [a, b, c].map { |card| lane_for(card, overlap_day) }
+
+    assert first_lanes.all?, "expected every card to have a lane assigned"
+    assert_equal first_lanes, second_lanes, "the same data must produce the same lanes on every render"
+  end
+
   test "panel query count stays flat as the number of range cards grows" do
     small = count_queries_for_panel(range_cards: 3)
     large = count_queries_for_panel(range_cards: 6)
@@ -720,6 +851,22 @@ class PlannerControllerTest < ActionDispatch::IntegrationTest
     # closing tags, for the last cell) bounds this one.
     stop = response.body.index('data-day="', start + marker.length) || response.body.length
     response.body[start...stop]
+  end
+
+  # The lane index (data-planner-lane) a card's chip rendered in on one
+  # specific day, scoped to that day's own cell so a same-titled/positioned
+  # chip elsewhere in the grid can't be picked up by mistake. nil if the
+  # card has no chip in that cell at all (e.g. a point chip, which carries
+  # no lane attribute).
+  def lane_for(card, date)
+    cell = cell_html_for(date)
+    href = %(href="#{card_path(card)}")
+    idx = cell.index(href)
+    return nil unless idx
+
+    tag = cell[cell.rindex("<a ", idx)..cell.index(">", idx)]
+    match = tag.match(/data-planner-lane="(\d+)"/)
+    match && match[1].to_i
   end
 
   # Which agenda day-groups a card is rendered under, ascending. Keyed off the
