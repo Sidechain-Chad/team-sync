@@ -567,13 +567,6 @@ body {
 :root {
   --app-canvas-from: #45423F; /* L=25.9%, S=4% (was #424242, S=0%) */
   --app-canvas-to:   #5A5753; /* L=33.9%, S=4% (was #575757, S=0%) */
-
-  /* Still consumed by .board-canvas-gradient's dark rule further down,
-     unchanged for now — the board canvas gets its own richer treatment in
-     the next pass, at which point these become dead and should be removed
-     rather than left as an unused leftover. */
-  --charcoal-canvas-from: #424242; /* L=25.9%, S=0% */
-  --charcoal-canvas-to:   #575757; /* L=34.1%, S=0% */
 }
 
 [data-theme="dark"] .canvas-golden {
@@ -598,22 +591,28 @@ body {
 
    .board-canvas-gradient — the board SHOW page's full-height canvas
    (boards/show.html.erb only), the surface lists and cards actually float
-   on. A warm gradient there read as brown-on-brown against warm-toned dark
-   lists/cards, and there is no per-board-recognition need to preserve (nobody
-   is comparing this canvas against a grid of other boards) — so dark mode
-   REPLACES the hue entirely with a neutral charcoal instead of scrimming it.
-   Photo backgrounds already carry their own dark scrim (see the inline style
-   in boards/show.html.erb) and are untouched by either class.
+   on. Two earlier passes both over-corrected: the first read as
+   brown-on-brown (warm gradient behind warm-toned dark lists/cards); the
+   second fixed that by going fully neutral, plus a wash so faint it read as
+   flat next to a photo background. boards/1 (an actual uploaded photo)
+   proved the real fix: SURFACES stay neutral — that's the whole reason a
+   genuinely rich background is safe — while the background itself can be as
+   rich as it wants. So THIS pass makes the canvas itself as rich as a photo:
+   see .board-canvas-rich-0 through -7 further down, rather than a scrim/wash
+   on .board-canvas-gradient's own tint variable.
 
-   Both are kept to ONE token each so either is trivially revertible: delete
-   the rule block and the class from the view(s) that add it. The Ruby helper
-   (BOARD_COVER_GRADIENTS, board_cover_gradient_classes) is NOT touched by
-   either — the palette a board ID maps to is unchanged — and gating through a
-   CSS custom property (rather than in the helper) is what makes both
-   treatments correctly reactive to "Match system": the helper runs
-   server-side and cannot know an OS-level preference (see the big comment at
-   the top of this file on why "system" is resolved by prefers-color-scheme
-   and never JS).
+   Photo backgrounds already carry their own dark scrim (see the inline
+   style in boards/show.html.erb) and are untouched by any of this.
+
+   .board-cover-gradient is kept to ONE token so it stays trivially
+   revertible: delete the rule block and the class from the view(s) that add
+   it. The Ruby helper (BOARD_COVER_GRADIENTS, board_cover_gradient_classes)
+   is NOT touched by any of this — the palette a board ID maps to is
+   unchanged — and gating through a CSS custom property (rather than in the
+   helper) is what makes it correctly reactive to "Match system": the helper
+   runs server-side and cannot know an OS-level preference (see the big
+   comment at the top of this file on why "system" is resolved by
+   prefers-color-scheme and never JS).
 
    Layered onto Tailwind's own --tw-gradient-stops rather than reimplementing
    the 8-entry palette in CSS — confirmed present in the compiled output
@@ -652,37 +651,66 @@ body {
     linear-gradient(var(--board-canvas-gradient-tint), var(--board-canvas-gradient-tint)),
     linear-gradient(var(--tw-gradient-stops));
 }
-/* SECOND PASS: the first pass made --board-canvas-gradient-tint fully OPAQUE
-   grey, which replaced the hue entirely — fixing the brown-on-brown problem,
-   but at the cost of every board looking identical, which turned out to be
-   worth keeping. This pass swaps the base for the SAME shared charcoal
-   gradient .canvas-golden uses above (cohesive with app chrome, and already
-   verified to keep the card/list/canvas plane ordering intact), and restores
-   per-board distinctiveness as a LOW-ALPHA wash layered on top rather than
-   the full-saturation gradient light mode shows — full saturation here is
-   exactly the "brown mush" failure mode to avoid.
 
-   The wash is a SEPARATE variable, --board-canvas-dark-tint (not the
-   existing --board-canvas-gradient-tint, which stays "transparent" in dark
-   mode too, unused by this rule) so it can be set unconditionally by a
-   per-board utility class (board_canvas_tint_classes in BoardsHelper,
-   index-aligned with BOARD_COVER_GRADIENTS) without leaking into light mode:
-   light mode's rule above never references --board-canvas-dark-tint, so the
-   class is inert there. Each tint is one of the 8 palette anchors at 6%
-   alpha — enough to be perceptible and to keep two boards visibly different,
-   measured low enough that even the most saturated anchor (honey) composites
-   under 9% saturation over this base, not the flat-brown result a heavier
-   wash would produce. */
+/* THIRD PASS — as rich as a photo, not a wash on a neutral base.
+   db/seed_assets/board_background.jpg (boards/1's actual photo) was
+   measured directly rather than eyeballed: an off-centre bright point at
+   roughly (23%, 27%) of the image, L=79.6% S=96.9%; a darker patch at
+   roughly (80%, 82%), L=30.3% raw / L=21.7% after the board show page's
+   own inline .28-alpha scrim; a diagonal linear base beneath both running
+   from L=59.2% (top) to L=39.6% (bottom); average across the whole image
+   H=23.7deg S=75.3% L=50.9%. That is a ~49-point lightness SPAN with real
+   saturation throughout — nothing like the previous pass's L=25.9-34.1%,
+   S=6% wash.
+
+   .board-canvas-rich-0 through -7 (one rule per BOARD_COVER_GRADIENTS
+   entry, same index, set via board_canvas_rich_class in BoardsHelper)
+   rebuild that structure per board: a radial highlight at 25%/20% (matching
+   the photo's off-centre glow), a radial shadow at 78%/82% (matching its
+   dark patch), and a diagonal linear base between them filling in where
+   both radials fade to transparent — the exact 2-radials-plus-1-linear
+   layering .canvas-golden already uses in light mode, recoloured per board
+   and given a much wider range: L=72% (highlight) down to L=18% (shadow),
+   full per-anchor saturation (each anchor's own character preserved: the
+   two "cool counterpoint" anchors, plum and slate, stay less saturated by
+   design, same as their tile gradients already are).
+
+   Verified at the DARK end, not just the bright one: --dark-surface-200
+   (the list column, L=24.1%) stays 6.1-6.3pt above every rich-N shadow
+   colour's L=18% — wider than the actual photo board's own real-world gap
+   (measured 2.4pt, list column against its scrimmed darkest point) and
+   above ThemeTokensTest's 2.5pt "visible amount" precedent for adjacent
+   surface tokens, deliberately wider since a flat generated colour has no
+   photographic texture to help the eye separate the two the way a real
+   photo does.
+
+   SURFACES ARE NOT TOUCHED — no --dark-surface-* value changed, and none of
+   the --rich-* variables below are added to ThemeTokensTest's saturation
+   guard: they are not surface tokens, and the guard's threshold was not
+   raised to accommodate them. This supersedes the previous pass entirely:
+   --board-canvas-dark-tint, --charcoal-canvas-from/-to and
+   board_canvas_tint_classes are removed, not layered under. */
+.board-canvas-rich-0 { --rich-glow: #F79778; --rich-shadow: #4D1E0F; --rich-base-top: #CF481B; --rich-base-bot: #6E301C; } /* ember */
+.board-canvas-rich-1 { --rich-glow: #F9C876; --rich-shadow: #50370C; --rich-base-top: #D78E14; --rich-base-bot: #715018; } /* honey */
+.board-canvas-rich-2 { --rich-glow: #E3A68C; --rich-shadow: #432519; --rich-base-top: #B25C38; --rich-base-bot: #613929; } /* clay */
+.board-canvas-rich-3 { --rich-glow: #DC9793; --rich-shadow: #401E1C; --rich-base-top: #A94742; --rich-base-bot: #5C302D; } /* rosewood */
+.board-canvas-rich-4 { --rich-glow: #CBA5BE; --rich-shadow: #372531; --rich-base-top: #905B7E; --rich-base-bot: #513949; } /* plum */
+.board-canvas-rich-5 { --rich-glow: #CAD996; --rich-shadow: #373E1D; --rich-base-top: #90A546; --rich-base-bot: #515B2F; } /* moss */
+.board-canvas-rich-6 { --rich-glow: #99D6D2; --rich-shadow: #1F3D3B; --rich-base-top: #4BA09B; --rich-base-bot: #315856; } /* dusk teal */
+.board-canvas-rich-7 { --rich-glow: #A5B1CB; --rich-shadow: #252B37; --rich-base-top: #5B6C90; --rich-base-bot: #394051; } /* slate blue */
+
 [data-theme="dark"] .board-canvas-gradient {
   background-image:
-    linear-gradient(var(--board-canvas-dark-tint, transparent), var(--board-canvas-dark-tint, transparent)),
-    linear-gradient(135deg, var(--charcoal-canvas-from), var(--charcoal-canvas-to));
+    radial-gradient(1400px 900px at 25% 20%, var(--rich-glow), transparent 60%),
+    radial-gradient(1300px 850px at 78% 82%, var(--rich-shadow), transparent 55%),
+    linear-gradient(160deg, var(--rich-base-top), var(--rich-base-bot));
 }
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] .board-canvas-gradient {
     background-image:
-      linear-gradient(var(--board-canvas-dark-tint, transparent), var(--board-canvas-dark-tint, transparent)),
-      linear-gradient(135deg, var(--charcoal-canvas-from), var(--charcoal-canvas-to));
+      radial-gradient(1400px 900px at 25% 20%, var(--rich-glow), transparent 60%),
+      radial-gradient(1300px 850px at 78% 82%, var(--rich-shadow), transparent 55%),
+      linear-gradient(160deg, var(--rich-base-top), var(--rich-base-bot));
   }
 }
 
