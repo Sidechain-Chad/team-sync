@@ -542,41 +542,46 @@ body {
    SECOND PASS: the first pass went flat, dropping both radial glows, because
    a diagonal gradient plus glows read as a smudge against a near-black
    backdrop. Flat fixed the smudge but over-corrected: the flat fill was
-   #0A0908 (L=3.5%), which read as near-black and "too dark" against the
-   board canvas beside it. This pass keeps dark mode a GRADIENT — just the
-   shared neutral charcoal one below, not the old warm layered treatment —
-   so these pages are lifted well off near-black AND stay cohesive with the
-   board canvas rather than reintroducing a second, different-looking
-   treatment. Light mode's three-layer background is untouched. */
+   #0A0908 (L=3.5%), which read as near-black and "too dark". This pass kept
+   dark mode a GRADIENT but made it fully neutral (S=0%) and shared with the
+   board canvas, which then turned out to be its own over-correction: the
+   "brown mush" failure mode was never caused by a rich or warm background,
+   it was caused by BROWN SURFACES sitting on a brown background (proven by
+   boards/1 — a photo background, rich and saturated, reads beautifully
+   under neutral dark cards). App chrome and the board canvas are different
+   surfaces doing different jobs, so THIRD PASS gives them different
+   treatments instead of one shared token: app chrome (here) gets a subtle
+   warm undertone, hue-only — the board canvas (see .board-canvas-gradient
+   further down) gets its own much richer, per-board treatment. Light mode's
+   three-layer background is untouched. */
 
-/* THE SHARED DARK-MODE CHARCOAL GRADIENT. One recipe, two consumers:
-   .canvas-golden below (app chrome — home, planner, planner map, archived
-   items) and .board-canvas-gradient further down (the board show page's
-   canvas). Both stops sit above --dark-surface-200 (the list column, L=24%)
-   at every point, not just on average, so the canvas stays the lightest of
-   the three planes (card L=16% < list L=24% < canvas L=26-34%) exactly like
-   the flat fill it replaces did. FULLY NEUTRAL (S=0%), deliberately more
-   neutral than the "hint of warmth" the rest of the dark surface ramp uses —
-   measured, not assumed: a warm-hued base here COMPOUNDS with the per-board
-   tint below (both skew the same direction), pushing every warm-palette
-   board toward the same muddy brown instead of reading as its own hue. A
-   neutral base is what keeps the tint's hue legible as a wash rather than a
-   colour statement of the base itself. The one axis these two consumers
-   actually differ on is --board-canvas-dark-tint (see .board-canvas-gradient
-   below): app chrome never sets it, so it stays pure charcoal; the board
-   canvas sets it per-board for a low-alpha hue wash on top of this same
-   base. */
+/* Hue-only change from the previous (fully neutral) pass — SAME lightness,
+   L=25.9%/34.1%, confirmed unchanged; only saturation moved, 0% to 4%. The
+   hue (30deg) is not invented: it's exactly what --dark-surface-0 and
+   --dark-line already use, i.e. lifted from the existing "hint of warmth"
+   the rest of the dark surface ramp carries, not a new colour decision.
+   Started at 4% deliberately (below that ramp's own ~5-7%) per the brief's
+   "start low and only go up if it is imperceptible" — confirmed perceptible
+   against a board tile, the planner grid and the archive panel (see the
+   commit message for the three separation measurements), so 4% stays. */
 :root {
+  --app-canvas-from: #45423F; /* L=25.9%, S=4% (was #424242, S=0%) */
+  --app-canvas-to:   #5A5753; /* L=33.9%, S=4% (was #575757, S=0%) */
+
+  /* Still consumed by .board-canvas-gradient's dark rule further down,
+     unchanged for now — the board canvas gets its own richer treatment in
+     the next pass, at which point these become dead and should be removed
+     rather than left as an unused leftover. */
   --charcoal-canvas-from: #424242; /* L=25.9%, S=0% */
   --charcoal-canvas-to:   #575757; /* L=34.1%, S=0% */
 }
 
 [data-theme="dark"] .canvas-golden {
-  background: linear-gradient(135deg, var(--charcoal-canvas-from), var(--charcoal-canvas-to));
+  background: linear-gradient(135deg, var(--app-canvas-from), var(--app-canvas-to));
 }
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] .canvas-golden {
-    background: linear-gradient(135deg, var(--charcoal-canvas-from), var(--charcoal-canvas-to));
+    background: linear-gradient(135deg, var(--app-canvas-from), var(--app-canvas-to));
   }
 }
 
