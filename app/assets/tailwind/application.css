@@ -549,24 +549,34 @@ body {
 }
 
 /* Dark treatment for the GENERATED board-cover gradients
-   (board_cover_gradient_classes) — reverses the earlier decision to leave
-   board backgrounds untouched. A fully-saturated warm gradient sitting behind
-   dark list columns/cards turned out to be a large part of the muddiness the
-   screen recording flagged, the same complaint as the surface tokens above.
-   Photo backgrounds already carry their own dark scrim (see the inline style
-   in boards/show.html.erb) and are untouched here.
+   (board_cover_gradient_classes). Two call sites share the same 8-entry
+   palette but need OPPOSITE dark-mode treatments, so they get two classes:
 
-   Kept to ONE token (--board-cover-gradient-scrim) so it is trivially
-   revertible: delete this rule block and the "board-cover-gradient" class
-   from the two views that add it (boards/show.html.erb, boards/_cover.html.erb).
-   The Ruby helper (BOARD_COVER_GRADIENTS, board_cover_gradient_classes) is
-   NOT touched — the palette a board ID maps to is unchanged, so tiles stay
-   exactly as distinct from each other as before, and this also makes the
-   dark treatment correctly reactive to "Match system": the helper runs
-   server-side and cannot know an OS-level preference (see the big comment
-   at the top of this file on why "system" is resolved by prefers-color-scheme
-   and never JS), but a CSS custom property gated the same way as every other
-   token here can.
+   .board-cover-gradient — the small tile previews (boards index, switcher,
+   starred sidebar, recently-viewed, account row). Nothing is drawn on top of
+   these, and their whole job is letting someone tell their boards apart at a
+   glance, so dark mode only darkens+desaturates the warm gradient underneath
+   (a translucent scrim) rather than replacing it — the 8 hues stay
+   distinguishable from each other, just dimmer.
+
+   .board-canvas-gradient — the board SHOW page's full-height canvas
+   (boards/show.html.erb only), the surface lists and cards actually float
+   on. A warm gradient there read as brown-on-brown against warm-toned dark
+   lists/cards, and there is no per-board-recognition need to preserve (nobody
+   is comparing this canvas against a grid of other boards) — so dark mode
+   REPLACES the hue entirely with a neutral charcoal instead of scrimming it.
+   Photo backgrounds already carry their own dark scrim (see the inline style
+   in boards/show.html.erb) and are untouched by either class.
+
+   Both are kept to ONE token each so either is trivially revertible: delete
+   the rule block and the class from the view(s) that add it. The Ruby helper
+   (BOARD_COVER_GRADIENTS, board_cover_gradient_classes) is NOT touched by
+   either — the palette a board ID maps to is unchanged — and gating through a
+   CSS custom property (rather than in the helper) is what makes both
+   treatments correctly reactive to "Match system": the helper runs
+   server-side and cannot know an OS-level preference (see the big comment at
+   the top of this file on why "system" is resolved by prefers-color-scheme
+   and never JS).
 
    Layered onto Tailwind's own --tw-gradient-stops rather than reimplementing
    the 8-entry palette in CSS — confirmed present in the compiled output
@@ -596,6 +606,28 @@ body {
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] .board-cover-gradient {
     --board-cover-gradient-scrim: rgb(13 13 12 / 62%);
+  }
+}
+
+.board-canvas-gradient {
+  --board-canvas-gradient-tint: transparent;
+  background-image:
+    linear-gradient(var(--board-canvas-gradient-tint), var(--board-canvas-gradient-tint)),
+    linear-gradient(var(--tw-gradient-stops));
+}
+[data-theme="dark"] .board-canvas-gradient {
+  /* OPAQUE, unlike --board-cover-gradient-scrim above — this fully replaces
+     the warm gradient underneath instead of darkening it, which is the
+     actual ask ("replace the hue entirely ... rather than layer another
+     scrim on top of it"). #474747, neutral grey (S=0%, L=27.8%) — measured
+     to land ~4pt lighter than --dark-surface-200 (the list column, L=24%),
+     so lists/cards read as raised planes against this canvas rather than
+     one undifferentiated dark field. */
+  --board-canvas-gradient-tint: #474747;
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .board-canvas-gradient {
+    --board-canvas-gradient-tint: #474747;
   }
 }
 
