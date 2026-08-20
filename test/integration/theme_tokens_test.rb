@@ -5,24 +5,25 @@ require "test_helper"
 # Dark mode here is not a set of `dark:` variants — it is a redefinition of token
 # VALUES under a selector on <html>, which re-colours every existing
 # bg-surface-* / text-ink-* utility at once. That is enormously cheaper than the
-# alternative, and it has exactly two failure modes, both silent:
+# alternative, and its main failure mode is silent:
 #
-#   1. A view — or a Stimulus controller building markup in JS — introduces
-#      raw colour (bg-white, a Tailwind-palette gray, a hex). Raw colour cannot
-#      respond to a token override, so that element stays light forever while
-#      everything around it darkens. Nothing errors; the page just develops a
-#      white hole. That is what NoRawColourInViewsTest below is for. It scans
-#      both app/views and app/javascript: a controller that builds its own
-#      innerHTML (board_map_controller.js's error panel, gap_insert_controller.js's
-#      composer) is exactly as capable of hardcoding colour as an .erb file, and
-#      nothing about "it's JS, not a template" makes it visible to a scan that
-#      only reads *.erb.
+#   A view — or a Stimulus controller building markup in JS — introduces
+#   raw colour (bg-white, a Tailwind-palette gray, a hex). Raw colour cannot
+#   respond to a token override, so that element stays light forever while
+#   everything around it darkens. Nothing errors; the page just develops a
+#   white hole. That is what NoRawColourInViewsTest below is for. It scans
+#   both app/views and app/javascript: a controller that builds its own
+#   innerHTML (board_map_controller.js's error panel, gap_insert_controller.js's
+#   composer) is exactly as capable of hardcoding colour as an .erb file, and
+#   nothing about "it's JS, not a template" makes it visible to a scan that
+#   only reads *.erb.
 #
-#   2. The two token-mapping blocks drift apart. `[data-theme="dark"]` and the
-#      `[data-theme="system"]` copy inside the prefers-color-scheme media query
-#      have to stay identical, and CSS gives no way to write the mapping once
-#      (see the long comment in the stylesheet). Add a token to one and forget
-#      the other and "Dark" works while "Match system" is half-dark.
+# (There used to be a second failure mode here: a "Match system" mapping,
+# gated in a prefers-color-scheme media query, kept as a second copy of the
+# whole token list that had to stay in lockstep with the plain
+# `[data-theme="dark"]` block. "Match system" was removed by design — light
+# and dark only now — so there is exactly one mapping block and nothing left
+# to drift.)
 class ThemeTokensTest < ActiveSupport::TestCase
   CSS_PATH = Rails.root.join("app/assets/tailwind/application.css")
 
@@ -44,50 +45,21 @@ class ThemeTokensTest < ActiveSupport::TestCase
       .map { |prop, value| [prop, value.strip] }
   end
 
-  test "the dark palette maps the same tokens for explicit dark and for match-system" do
-    explicit = declarations_after('[data-theme="dark"] {')
-
-    # The system copy is the one nested inside the media query.
-    media_at = css.index("@media (prefers-color-scheme: dark)")
-    assert media_at, "the match-system branch must be gated on prefers-color-scheme"
-    system = declarations_after('[data-theme="system"] {', from: media_at)
-
-    assert explicit.any?, "the dark token mapping should not be empty"
-    assert_equal explicit, system, <<~MSG
-      The [data-theme="dark"] and [data-theme="system"] token mappings have
-      drifted. They must stay identical — CSS cannot express the mapping once
-      (an unconditional selector and a media-query-gated one cannot share a
-      rule), so the duplication is intentional and this test is what makes it
-      safe.
-
-      Only in [data-theme="dark"]:   #{(explicit - system).map(&:first).join(", ")}
-      Only in [data-theme="system"]: #{(system - explicit).map(&:first).join(", ")}
-    MSG
-  end
-
-  # `color-scheme: dark` is not a `--*` declaration, so the mapping-equality test
-  # above steps right over it. It still has to be present in BOTH branches: it is
-  # what makes the browser render native checkboxes, the default focus ring and
-  # the pre-paint canvas as dark. Missing from the system branch, "Match system"
-  # would keep light-styled form controls on a dark page.
-  test "both dark branches declare color-scheme: dark" do
+  # `color-scheme: dark` tells the browser to render native checkboxes, the
+  # default focus ring and the pre-paint canvas as dark. Missing here, dark
+  # mode would keep light-styled form controls on a dark page.
+  test "the dark branch declares color-scheme: dark" do
     explicit_at = css.index('[data-theme="dark"] {')
     explicit_end = css.index("}", explicit_at)
     assert_includes css[explicit_at...explicit_end], "color-scheme: dark",
                     "[data-theme=dark] must declare color-scheme: dark"
-
-    media_at = css.index("@media (prefers-color-scheme: dark)")
-    system_at = css.index('[data-theme="system"] {', media_at)
-    system_end = css.index("}", system_at)
-    assert_includes css[system_at...system_end], "color-scheme: dark",
-                    "the match-system branch must declare color-scheme: dark too"
   end
 
   test "light mode never declares color-scheme, so nothing changes there" do
-    # Only the two dark branches may set it. If it leaked to :root, light mode
+    # Only the one dark branch may set it. If it leaked to :root, light mode
     # would start rendering dark native controls.
-    assert_equal 2, css.scan(/^\s*color-scheme:/).length,
-                 "color-scheme should be declared exactly twice — once per dark branch"
+    assert_equal 1, css.scan(/^\s*color-scheme:/).length,
+                 "color-scheme should be declared exactly once, in the dark branch"
   end
 
   test "every dark value is defined once and referenced, never inlined twice" do

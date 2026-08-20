@@ -35,15 +35,15 @@ class User < ApplicationRecord
   # ---- Appearance ----
   #
   # The value is written into <html data-theme="..."> (see ApplicationHelper),
-  # where CSS keys the whole dark palette off it. "system" resolves in CSS via
-  # prefers-color-scheme, NOT here — that's what keeps "Match system" free of a
-  # wrong-theme flash on first paint.
+  # where CSS keys the whole dark palette off it. Light and dark only — a
+  # "Match system"/prefers-color-scheme option used to exist here and was
+  # removed by design (see the git history if you're looking for it).
   #
   # Unscoped (no `on:` context) on purpose, unlike the name validation below:
   # the theme switcher saves through a plain `update`, and an unvalidated column
   # feeding straight into an HTML attribute is how you get an injected attribute
   # value. The allowlist IS the sanitiser.
-  THEMES = %w[light dark system].freeze
+  THEMES = %w[light dark].freeze
 
   validates :theme, inclusion: { in: THEMES }
 

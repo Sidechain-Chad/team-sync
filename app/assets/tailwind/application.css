@@ -286,23 +286,12 @@
    the compiled output, not assumed: grep app/assets/builds/tailwind.css for
    `.bg-surface-0{` and you should see `var(--color-surface-0)`.
 
-   WHY THE MEDIA QUERY IS ARRANGED LIKE THIS: "Match system" has to be pure
-   CSS. If JS resolved it, the server could not know which palette to stamp
-   into <html> and every system-mode page load would flash the wrong theme
-   before the script ran. Gating `[data-theme="system"]` on
-   prefers-color-scheme means the browser resolves it during the first style
-   pass — no JS, no flash, and flipping the OS setting re-resolves live with
-   no reload.
-
-   THE ONE DUPLICATION, and why it is safe: the dark VALUES are defined exactly
-   once, as the --dark-* set below. What repeats is the mapping list, because
-   CSS cannot apply a set of declarations conditionally — `[data-theme="dark"]`
-   must be unconditional while `[data-theme="system"]` must live inside the
-   media query, and no selector list spans both. Space toggles, style queries
-   and `revert-layer` were all considered; each either breaks custom-property
-   fallback or cannot target the root element. Instead the two mappings are
-   pinned identical by a test (ThemeTokensTest), so drifting one without the
-   other fails the suite rather than shipping a half-dark theme.
+   Light and dark only — a "Match system"/prefers-color-scheme option used to
+   exist here, gated in a media query with its own copy of the whole mapping.
+   It was removed by design (light/dark cover the need, and a stored
+   preference the user picked beats one the OS picked for them), which is why
+   there is now exactly one mapping block below instead of two kept in
+   lockstep. See git history for the media-query shape if you need it.
    ============================================================ */
 :root {
   /* The dark palette. Defined here as inert --dark-* names so the values live
@@ -471,38 +460,6 @@
   --color-danger-line-strong: var(--dark-danger-line-strong);
 }
 
-/* Match system — identical mapping, gated on the OS preference. Keep in lockstep
-   with the block above; ThemeTokensTest fails if they diverge. */
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] {
-    color-scheme: dark;
-    --color-surface-0: var(--dark-surface-0);
-    --color-surface-50: var(--dark-surface-50);
-    --color-surface-100: var(--dark-surface-100);
-    --color-surface-200: var(--dark-surface-200);
-    --color-surface-300: var(--dark-surface-300);
-    --color-surface-muted: var(--dark-surface-muted);
-    --color-line: var(--dark-line);
-    --color-ink-900: var(--dark-ink-900);
-    --color-ink-700: var(--dark-ink-700);
-    --color-ink-500: var(--dark-ink-500);
-    --color-ink-300: var(--dark-ink-300);
-    --color-brand-fg: var(--dark-brand-fg);
-    --color-brand-fg-hover: var(--dark-brand-fg-hover);
-    --color-danger-fg: var(--dark-danger-fg);
-    --color-danger-fg-muted: var(--dark-danger-fg-muted);
-    --color-success-fg: var(--dark-success-fg);
-    --color-warn-700: var(--dark-warn-700);
-    --color-brand-100: var(--dark-brand-100);
-    --color-danger-50: var(--dark-danger-50);
-    --color-warn-100: var(--dark-warn-100);
-    --color-success-100: var(--dark-success-100);
-    --color-hairline: var(--dark-hairline);
-    --color-danger-line: var(--dark-danger-line);
-    --color-danger-line-strong: var(--dark-danger-line-strong);
-  }
-}
-
 body {
   font-family: var(--font-sans);
   /* Floor so no page can ever show pure white below short content — pages
@@ -582,11 +539,6 @@ body {
 [data-theme="dark"] .canvas-golden {
   background: linear-gradient(135deg, var(--app-canvas-from), var(--app-canvas-to));
 }
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] .canvas-golden {
-    background: linear-gradient(135deg, var(--app-canvas-from), var(--app-canvas-to));
-  }
-}
 
 /* Dark treatment for the GENERATED board-cover gradients
    (board_cover_gradient_classes). Two call sites share the same 8-entry
@@ -619,10 +571,9 @@ body {
    it. The Ruby helper (BOARD_COVER_GRADIENTS, board_cover_gradient_classes)
    is NOT touched by any of this — the palette a board ID maps to is
    unchanged — and gating through a CSS custom property (rather than in the
-   helper) is what makes it correctly reactive to "Match system": the helper
-   runs server-side and cannot know an OS-level preference (see the big
-   comment at the top of this file on why "system" is resolved by
-   prefers-color-scheme and never JS).
+   helper) is what keeps it working the same way as every other themed
+   token here: the helper runs server-side and this is resolved purely by
+   the `[data-theme="dark"]` attribute.
 
    Layered onto Tailwind's own --tw-gradient-stops rather than reimplementing
    the 8-entry palette in CSS — confirmed present in the compiled output
@@ -648,11 +599,6 @@ body {
      dominant read but not so heavy the 8 palette hues stop being
      distinguishable from each other (boards must stay visually distinct). */
   --board-cover-gradient-scrim: rgb(13 13 12 / 62%);
-}
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] .board-cover-gradient {
-    --board-cover-gradient-scrim: rgb(13 13 12 / 62%);
-  }
 }
 
 .board-canvas-gradient {
@@ -714,14 +660,6 @@ body {
     radial-gradient(1400px 900px at 25% 20%, var(--rich-glow), transparent 60%),
     radial-gradient(1300px 850px at 78% 82%, var(--rich-shadow), transparent 55%),
     linear-gradient(160deg, var(--rich-base-top), var(--rich-base-bot));
-}
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] .board-canvas-gradient {
-    background-image:
-      radial-gradient(1400px 900px at 25% 20%, var(--rich-glow), transparent 60%),
-      radial-gradient(1300px 850px at 78% 82%, var(--rich-shadow), transparent 55%),
-      linear-gradient(160deg, var(--rich-base-top), var(--rich-base-bot));
-  }
 }
 
 /* ============================================================
@@ -1096,9 +1034,7 @@ span.flatpickr-weekday {
    attribute selector, so they already win on specificity. Keep it that way —
    !important on the theme layer would make the light-mode rules unoverridable.
 
-   Selectors matched 1:1 against vendor/flatpickr's actual rules. Both theme
-   selectors are listed on every rule for the same reason as the token blocks:
-   "system" is resolved by CSS, so it needs its own gated copy. */
+   Selectors matched 1:1 against vendor/flatpickr's actual rules. */
 [data-theme="dark"] .flatpickr-calendar,
 [data-theme="dark"] .flatpickr-calendar.arrowTop:after,
 [data-theme="dark"] .flatpickr-calendar.arrowBottom:after {
@@ -1186,87 +1122,6 @@ span.flatpickr-weekday {
   color: var(--color-ink-900);
 }
 
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] .flatpickr-calendar,
-  [data-theme="system"] .flatpickr-calendar.arrowTop:after,
-  [data-theme="system"] .flatpickr-calendar.arrowBottom:after {
-    background: var(--color-surface-0);
-    border-bottom-color: var(--color-surface-0);
-    border-top-color: var(--color-surface-0);
-    box-shadow:
-      1px 0 0 var(--color-line), -1px 0 0 var(--color-line),
-      0 1px 0 var(--color-line), 0 -1px 0 var(--color-line),
-      0 3px 13px rgb(0 0 0 / 0.5);
-  }
-
-  [data-theme="system"] .flatpickr-day {
-    color: var(--color-ink-700);
-  }
-
-  [data-theme="system"] .flatpickr-day.prevMonthDay,
-  [data-theme="system"] .flatpickr-day.nextMonthDay,
-  [data-theme="system"] .flatpickr-day.flatpickr-disabled,
-  [data-theme="system"] .flatpickr-day.flatpickr-disabled:hover,
-  [data-theme="system"] .flatpickr-day.notAllowed {
-    color: var(--color-ink-300);
-  }
-
-  [data-theme="system"] .flatpickr-months .flatpickr-month,
-  [data-theme="system"] .flatpickr-months .flatpickr-prev-month,
-  [data-theme="system"] .flatpickr-months .flatpickr-next-month {
-    color: var(--color-ink-700);
-    fill: var(--color-ink-700);
-  }
-
-  [data-theme="system"] .flatpickr-months .flatpickr-prev-month svg,
-  [data-theme="system"] .flatpickr-months .flatpickr-next-month svg {
-    fill: var(--color-ink-700);
-  }
-
-  [data-theme="system"] .flatpickr-current-month .numInputWrapper span.arrowUp:after {
-    border-bottom-color: var(--color-ink-500);
-  }
-  [data-theme="system"] .flatpickr-current-month .numInputWrapper span.arrowDown:after {
-    border-top-color: var(--color-ink-500);
-  }
-  [data-theme="system"] .numInputWrapper:hover {
-    background: var(--color-surface-200);
-  }
-
-  [data-theme="system"] .flatpickr-monthDropdown-months,
-  [data-theme="system"] .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
-    background: var(--color-surface-0);
-    color: var(--color-ink-700);
-  }
-
-  /* The TIME row (hour : minute AM/PM). Its own block because it is the one part
-     of the picker the day/month rules do not reach: the vendor styles the inputs
-     as `color:#393939` and separates the row with a `border-top:1px solid #e6e6e6`.
-     On the dark surface that measured 1.4:1 — the time was there and unreadable,
-     and the hairline was the brightest thing in the modal. `background:transparent`
-     on the inputs means they inherit the calendar fill, so only colour is needed.
-     The `:hover`/`:focus` fills are set too, or hovering an input flashes the
-     vendor's near-black `rgba(0,0,0,0.05)` wash. */
-  [data-theme="system"] .flatpickr-time,
-  [data-theme="system"] .flatpickr-calendar.hasTime .flatpickr-time {
-    border-top-color: var(--color-line);
-  }
-
-  [data-theme="system"] .flatpickr-time input,
-  [data-theme="system"] .flatpickr-time .flatpickr-time-separator,
-  [data-theme="system"] .flatpickr-time .flatpickr-am-pm {
-    color: var(--color-ink-700);
-  }
-
-  [data-theme="system"] .flatpickr-time input:hover,
-  [data-theme="system"] .flatpickr-time input:focus,
-  [data-theme="system"] .flatpickr-time .flatpickr-am-pm:hover,
-  [data-theme="system"] .flatpickr-time .flatpickr-am-pm:focus {
-    background: var(--color-surface-200);
-    color: var(--color-ink-900);
-  }
-}
-
 /* ============================================================
    Help centre — article prose + theme-swapped screenshots.
    ============================================================
@@ -1340,10 +1195,10 @@ span.flatpickr-weekday {
 }
 
 /* Screenshots: one <img> per theme, swapped by CSS alone — same
-   [data-theme] selectors and prefers-color-scheme media query the rest of
-   the token system already uses, so "match system" needs no JavaScript
-   either. Kept in this file rather than the article prose it lives next to,
-   since a dark-mode display rule belongs with the other theme mechanics. */
+   [data-theme] selector the rest of the token system already uses, so this
+   needs no JavaScript either. Kept in this file rather than the article
+   prose it lives next to, since a dark-mode display rule belongs with the
+   other theme mechanics. */
 .help-shot {
   margin: 1.5rem 0;
 }
@@ -1358,8 +1213,3 @@ span.flatpickr-weekday {
 
 [data-theme="dark"] .help-shot__img--light { display: none; }
 [data-theme="dark"] .help-shot__img--dark { display: block; }
-
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] .help-shot__img--light { display: none; }
-  [data-theme="system"] .help-shot__img--dark { display: block; }
-}

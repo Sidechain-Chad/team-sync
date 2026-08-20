@@ -1,16 +1,12 @@
 ---
-title: "Appearance: light, dark, and match system"
+title: "Appearance: light and dark"
 category: Appearance
 position: 1
 ---
 
 ## Change your theme
 
-Click your avatar in the top right and look under **Appearance**. Three options: **Light**, **Dark**, and **Match system**. The change applies immediately; there's nothing to save separately.
-
-## What "Match system" does
-
-It follows your operating system's own light or dark setting, and updates automatically if that setting changes while TeamSync is open. This is the default for a new account. Choosing **Light** or **Dark** directly overrides your system setting and stays fixed regardless of it.
+Click your avatar in the top right and look under **Appearance**. Two options: **Light** and **Dark**. The change applies immediately; there's nothing to save separately.
 
 ## What doesn't change
 

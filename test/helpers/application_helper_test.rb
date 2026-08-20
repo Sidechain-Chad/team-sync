@@ -10,9 +10,9 @@ require "test_helper"
 # migration), and an in-memory attribute is the only way to construct that
 # case without fighting the DB constraint.
 class ApplicationHelperTest < ActionView::TestCase
-  test "an unauthenticated visitor resolves to system" do
+  test "an unauthenticated visitor resolves to light" do
     stub_signed_out
-    assert_equal "system", current_theme
+    assert_equal "light", current_theme
   end
 
   test "each stored theme value round-trips" do

@@ -233,10 +233,10 @@
         <% end %>
       </div>
 
-      <%# Appearance — Light / Dark / Match system. Lives here rather than on
-          the Settings page (where notification preferences live) to match
-          Trello, and because a theme is the one preference you want to flip
-          while looking at the thing it changes.
+      <%# Appearance — Light / Dark. Lives here rather than on the Settings
+          page (where notification preferences live) to match Trello, and
+          because a theme is the one preference you want to flip while
+          looking at the thing it changes.
 
           Plain buttons driven by theme_controller, NOT a form: the change is
           applied to <html> client-side for an instant repaint and persisted
@@ -249,7 +249,7 @@
           deliberately have none (they contain forms, which that role forbids).
           An orphaned menuitem-radio is worse for assistive tech than no role at
           all. radiogroup is valid standalone and is the precise semantic for "pick
-          exactly one of three" — and unlike the menu roles, its keyboard
+          exactly one of two" — and unlike the menu roles, its keyboard
           contract is small enough to actually honour, which theme_controller
           does (arrow keys + roving tabindex). %>
       <div class="py-1 border-t border-line"
@@ -260,14 +260,13 @@
         <div role="radiogroup" aria-labelledby="appearance-label">
           <% [
                { value: "light",  label: "Light",        icon: "fa-regular fa-sun" },
-               { value: "dark",   label: "Dark",         icon: "fa-regular fa-moon" },
-               { value: "system", label: "Match system", icon: "fa-solid fa-circle-half-stroke" }
+               { value: "dark",   label: "Dark",         icon: "fa-regular fa-moon" }
              ].each do |option| %>
             <% selected = current_theme == option[:value] %>
             <%# Roving tabindex: only the checked option is in the tab order, and
                 arrow keys move between them. That is the radiogroup contract —
-                three separate tab stops would make tabbing past the menu take
-                three presses. %>
+                two separate tab stops would make tabbing past the menu take
+                two presses. %>
             <button type="button"
                     role="radio"
                     aria-checked="<%= selected %>"

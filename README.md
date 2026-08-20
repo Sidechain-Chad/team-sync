@@ -70,8 +70,8 @@ page reload.
 - **Keyboard shortcuts** with a discoverable help overlay (`?`) — quick search
   focus, filtering, moving focus between cards, opening the focused card, and
   more.
-- **Light / dark / "match system" theming**, resolved server-side so there's no
-  flash of the wrong theme on load.
+- **Light / dark theming**, resolved server-side so there's no flash of the
+  wrong theme on load.
 - **Real-time multi-user sync** over Action Cable: card moves, list edits, new
   comments, activity entries, and the notification badge all update live for
   every other viewer of the same board.
@@ -171,10 +171,10 @@ is a matter of uncommenting that block once you're ready to pay for it.
 **Theming by token redefinition, not utility variants.** Dark mode doesn't add
 `dark:` classes anywhere — it redefines the same `@theme` token *values* under
 `[data-theme="dark"]`, so every existing `bg-surface-0`/`text-ink-700`/etc.
-utility already in use flips automatically. "Match system" is a plain CSS
-`prefers-color-scheme` media query, resolved with no JavaScript and no
-first-paint flash; the theme switcher only ever writes a preference, it never
-resolves "system" itself.
+utility already in use flips automatically. The theme is resolved server-side
+into that attribute on every request, with no JavaScript and no first-paint
+flash; the theme switcher only ever writes a preference, it never resolves
+the theme itself.
 
 **Conventions enforced by tests, not documentation.** A handful of app-wide
 rules are guarded by dedicated tests rather than a style guide someone has to
