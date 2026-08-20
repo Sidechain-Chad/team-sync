@@ -29,4 +29,30 @@ class BoardTest < ActiveSupport::TestCase
     board = Board.create!(name: "No Fav Board", user: user)
     assert_not board.favorited_by?(user)
   end
+
+  test "invite_users adds matched addresses and returns the unmatched ones" do
+    owner = User.create!(email: "owner@example.com", password: "password")
+    board = Board.create!(name: "Invite Board", user: owner)
+    real = User.create!(email: "real@example.com", password: "password")
+
+    unmatched = board.invite_users("#{real.email}, ghost@example.com", owner)
+
+    assert_includes board.board_users.map(&:user), real
+    assert_equal ["ghost@example.com"], unmatched
+  end
+
+  test "invite_users returns an empty array when every address matches" do
+    owner = User.create!(email: "owner2@example.com", password: "password")
+    board = Board.create!(name: "Invite Board 2", user: owner)
+    real = User.create!(email: "real2@example.com", password: "password")
+
+    assert_empty board.invite_users(real.email, owner)
+  end
+
+  test "invite_users does not report the inviter's own email as unmatched" do
+    owner = User.create!(email: "owner3@example.com", password: "password")
+    board = Board.create!(name: "Invite Board 3", user: owner)
+
+    assert_empty board.invite_users(owner.email, owner)
+  end
 end

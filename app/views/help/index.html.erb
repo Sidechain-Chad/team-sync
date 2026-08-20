@@ -1,0 +1,24 @@
+<%= render "help/shell", articles_by_category: @articles_by_category do %>
+  <p class="text-ink-700 leading-7 mb-8">
+    Pick an article from the sidebar. Start with
+    <% if (first = @articles_by_category.values.first&.first) %>
+      <%= link_to first.title, help_article_path(first.slug), class: "text-brand-fg hover:text-brand-fg-hover font-medium" %>
+    <% else %>
+      Getting started
+    <% end %>
+    if you're new here.
+  </p>
+
+  <% @articles_by_category.each do |category, articles| %>
+    <div class="mb-8">
+      <h2 class="font-display text-lg font-semibold text-ink-900 mb-3"><%= category %></h2>
+      <ul class="space-y-1.5">
+        <% articles.each do |article| %>
+          <li>
+            <%= link_to article.title, help_article_path(article.slug), class: "text-brand-fg hover:text-brand-fg-hover" %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+<% end %>

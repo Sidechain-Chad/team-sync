@@ -1,7 +1,7 @@
 <% footer = capture do %>
-  <%= link_to "Create an account", new_registration_path(resource_name), class: "hover:text-white transition-colors underline-offset-2 hover:underline" %>
-  <span class="text-brand-400">·</span>
-  <%= link_to "Forgot password?", new_password_path(resource_name), class: "hover:text-white transition-colors underline-offset-2 hover:underline" %>
+  <%= link_to "Create an account", new_registration_path(resource_name), class: "hover:text-ink-900 transition-colors underline-offset-2 hover:underline" %>
+  <span class="text-ink-300">·</span>
+  <%= link_to "Forgot password?", new_password_path(resource_name), class: "hover:text-ink-900 transition-colors underline-offset-2 hover:underline" %>
 <% end %>
 
 <%= render "devise/shared/auth_card",

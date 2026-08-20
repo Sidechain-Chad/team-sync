@@ -964,6 +964,39 @@ body {
 }
 
 /* ============================================================
+   Sign-in / sign-up visual panel — a looping set of slides introducing the
+   app, CSS-only (no JS, no video). Base state (below, unconditional) shows
+   just the first slide, statically — this is also what reduced-motion users
+   get, since the animation that would otherwise cycle the rest into view is
+   gated on prefers-reduced-motion: no-preference, same convention as
+   .animate-complete-pop above.
+
+   The cycle: 4 slides sharing one @keyframes, each offset by a NEGATIVE
+   animation-delay of one quarter-cycle. A negative delay starts the
+   animation already that far into its timeline, so all four are correctly
+   positioned from the very first frame — no JS "kick it off", no waiting
+   through a slide's own dead time before it first appears. */
+.auth-panel-slide { opacity: 0; }
+.auth-panel-slide:first-child { opacity: 1; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .auth-panel-slide {
+    animation: auth-panel-cycle 16s infinite;
+  }
+
+  .auth-panel-slide:nth-child(1) { animation-delay: 0s; }
+  .auth-panel-slide:nth-child(2) { animation-delay: -4s; }
+  .auth-panel-slide:nth-child(3) { animation-delay: -8s; }
+  .auth-panel-slide:nth-child(4) { animation-delay: -12s; }
+}
+
+@keyframes auth-panel-cycle {
+  0%, 100% { opacity: 0; transform: scale(0.97); }
+  2%, 23%  { opacity: 1; transform: scale(1); }
+  25%      { opacity: 0; transform: scale(0.97); }
+}
+
+/* ============================================================
    Account "My Cards" page — ONE grid template shared by the header row
    (account/cards.html.erb) and every data row (account/_card_row.html.erb).
    They used to each declare their own `md:grid-cols-[1fr_auto_auto_auto_auto]`
@@ -1232,4 +1265,101 @@ span.flatpickr-weekday {
     background: var(--color-surface-200);
     color: var(--color-ink-900);
   }
+}
+
+/* ============================================================
+   Help centre — article prose + theme-swapped screenshots.
+   ============================================================
+   Kramdown renders plain HTML (h1-h3, p, ul/ol, a, code, blockquote, img,
+   strong/em) with no classes on any of it, so it needs element selectors
+   rather than utilities — written ONCE here, using the same tokens as
+   everything else, rather than per-article Tailwind classes an ERB-based
+   approach would need repeated in all fifteen articles. Scoped under
+   .help-article so nothing here leaks onto the rest of the app. */
+.help-article h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--color-ink-900);
+  margin: 0 0 0.75rem;
+}
+.help-article h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--color-ink-900);
+  margin: 2rem 0 0.75rem;
+}
+.help-article h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.0625rem;
+  color: var(--color-ink-900);
+  margin: 1.5rem 0 0.5rem;
+}
+.help-article p {
+  color: var(--color-ink-700);
+  line-height: 1.7;
+  margin: 0 0 1rem;
+}
+.help-article ul,
+.help-article ol {
+  color: var(--color-ink-700);
+  line-height: 1.7;
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+}
+.help-article ul { list-style-type: disc; }
+.help-article ol { list-style-type: decimal; }
+.help-article li { margin: 0 0 0.375rem; }
+.help-article a {
+  color: var(--color-brand-fg);
+  text-decoration: underline;
+  text-decoration-color: var(--color-line);
+}
+.help-article a:hover { color: var(--color-brand-fg-hover); }
+.help-article strong { color: var(--color-ink-900); font-weight: 600; }
+.help-article code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.875em;
+  background: var(--color-surface-200);
+  color: var(--color-ink-900);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+.help-article blockquote {
+  border-left: 3px solid var(--color-line);
+  color: var(--color-ink-500);
+  margin: 1rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+}
+.help-article hr {
+  border: none;
+  border-top: 1px solid var(--color-line);
+  margin: 2rem 0;
+}
+
+/* Screenshots: one <img> per theme, swapped by CSS alone — same
+   [data-theme] selectors and prefers-color-scheme media query the rest of
+   the token system already uses, so "match system" needs no JavaScript
+   either. Kept in this file rather than the article prose it lives next to,
+   since a dark-mode display rule belongs with the other theme mechanics. */
+.help-shot {
+  margin: 1.5rem 0;
+}
+.help-shot__img {
+  display: block;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-lg);
+}
+.help-shot__img--dark { display: none; }
+
+[data-theme="dark"] .help-shot__img--light { display: none; }
+[data-theme="dark"] .help-shot__img--dark { display: block; }
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .help-shot__img--light { display: none; }
+  [data-theme="system"] .help-shot__img--dark { display: block; }
 }

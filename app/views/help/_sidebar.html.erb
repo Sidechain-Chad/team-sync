@@ -1,0 +1,19 @@
+<%# Every article, grouped by category, in HelpArticle::CATEGORY_ORDER —
+    the whole nav for 15 articles; no search, see the report for why. %>
+<nav aria-label="Help articles" class="w-full lg:w-64 flex-shrink-0 mb-8 lg:mb-0 lg:sticky lg:top-6 lg:self-start">
+  <% articles_by_category.each do |category, articles| %>
+    <div class="mb-6">
+      <p class="px-3 text-xs font-bold text-ink-500 uppercase tracking-wider mb-2"><%= category %></p>
+      <ul>
+        <% articles.each do |article| %>
+          <% is_active = local_assigns[:active_slug] == article.slug %>
+          <li>
+            <%= link_to article.title, help_article_path(article.slug),
+                class: "block px-3 py-1.5 rounded-md text-sm font-medium transition-colors #{is_active ? "bg-brand-100 text-brand-fg" : "text-ink-700 hover:bg-surface-100"}",
+                "aria-current": (is_active ? "page" : nil) %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+</nav>
