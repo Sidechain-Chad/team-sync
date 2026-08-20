@@ -555,18 +555,28 @@ body {
    further down) gets its own much richer, per-board treatment. Light mode's
    three-layer background is untouched. */
 
-/* Hue-only change from the previous (fully neutral) pass — SAME lightness,
-   L=25.9%/34.1%, confirmed unchanged; only saturation moved, 0% to 4%. The
-   hue (30deg) is not invented: it's exactly what --dark-surface-0 and
-   --dark-line already use, i.e. lifted from the existing "hint of warmth"
-   the rest of the dark surface ramp carries, not a new colour decision.
-   Started at 4% deliberately (below that ramp's own ~5-7%) per the brief's
-   "start low and only go up if it is imperceptible" — confirmed perceptible
-   against a board tile, the planner grid and the archive panel (see the
-   commit message for the three separation measurements), so 4% stays. */
+/* FOURTH PASS — proper espresso, not grey with a hint. 4% saturation still
+   read as grey; the complaint was hue, not brightness, so lightness is
+   UNCHANGED here (still L=25.9%/33.9% — same as the previous pass) and only
+   hue+saturation move, matched directly to --color-nav-bg (#2A211C) rather
+   than to the dark surface ramp: same hue family (21.4deg vs the previous
+   pass's 30deg) and comparable saturation (20%, vs nav-bg's own 20.0% — vs
+   the previous pass's 4.5%). That is what makes this read as a genuine
+   espresso sitting above the nav instead of a tinted grey.
+
+   Separation re-measured after the saturation increase, since a hue/
+   saturation change (not lightness) can still move perceived contrast: the
+   board index tile, the planner grid and the archive panel all sit on the
+   same token, bg-surface-0 (--dark-surface-0: #2B2927). WCAG contrast ratio
+   against that surface:
+     from vs surface-0: 1.43:1 (previous pass: 1.45:1)
+     to   vs surface-0: 1.99:1 (previous pass: 2.02:1)
+   Both within a rounding step of the previous pass's own measurements —
+   lightness didn't move, so the separation the last pass already verified
+   holds. Neither collapsed, so saturation did not need to be backed off. */
 :root {
-  --app-canvas-from: #45423F; /* L=25.9%, S=4% (was #424242, S=0%) */
-  --app-canvas-to:   #5A5753; /* L=33.9%, S=4% (was #575757, S=0%) */
+  --app-canvas-from: #4F3E35; /* L=25.9%, S=20% (was #45423F, H=30deg S=4%) */
+  --app-canvas-to:   #685245; /* L=33.9%, S=20% (was #5A5753, H=34deg S=4%) */
 }
 
 [data-theme="dark"] .canvas-golden {
