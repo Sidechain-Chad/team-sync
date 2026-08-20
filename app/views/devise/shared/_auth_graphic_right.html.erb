@@ -1,0 +1,39 @@
+<%# Lower-right flanking graphic: a small due-date calendar with one day
+    highlighted, a date chip, and the corner of another card peeking off
+    the edge — implying the same board continues past the frame, same
+    idea as the left graphic's column. Tokens only, same reasoning as
+    _auth_graphic_left. %>
+<svg viewBox="0 0 288 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <%# Calendar frame %>
+  <rect x="18" y="24" width="148" height="96" rx="10" fill="var(--color-surface-200)" stroke="var(--color-line)" stroke-width="1.5" />
+
+  <%# 5x3 grid of day cells, one highlighted as the due date %>
+  <% cell = 20; gap = 4; grid_x = 32; grid_y = 40 %>
+  <% (0..2).each do |row| %>
+    <% (0..4).each do |col| %>
+      <% highlighted = row == 1 && col == 3 %>
+      <rect x="<%= grid_x + col * (cell + gap) %>" y="<%= grid_y + row * (cell + gap) %>"
+            width="<%= cell %>" height="<%= cell %>" rx="4"
+            fill="<%= highlighted ? 'var(--color-brand-400)' : 'var(--color-surface-0)' %>"
+            stroke="<%= highlighted ? 'none' : 'var(--color-line)' %>" stroke-width="1" />
+    <% end %>
+  <% end %>
+
+  <%# Date chip below the calendar, with a due-soon dot %>
+  <rect x="32" y="140" width="80" height="26" rx="13" fill="var(--color-surface-0)" stroke="var(--color-line)" stroke-width="1.5" />
+  <circle cx="48" cy="153" r="4" fill="var(--color-danger-fg)" />
+  <rect x="60" y="150" width="40" height="6" rx="3" fill="var(--color-line)" />
+
+  <%# The corner of another card, peeking off the right edge — the board
+      continues past the frame, same as the left graphic's column implies %>
+  <rect x="184" y="60" width="110" height="130" rx="8" fill="var(--color-surface-0)" stroke="var(--color-line)" stroke-width="1.5" />
+  <rect x="196" y="76" width="28" height="6" rx="3" fill="var(--color-success-600)" />
+  <rect x="196" y="92" width="70" height="4" rx="2" fill="var(--color-line)" />
+  <rect x="196" y="100" width="50" height="4" rx="2" fill="var(--color-line)" />
+
+  <%# Two more collaborators, drifting the same slow amount as the left graphic's %>
+  <g class="auth-graphic-drift">
+    <circle cx="222" cy="150" r="12" fill="var(--color-surface-200)" stroke="var(--color-surface-50)" stroke-width="3" />
+    <circle cx="238" cy="158" r="14" fill="var(--color-brand-100)" stroke="var(--color-surface-50)" stroke-width="3" />
+  </g>
+</svg>

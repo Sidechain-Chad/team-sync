@@ -1,81 +1,60 @@
-<%# Shared split-screen frame for sign-in / sign-up / forgot-password screens.
-    The form panel is DOM-first (so `flex-col` naturally stacks it above the
-    visual panel on narrow viewports) and the visual panel is DOM-second; on
-    lg: and up, `flex-row-reverse` puts the DOM-second panel on the LEFT and
-    the DOM-first one on the RIGHT, without needing separate `order-*`
-    utilities. So: form first when stacked, visual panel on the left when
-    side by side. %>
-<div class="min-h-screen flex flex-col lg:flex-row-reverse">
+<%# Centred auth card, flanked by decorative vector graphics that bleed
+    past the left/right viewport edges. Replaces the earlier split-screen
+    layout with an auto-cycling, slowly-scaling RASTER screenshot panel:
+    continuously scaling a bitmap resamples every pixel every frame, and a
+    screenshot full of 1px grid lines and 8px text is close to the worst
+    possible subject for that — it shimmers, and no amount of slowing the
+    animation down fixes a resampling artifact. Vector doesn't have this
+    problem at all: a <rect> or <circle> just re-renders its path at
+    whatever transform is asked of it, so motion on the graphics below
+    (see .auth-graphic-drift in application.css) is safe by construction,
+    not just "slowed down until it's tolerable."
 
-  <%# ===== FORM PANEL ===== %>
-  <div class="flex-1 flex items-center justify-center bg-surface-50 px-4 py-12">
-    <div class="w-full max-w-md">
-      <%# Brand header %>
-      <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-14 h-14 bg-brand-100 rounded-2xl mb-4">
-          <i class="fa-solid fa-bolt-lightning text-brand-fg text-2xl" aria-hidden="true"></i>
-        </div>
-        <h1 class="font-display text-3xl font-bold text-ink-900">TeamSync</h1>
-        <p class="text-ink-500 text-sm mt-1"><%= local_assigns[:tagline] || "Plan, track, ship together." %></p>
-      </div>
-
-      <%# Card body %>
-      <div class="bg-surface-0 rounded-2xl shadow-2xl border border-line p-8">
-        <h2 class="text-xl font-bold text-ink-900 mb-1"><%= title %></h2>
-        <% if local_assigns[:subtitle].present? %>
-          <p class="text-sm text-ink-500 mb-6"><%= subtitle %></p>
-        <% else %>
-          <div class="mb-6"></div>
-        <% end %>
-
-        <%= yield %>
-      </div>
-
-      <%# Footer links %>
-      <% if local_assigns[:footer_links].present? %>
-        <div class="text-center mt-6 text-sm text-ink-500 space-x-4">
-          <%= footer_links %>
-        </div>
-      <% end %>
-    </div>
+    The graphics are pure decoration: aria-hidden, pointer-events-none, and
+    stacked behind the card (z-0 vs the card's z-10). Hidden below lg: —
+    at phone widths they would crowd a form that already has to stack the
+    whole page, and the "flanking" composition only makes sense with room
+    on both sides. Each graphic is negatively offset past the edge of its
+    own wrapper, and the page wrapper's overflow-hidden crops it there —
+    that combination is what makes them read as a scene continuing past
+    the page rather than as two centred stickers. Sized and positioned so
+    the visible remainder stays inside the gutter beside the card even at
+    the lg breakpoint's narrowest width (1024px): the card never has
+    anything sitting under it. %>
+<div class="relative min-h-screen overflow-hidden bg-surface-50 flex items-center justify-center px-4 py-12">
+  <div class="hidden lg:block absolute -bottom-8 -left-8 w-72 h-60 z-0 opacity-70 pointer-events-none" aria-hidden="true">
+    <%= render "devise/shared/auth_graphic_left" %>
+  </div>
+  <div class="hidden lg:block absolute -bottom-8 -right-8 w-72 h-60 z-0 opacity-70 pointer-events-none" data-auth-graphic="right" aria-hidden="true">
+    <%= render "devise/shared/auth_graphic_right" %>
   </div>
 
-  <%# ===== VISUAL PANEL =====
-      Same brand gradient the old single-card background used, now confined
-      to one panel instead of the whole page — scrim/brand-700/brand-600 are
-      all pinned tokens (dark in both themes, see application.css), so this
-      needs no dark-mode branching of its own, same as the nav and the
-      sign-in gradient did before this change.
+  <div class="relative z-10 w-full max-w-md">
+    <%# Brand header %>
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-brand-100 rounded-2xl mb-4">
+        <i class="fa-solid fa-bolt-lightning text-brand-fg text-2xl" aria-hidden="true"></i>
+      </div>
+      <h1 class="font-display text-3xl font-bold text-ink-900">TeamSync</h1>
+      <p class="text-ink-500 text-sm mt-1"><%= local_assigns[:tagline] || "Plan, track, ship together." %></p>
+    </div>
 
-      Purely supplementary/decorative (real app screenshots, auto-cycling)
-      — aria-hidden so a screen reader isn't read a slideshow of changing
-      images while trying to fill in the form. Screenshots are LIGHT-MODE
-      only, reused as-is in both themes: this panel's own backdrop never
-      changes with the theme (see above), so a light screenshot framed
-      against it reads the same regardless of which theme the visitor is
-      signed into (or, signed out, has no stored preference for at all). %>
-  <div class="relative overflow-hidden h-56 lg:h-auto lg:flex-1 bg-gradient-to-br from-scrim via-brand-700 to-brand-600" aria-hidden="true">
-    <%
-      auth_panel_slides = [
-        { image: "board",       caption: "Boards and lists" },
-        { image: "card_modal",  caption: "Comments and detail on every card" },
-        { image: "planner",     caption: "Due dates on a calendar" }
-      ]
-    %>
-    <% auth_panel_slides.each do |slide| %>
-      <div class="auth-panel-slide absolute inset-0 flex flex-col items-center justify-center text-center px-6 lg:px-10">
-        <%# Frame is the static border/shadow; overflow-hidden crops the
-            <img> itself as it slowly scales, so the frame never stretches
-            along with the photo. width fills the available panel width
-            (bounded only by its own padding) and height follows from the
-            aspect ratio, so this can never overflow the panel however wide
-            or narrow it ends up. %>
-        <div class="w-full max-w-xs h-28 lg:h-auto lg:max-w-none lg:aspect-[8/5] rounded-lg lg:rounded-xl border border-white/20 bg-white/10 shadow-xl lg:shadow-2xl overflow-hidden">
-          <%= image_tag "auth_panel/#{slide[:image]}.jpg",
-                class: "auth-panel-shot w-full h-full object-cover block",
-                alt: "" %>
-        </div>
-        <p class="mt-2 lg:mt-4 text-white font-display text-sm lg:text-xl font-bold"><%= slide[:caption] %></p>
+    <%# Card body %>
+    <div class="bg-surface-0 rounded-2xl shadow-2xl border border-line p-8">
+      <h2 class="text-xl font-bold text-ink-900 mb-1"><%= title %></h2>
+      <% if local_assigns[:subtitle].present? %>
+        <p class="text-sm text-ink-500 mb-6"><%= subtitle %></p>
+      <% else %>
+        <div class="mb-6"></div>
+      <% end %>
+
+      <%= yield %>
+    </div>
+
+    <%# Footer links %>
+    <% if local_assigns[:footer_links].present? %>
+      <div class="text-center mt-6 text-sm text-ink-500 space-x-4">
+        <%= footer_links %>
       </div>
     <% end %>
   </div>
