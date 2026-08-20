@@ -902,36 +902,61 @@ body {
 }
 
 /* ============================================================
-   Sign-in / sign-up visual panel — a looping set of slides introducing the
-   app, CSS-only (no JS, no video). Base state (below, unconditional) shows
-   just the first slide, statically — this is also what reduced-motion users
-   get, since the animation that would otherwise cycle the rest into view is
-   gated on prefers-reduced-motion: no-preference, same convention as
+   Sign-in / sign-up visual panel — a looping set of real app screenshots,
+   CSS-only (no JS, no video file, no animation library). Base state (below,
+   unconditional) shows just the first slide, statically, at no zoom — this
+   is also what reduced-motion users get in full: the animations that would
+   otherwise cycle the rest into view and slowly zoom the visible one are
+   both gated on prefers-reduced-motion: no-preference, same convention as
    .animate-complete-pop above.
 
-   The cycle: 4 slides sharing one @keyframes, each offset by a NEGATIVE
-   animation-delay of one quarter-cycle. A negative delay starts the
-   animation already that far into its timeline, so all four are correctly
-   positioned from the very first frame — no JS "kick it off", no waiting
-   through a slide's own dead time before it first appears. */
+   Two animations share the same rhythm but target different elements:
+
+     auth-panel-cycle, on .auth-panel-slide (the absolutely-positioned
+     slide), cross-fades between slides — 3 slides sharing one @keyframes,
+     each offset by a NEGATIVE animation-delay of one third-cycle. A negative
+     delay starts the animation already that far into its timeline, so all
+     three are correctly positioned from the very first frame — no JS
+     "kick it off", no waiting through a slide's own dead time before it
+     first appears.
+
+     auth-panel-pan, on .auth-panel-shot (the <img> itself, INSIDE the
+     frame's `overflow-hidden`), slowly scales up while that slide is the
+     visible one, using the identical per-slide delay so the two stay in
+     lockstep. Scaling the image rather than its frame is what keeps the
+     border/shadow crisp instead of visibly stretching along with the
+     photo — the frame never moves, only the photo pans/zooms inside it.
+     Kept slow (a full third-cycle to reach 1.08x) and this whole panel
+     sits behind a login form, not in front of one. */
 .auth-panel-slide { opacity: 0; }
 .auth-panel-slide:first-child { opacity: 1; }
 
 @media (prefers-reduced-motion: no-preference) {
   .auth-panel-slide {
-    animation: auth-panel-cycle 16s infinite;
+    animation: auth-panel-cycle 18s infinite;
   }
-
   .auth-panel-slide:nth-child(1) { animation-delay: 0s; }
-  .auth-panel-slide:nth-child(2) { animation-delay: -4s; }
-  .auth-panel-slide:nth-child(3) { animation-delay: -8s; }
-  .auth-panel-slide:nth-child(4) { animation-delay: -12s; }
+  .auth-panel-slide:nth-child(2) { animation-delay: -6s; }
+  .auth-panel-slide:nth-child(3) { animation-delay: -12s; }
+
+  .auth-panel-shot {
+    animation: auth-panel-pan 18s infinite;
+  }
+  .auth-panel-slide:nth-child(1) .auth-panel-shot { animation-delay: 0s; }
+  .auth-panel-slide:nth-child(2) .auth-panel-shot { animation-delay: -6s; }
+  .auth-panel-slide:nth-child(3) .auth-panel-shot { animation-delay: -12s; }
 }
 
 @keyframes auth-panel-cycle {
-  0%, 100% { opacity: 0; transform: scale(0.97); }
-  2%, 23%  { opacity: 1; transform: scale(1); }
-  25%      { opacity: 0; transform: scale(0.97); }
+  0%, 100%  { opacity: 0; }
+  2%, 30%   { opacity: 1; }
+  33.333%   { opacity: 0; }
+}
+
+@keyframes auth-panel-pan {
+  0%                { transform: scale(1); }
+  33.333%           { transform: scale(1.08); }
+  33.334%, 100%     { transform: scale(1); }
 }
 
 /* ============================================================
