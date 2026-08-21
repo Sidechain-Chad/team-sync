@@ -9,7 +9,7 @@
           <% is_active = local_assigns[:active_slug] == article.slug %>
           <li>
             <%= link_to article.title, help_article_path(article.slug),
-                class: "block px-3 py-1.5 rounded-md text-sm font-medium transition-colors #{is_active ? "bg-brand-100 text-brand-fg" : "text-ink-700 hover:bg-surface-100"}",
+                class: "block px-3 py-1.5 rounded-md text-sm transition-colors #{is_active ? "font-semibold text-brand-fg" : "font-medium text-ink-700 hover:bg-surface-100"}",
                 "aria-current": (is_active ? "page" : nil) %>
           </li>
         <% end %>

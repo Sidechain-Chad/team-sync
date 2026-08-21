@@ -1,12 +1,13 @@
 <%# Left sidebar — lg+ only, sticky. Mirrors boards/_sidebar's pattern
-    (active state via aria-current + brand-100 fill, not a path compare). %>
+    (active state via aria-current + colour/weight, not a path compare —
+    see that file for why a filled pill was dropped in favour of this). %>
 <nav aria-label="Personal Settings" class="hidden lg:flex flex-col w-56 flex-shrink-0 gap-1 lg:sticky lg:top-6 lg:self-start">
   <p class="px-3 text-xs font-bold text-ink-500 uppercase tracking-wider mb-2">Personal Settings</p>
 
   <% account_nav_links.each do |link| %>
     <% is_active = active == link[:key] %>
     <%= link_to link[:path],
-        class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{is_active ? "bg-brand-100 text-brand-fg" : "text-ink-700 hover:bg-surface-100"}",
+        class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{is_active ? "font-semibold text-brand-fg" : "font-medium text-ink-700 hover:bg-surface-100"}",
         "aria-current": (is_active ? "page" : nil) do %>
       <i class="<%= link[:icon] %> w-4 text-center <%= is_active ? "text-brand-fg" : "text-ink-300" %>" aria-hidden="true"></i>
       <%= link[:label] %>
