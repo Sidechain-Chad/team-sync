@@ -4,10 +4,9 @@ module ApplicationHelper
   # classic dark-mode flash: the browser paints the light palette, then a script
   # swaps it.
   #
-  # Unauthenticated pages (Devise sign-in, password reset) get "system". They
-  # have no stored preference to read, and "system" is the only answer that
-  # can't be wrong on purpose — someone running a dark OS gets a dark sign-in
-  # page, and it costs nothing because CSS resolves it with no JS at all.
+  # Unauthenticated pages (Devise sign-in, password reset) get "light". They
+  # have no stored preference to read, and light/dark are the only two options
+  # now that "Match system" is gone — light is the safe, non-surprising default.
   #
   # Falls back to "light" rather than trusting the column blindly: the value is
   # interpolated into an HTML attribute, and while User validates it on the way
@@ -15,7 +14,7 @@ module ApplicationHelper
   # have gone through that validation. Two checks, because the cost is one
   # `include?`.
   def current_theme
-    return "system" unless user_signed_in?
+    return "light" unless user_signed_in?
 
     theme = current_user.theme
     User::THEMES.include?(theme) ? theme : "light"

@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Appearance switcher (Light / Dark / Match system), mounted in the account
+// Appearance switcher (Light / Dark), mounted in the account
 // menu in shared/_top_nav.
 //
 // The DOM write and the persist are deliberately separate concerns:

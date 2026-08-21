@@ -7,7 +7,7 @@ require "application_system_test_case"
 # pins that agreement in the response body. The bug only exists in a REAL
 # browser: Turbo Drive swaps in the new <body> on the sign-in redirect but
 # never touches the pre-existing <html> element, so data-theme stays pinned at
-# the signed-out "system" fallback until something re-parses the whole
+# the signed-out "light" fallback until something re-parses the whole
 # document. A Rails integration test can't see this — it only ever inspects
 # one response body, never a live DOM carried across two of them — which is
 # why this needs the real Chrome driver.
@@ -19,23 +19,10 @@ class ThemeTransitionTest < ApplicationSystemTestCase
 
     sign_in_and_land(user)
 
-    assert_eventually(message: "data-theme stayed on the signed-out system fallback") do
+    assert_eventually(message: "data-theme stayed on the signed-out light fallback") do
       html_theme == "light"
     end
     assert_equal "light", checked_switcher_theme
-  end
-
-  test "signing in with theme system follows a dark OS immediately" do
-    user = users(:one)
-    user.update!(theme: "system")
-    emulate_color_scheme("dark")
-
-    sign_in_and_land(user)
-
-    assert_eventually(message: "data-theme never settled on system") do
-      html_theme == "system"
-    end
-    assert_equal "system", checked_switcher_theme
   end
 
   test "signing in with theme dark ignores a light OS immediately" do

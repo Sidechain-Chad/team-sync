@@ -128,7 +128,8 @@
     </div>
   </div>
 
-  <%# Help — placeholder. Two stub items so the menu doesn't look empty.
+  <%# Help — "Help center" links to the real /help help centre (HelpController).
+      "Send feedback" is still a stub; no destination exists for it yet.
       Hidden below `sm` for the same overflow reason as Notifications above. %>
   <div class="relative hidden sm:block"
        data-controller="dropdown"
@@ -151,10 +152,10 @@
         <h3 class="text-sm font-semibold">Help</h3>
       </div>
       <div class="py-1">
-        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors">
+        <%= link_to help_index_path, class: "flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors" do %>
           <i class="fa-regular fa-circle-question text-ink-500 w-4 text-center" aria-hidden="true"></i>
           <span>Help center</span>
-        </a>
+        <% end %>
         <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-surface-200 transition-colors">
           <i class="fa-regular fa-paper-plane text-ink-500 w-4 text-center" aria-hidden="true"></i>
           <span>Send feedback</span>
@@ -232,10 +233,10 @@
         <% end %>
       </div>
 
-      <%# Appearance — Light / Dark / Match system. Lives here rather than on
-          the Settings page (where notification preferences live) to match
-          Trello, and because a theme is the one preference you want to flip
-          while looking at the thing it changes.
+      <%# Appearance — Light / Dark. Lives here rather than on the Settings
+          page (where notification preferences live) to match Trello, and
+          because a theme is the one preference you want to flip while
+          looking at the thing it changes.
 
           Plain buttons driven by theme_controller, NOT a form: the change is
           applied to <html> client-side for an instant repaint and persisted
@@ -248,7 +249,7 @@
           deliberately have none (they contain forms, which that role forbids).
           An orphaned menuitem-radio is worse for assistive tech than no role at
           all. radiogroup is valid standalone and is the precise semantic for "pick
-          exactly one of three" — and unlike the menu roles, its keyboard
+          exactly one of two" — and unlike the menu roles, its keyboard
           contract is small enough to actually honour, which theme_controller
           does (arrow keys + roving tabindex). %>
       <div class="py-1 border-t border-line"
@@ -259,14 +260,13 @@
         <div role="radiogroup" aria-labelledby="appearance-label">
           <% [
                { value: "light",  label: "Light",        icon: "fa-regular fa-sun" },
-               { value: "dark",   label: "Dark",         icon: "fa-regular fa-moon" },
-               { value: "system", label: "Match system", icon: "fa-solid fa-circle-half-stroke" }
+               { value: "dark",   label: "Dark",         icon: "fa-regular fa-moon" }
              ].each do |option| %>
             <% selected = current_theme == option[:value] %>
             <%# Roving tabindex: only the checked option is in the tab order, and
                 arrow keys move between them. That is the radiogroup contract —
-                three separate tab stops would make tabbing past the menu take
-                three presses. %>
+                two separate tab stops would make tabbing past the menu take
+                two presses. %>
             <button type="button"
                     role="radio"
                     aria-checked="<%= selected %>"

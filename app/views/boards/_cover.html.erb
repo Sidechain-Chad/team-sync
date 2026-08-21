@@ -3,7 +3,7 @@
     board_cover_gradient_classes. Shared by _board_card and the
     board-switcher modal so their covers can't drift apart. %>
 <% tile_url = board_tile_url(board) %>
-<div class="<%= height_class %> <%= tile_url ? "bg-surface-200" : "bg-gradient-to-br #{board_cover_gradient_classes(board)}" %>">
+<div class="<%= height_class %> <%= tile_url ? "bg-surface-200" : "board-cover-gradient bg-gradient-to-br #{board_cover_gradient_classes(board)}" %>">
   <% if tile_url %>
     <%= image_tag tile_url, class: "w-full h-full object-cover" %>
   <% end %>

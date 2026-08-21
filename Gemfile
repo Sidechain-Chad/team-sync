@@ -89,3 +89,10 @@ gem "cloudinary", "~> 2.4"
 
 
 gem "ruby-vips", "~> 2.3"
+
+# Renders the in-app help centre articles (app/views/help/articles/*.md).
+# Pure Ruby, no native extension and no Node — 15 articles as markdown files
+# are far more maintainable than ERB full of utility classes, and this is the
+# smallest widely-used renderer that still handles fenced code, tables, and
+# raw HTML passthrough for the theme-swapped screenshots.
+gem "kramdown", "~> 2.4"

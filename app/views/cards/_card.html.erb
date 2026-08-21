@@ -143,18 +143,20 @@
             <i class="fa-solid fa-check text-[10px] text-white" aria-hidden="true"></i>
           <% end %>
         <% else %>
-          <%# Hover-only — empty circle, animates from 0 width to ~26px.
-              The wrapper handles width animation; the button inside fades
-              in via opacity on the same timing/duration, so the circle
-              eases into view as the space opens rather than popping in
-              the instant the wrapper is wide enough to show it. Also
-              expands on focus-within so the button is reachable (and its
-              focus ring visible) via keyboard, not just mouse hover. This
-              is deliberately the one reveal on the card slow enough to
-              notice — the ring above it stays instant, and a fast sweep
-              must still show no title-wobble trail; if 250ms ever
-              reintroduces that, drop back to 200. %>
-          <div class="shrink-0 overflow-hidden transition-[width] duration-[250ms] ease-in-out w-0 group-hover:w-[26px] group-focus-within:w-[26px]">
+          <%# Hover-only — empty circle, revealed by opacity ONLY. The column
+              is a fixed 26px, always, so it never participates in the flex
+              row's width math: the title's available width is identical
+              whether this is showing or not, and can't get pushed onto an
+              extra line the way an animated-width column did (that version
+              pushed a title near its wrap boundary onto a second line on
+              hover, changing the card's own height and shifting every card
+              below it — see git history if you're looking for the fixed-
+              width alternative this replaced). The permanent small indent
+              on every title is the deliberate trade for that: stable beats
+              flush-left. Also expands on focus-within so the button is
+              reachable (and its focus ring visible) via keyboard, not just
+              mouse hover. %>
+          <div class="shrink-0 w-[26px]">
             <%= button_to toggle_complete_card_path(card),
                 method: :patch,
                 form: { class: "m-0 mt-px" },

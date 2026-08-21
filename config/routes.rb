@@ -10,6 +10,11 @@ Rails.application.routes.draw do
   get "switch_boards"  => "boards#switcher", as: :switch_boards
   get "search"         => "search#index",   as: :search
 
+  # Help centre — public (see HelpController). :slug, not :id: articles are
+  # markdown files named by slug, not database rows.
+  get "help"        => "help#index", as: :help_index
+  get "help/:slug"  => "help#show",  as: :help_article
+
   resources :notifications, only: [:index] do
     member do
       get :read

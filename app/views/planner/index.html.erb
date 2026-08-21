@@ -85,56 +85,96 @@
       <% end %>
     </div>
 
-    <%# Day cells. grid-rows-6 fixes the row count so cells stay equal-height. %>
-    <div class="grid grid-cols-7 grid-rows-6">
-      <% @days.each do |day| %>
-        <%
-          in_current_month = day.month == @month
-          is_today         = day == Date.current
-          cards_today      = @cards_by_day[day] || []
-        %>
-        <div class="min-h-[110px] border-r border-b border-line p-1.5 last:border-r-0
-                    <%= 'bg-surface-muted' unless in_current_month %>">
+    <%# Day cells. grid-rows-6 fixes the row count so cells stay equal-height.
+        Grid lines are drawn ONCE, via gap-px + a bg-line fill showing through
+        the gaps, rather than per-cell border-r/border-b — the old approach
+        put a border-r on every cell in a flat 42-cell list, and :last-child
+        only matches cell #42 (bottom-right), so every Saturday in the other
+        5 rows doubled up against the container's own right border. A shared
+        gap has no "last cell" special case to get wrong. %>
+    <div class="grid grid-cols-7 grid-rows-6 gap-px bg-line">
+      <%# Lanes are assigned once per week ROW (not per cell) so a spanning
+          card keeps the same vertical slot in every cell it crosses — see
+          PlannerHelper#planner_week_lanes. Cells stay flat siblings of the
+          grid container (no per-row wrapper div), which is what keeps the
+          gap-px/bg-line grid lines and the 7-column auto-placement working. %>
+      <% @days.each_slice(7) do |week| %>
+        <% week_lanes = planner_week_lanes(week, @cards_by_day) %>
+        <% week.each do |day| %>
+          <%
+            in_current_month = day.month == @month
+            is_today         = day == Date.current
+            cards_today      = @cards_by_day[day] || []
+            lane_slots       = planner_lane_slots(day, cards_today, week_lanes)
+            point_cards      = planner_point_cards(cards_today, week_lanes)
+          %>
+          <div class="min-h-[110px] p-1.5
+                      <%= in_current_month ? 'bg-surface-0' : 'bg-surface-muted' %>"
+               data-day="<%= day.iso8601 %>">
 
-          <%# Date number — highlighted if today %>
-          <div class="flex items-center justify-end mb-1">
-            <span class="text-xs font-medium <%= 'h-5 w-5 rounded-full bg-brand-600 text-white flex items-center justify-center' if is_today %>
-                          <%= 'text-ink-300' unless in_current_month %>
-                          <%= 'text-ink-700' if in_current_month && !is_today %>">
-              <%= day.day %>
-            </span>
-          </div>
+            <%# Date number — highlighted if today %>
+            <div class="flex items-center justify-end mb-1">
+              <span class="text-xs font-medium <%= 'h-5 w-5 rounded-full bg-brand-600 text-white flex items-center justify-center' if is_today %>
+                            <%= 'text-ink-300' unless in_current_month %>
+                            <%= 'text-ink-700' if in_current_month && !is_today %>">
+                <%= day.day %>
+              </span>
+            </div>
 
-          <%# Card chips for this day %>
-          <div class="space-y-1">
-            <% cards_today.each do |card| %>
-              <%# Trello-style chip: just the title, single line, with a small colored
-                  left stripe from the card's first label. Board name moved to the
-                  title attribute so it still appears on hover for disambiguation.
+            <%# Lane slots, then point chips. Lanes render FIRST and always
+                reserve their row's full lane count (a blank placeholder where
+                this day's lane is unoccupied), so point chips appended below
+                can never displace a bar into a different slot than its
+                neighbours. %>
+            <div class="space-y-1">
+              <% lane_slots.each_with_index do |card, lane_index| %>
+                <% if card %>
+                  <%# Trello-style chip: just the title, single line, with a small colored
+                      left stripe from the card's first label. Board name moved to the
+                      title attribute so it still appears on hover for disambiguation.
 
-                  A card with BOTH a start and a due date renders one segment per
-                  day it spans, squared off and bled across cell padding so the
-                  row reads as a single bar. Anything else is a :point — the
-                  original single chip, unchanged. %>
-              <% segment = planner_segment(card, day) %>
-              <% shows_title = planner_segment_shows_title?(card, day) %>
-              <%= link_to card_path(card),
-                  data: { turbo_frame: "modal", **(segment == :point ? {} : { planner_segment: segment }) },
-                  class: "block text-[11px] leading-tight px-1.5 py-1 truncate hover:opacity-80 transition-opacity cursor-pointer #{planner_chip_or_bar_classes(card, day)}",
-                  title: "#{card.title} — #{card.list.board.name}#{card.date_range? ? " · #{card.start_date.strftime('%b %-d')}–#{card.due_date.strftime('%b %-d')}" : ''}#{card.location? ? " · #{card.location_name}" : ''}" do %>
-                <% if shows_title %>
+                      A card with BOTH a start and a due date renders one segment per
+                      day it spans, squared off and bled across cell padding so the
+                      row reads as a single bar. data-planner-lane is this row's
+                      stable slot for this card — asserted directly in tests rather
+                      than inferred from DOM position. %>
+                  <% segment = planner_segment(card, day) %>
+                  <% shows_title = planner_segment_shows_title?(card, day) %>
+                  <%= link_to card_path(card),
+                      data: { turbo_frame: "modal", planner_segment: segment, planner_lane: lane_index },
+                      class: "block text-[11px] leading-tight px-1.5 py-1 truncate hover:opacity-80 transition-opacity cursor-pointer #{planner_chip_or_bar_classes(card, day)}",
+                      title: "#{card.title} — #{card.list.board.name} · #{card.start_date.strftime('%b %-d')}–#{card.due_date.strftime('%b %-d')}#{card.location? ? " · #{card.location_name}" : ''}" do %>
+                    <% if shows_title %>
+                      <% if card.location? %>
+                        <i class="fa-solid fa-location-dot text-[8px] mr-0.5 opacity-70"></i>
+                      <% end %><%= card.title %>
+                    <% else %>
+                      <%# Continuation cell: the bar itself carries the meaning, and
+                          the accessible name still comes from the title attribute. %>
+                      <span class="invisible">&nbsp;</span>
+                    <% end %>
+                  <% end %>
+                <% else %>
+                  <%# This lane is occupied elsewhere in the row but not on this
+                      day — an empty same-height placeholder so the lanes below
+                      it stay aligned with the same lane in neighbouring cells. %>
+                  <div class="text-[11px] leading-tight px-1.5 py-1" aria-hidden="true"><span class="invisible">&nbsp;</span></div>
+                <% end %>
+              <% end %>
+
+              <% point_cards.each do |card| %>
+                <%= link_to card_path(card),
+                    data: { turbo_frame: "modal" },
+                    class: "block text-[11px] leading-tight px-1.5 py-1 truncate hover:opacity-80 transition-opacity cursor-pointer #{planner_chip_or_bar_classes(card, day)}",
+                    title: "#{card.title} — #{card.list.board.name}#{card.date_range? ? " · #{card.start_date.strftime('%b %-d')}–#{card.due_date.strftime('%b %-d')}" : ''}#{card.location? ? " · #{card.location_name}" : ''}" do %>
                   <% if card.location? %>
                     <i class="fa-solid fa-location-dot text-[8px] mr-0.5 opacity-70"></i>
                   <% end %><%= card.title %>
-                <% else %>
-                  <%# Continuation cell: the bar itself carries the meaning, and
-                      the accessible name still comes from the title attribute. %>
-                  <span class="invisible">&nbsp;</span>
                 <% end %>
               <% end %>
-            <% end %>
+            </div>
           </div>
-        </div>
+        <% end %>
       <% end %>
     </div>
   </div>

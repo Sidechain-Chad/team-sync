@@ -5,24 +5,25 @@ require "test_helper"
 # Dark mode here is not a set of `dark:` variants — it is a redefinition of token
 # VALUES under a selector on <html>, which re-colours every existing
 # bg-surface-* / text-ink-* utility at once. That is enormously cheaper than the
-# alternative, and it has exactly two failure modes, both silent:
+# alternative, and its main failure mode is silent:
 #
-#   1. A view — or a Stimulus controller building markup in JS — introduces
-#      raw colour (bg-white, a Tailwind-palette gray, a hex). Raw colour cannot
-#      respond to a token override, so that element stays light forever while
-#      everything around it darkens. Nothing errors; the page just develops a
-#      white hole. That is what NoRawColourInViewsTest below is for. It scans
-#      both app/views and app/javascript: a controller that builds its own
-#      innerHTML (board_map_controller.js's error panel, gap_insert_controller.js's
-#      composer) is exactly as capable of hardcoding colour as an .erb file, and
-#      nothing about "it's JS, not a template" makes it visible to a scan that
-#      only reads *.erb.
+#   A view — or a Stimulus controller building markup in JS — introduces
+#   raw colour (bg-white, a Tailwind-palette gray, a hex). Raw colour cannot
+#   respond to a token override, so that element stays light forever while
+#   everything around it darkens. Nothing errors; the page just develops a
+#   white hole. That is what NoRawColourInViewsTest below is for. It scans
+#   both app/views and app/javascript: a controller that builds its own
+#   innerHTML (board_map_controller.js's error panel, gap_insert_controller.js's
+#   composer) is exactly as capable of hardcoding colour as an .erb file, and
+#   nothing about "it's JS, not a template" makes it visible to a scan that
+#   only reads *.erb.
 #
-#   2. The two token-mapping blocks drift apart. `[data-theme="dark"]` and the
-#      `[data-theme="system"]` copy inside the prefers-color-scheme media query
-#      have to stay identical, and CSS gives no way to write the mapping once
-#      (see the long comment in the stylesheet). Add a token to one and forget
-#      the other and "Dark" works while "Match system" is half-dark.
+# (There used to be a second failure mode here: a "Match system" mapping,
+# gated in a prefers-color-scheme media query, kept as a second copy of the
+# whole token list that had to stay in lockstep with the plain
+# `[data-theme="dark"]` block. "Match system" was removed by design — light
+# and dark only now — so there is exactly one mapping block and nothing left
+# to drift.)
 class ThemeTokensTest < ActiveSupport::TestCase
   CSS_PATH = Rails.root.join("app/assets/tailwind/application.css")
 
@@ -44,50 +45,21 @@ class ThemeTokensTest < ActiveSupport::TestCase
       .map { |prop, value| [prop, value.strip] }
   end
 
-  test "the dark palette maps the same tokens for explicit dark and for match-system" do
-    explicit = declarations_after('[data-theme="dark"] {')
-
-    # The system copy is the one nested inside the media query.
-    media_at = css.index("@media (prefers-color-scheme: dark)")
-    assert media_at, "the match-system branch must be gated on prefers-color-scheme"
-    system = declarations_after('[data-theme="system"] {', from: media_at)
-
-    assert explicit.any?, "the dark token mapping should not be empty"
-    assert_equal explicit, system, <<~MSG
-      The [data-theme="dark"] and [data-theme="system"] token mappings have
-      drifted. They must stay identical — CSS cannot express the mapping once
-      (an unconditional selector and a media-query-gated one cannot share a
-      rule), so the duplication is intentional and this test is what makes it
-      safe.
-
-      Only in [data-theme="dark"]:   #{(explicit - system).map(&:first).join(", ")}
-      Only in [data-theme="system"]: #{(system - explicit).map(&:first).join(", ")}
-    MSG
-  end
-
-  # `color-scheme: dark` is not a `--*` declaration, so the mapping-equality test
-  # above steps right over it. It still has to be present in BOTH branches: it is
-  # what makes the browser render native checkboxes, the default focus ring and
-  # the pre-paint canvas as dark. Missing from the system branch, "Match system"
-  # would keep light-styled form controls on a dark page.
-  test "both dark branches declare color-scheme: dark" do
+  # `color-scheme: dark` tells the browser to render native checkboxes, the
+  # default focus ring and the pre-paint canvas as dark. Missing here, dark
+  # mode would keep light-styled form controls on a dark page.
+  test "the dark branch declares color-scheme: dark" do
     explicit_at = css.index('[data-theme="dark"] {')
     explicit_end = css.index("}", explicit_at)
     assert_includes css[explicit_at...explicit_end], "color-scheme: dark",
                     "[data-theme=dark] must declare color-scheme: dark"
-
-    media_at = css.index("@media (prefers-color-scheme: dark)")
-    system_at = css.index('[data-theme="system"] {', media_at)
-    system_end = css.index("}", system_at)
-    assert_includes css[system_at...system_end], "color-scheme: dark",
-                    "the match-system branch must declare color-scheme: dark too"
   end
 
   test "light mode never declares color-scheme, so nothing changes there" do
-    # Only the two dark branches may set it. If it leaked to :root, light mode
+    # Only the one dark branch may set it. If it leaked to :root, light mode
     # would start rendering dark native controls.
-    assert_equal 2, css.scan(/^\s*color-scheme:/).length,
-                 "color-scheme should be declared exactly twice — once per dark branch"
+    assert_equal 1, css.scan(/^\s*color-scheme:/).length,
+                 "color-scheme should be declared exactly once, in the dark branch"
   end
 
   test "every dark value is defined once and referenced, never inlined twice" do
@@ -213,6 +185,73 @@ class ThemeTokensTest < ActiveSupport::TestCase
     # And the foregrounds ARE lightened.
     %w[--color-brand-fg --color-danger-fg --color-success-fg --color-warn-700].each do |fg|
       assert mapping[fg], "#{fg} must be lightened in dark mode to stay legible on a dark surface"
+    end
+  end
+
+  # Pins the "surface separation" pass: dark surfaces used to sit within
+  # 2-5 points of L% of their neighbour (surface-50 to surface-300 spanned
+  # just 7.25%-20.98%), which read as a single undifferentiated field rather
+  # than distinct planes. A future edit could flatten this again one token at
+  # a time without ever looking wrong in isolation — this test is what makes
+  # that fail loudly instead of shipping.
+  # 2.5, not the ~3 the ramp mostly hits, to leave headroom for hex rounding
+  # (HSL math over 8-bit hex channels doesn't land on exact integers) without
+  # weakening the intent: the OLD ramp's smallest adjacent gaps were 1.01-2.35,
+  # and one pair (surface-muted/surface-100) was inverted (muted was actually
+  # LIGHTER), so 2.5 as a floor is already a strictly stronger, and correctly
+  # ordered, guarantee than what shipped before this pass.
+  MIN_ADJACENT_SURFACE_L_GAP = 2.5
+
+  # Same complaint's other half: those surfaces were also ~19-20% saturated,
+  # which at low lightness reads as an undifferentiated brown field rather
+  # than a neutral dark UI (this is legitimately hard to see in isolation —
+  # it is a "screen recording" bug, not a per-token one — hence measuring it
+  # here rather than trusting review-by-eye a second time).
+  MAX_DARK_SURFACE_SATURATION = 10.0
+
+  def hex_to_hsl(hex)
+    hex = hex.delete("#")
+    r, g, b = [0, 2, 4].map { |i| hex[i, 2].to_i(16) / 255.0 }
+    max = [r, g, b].max
+    min = [r, g, b].min
+    l = (max + min) / 2.0
+    d = max - min
+    s = d.zero? ? 0 : d / (1 - (2 * l - 1).abs)
+    [l * 100, s * 100]
+  end
+
+  test "adjacent dark surface tokens differ in lightness by a visible amount" do
+    dark_values = declarations_after(":root {").to_h
+
+    # Elevation order, darkest to lightest — see the block comment above
+    # --dark-surface-50 in application.css for why this isn't alphabetical
+    # or declaration order.
+    ordered = %w[
+      --dark-surface-50 --dark-surface-muted --dark-surface-100
+      --dark-surface-0 --dark-surface-200 --dark-surface-300 --dark-line
+    ]
+
+    lightness = ordered.to_h { |name| [name, hex_to_hsl(dark_values.fetch(name))[0]] }
+
+    lightness.each_cons(2) do |(name_a, l_a), (name_b, l_b)|
+      gap = (l_b - l_a).round(2)
+      assert_operator gap, :>=, MIN_ADJACENT_SURFACE_L_GAP,
+                      "#{name_a} (L=#{l_a.round(2)}%) and #{name_b} (L=#{l_b.round(2)}%) are only " \
+                      "#{gap} points of lightness apart — below the #{MIN_ADJACENT_SURFACE_L_GAP} " \
+                      "minimum this test pins. Surfaces this close read as one plane, not two."
+    end
+  end
+
+  test "dark surface tokens stay near-neutral, not tinted brown" do
+    dark_values = declarations_after(":root {").to_h
+
+    %w[--dark-surface-50 --dark-surface-muted --dark-surface-100
+       --dark-surface-0 --dark-surface-200 --dark-surface-300 --dark-line].each do |name|
+      _l, s = hex_to_hsl(dark_values.fetch(name))
+      assert_operator s, :<=, MAX_DARK_SURFACE_SATURATION,
+                      "#{name} is #{s.round(1)}% saturated — above the " \
+                      "#{MAX_DARK_SURFACE_SATURATION}% ceiling this test pins. Dark surfaces should " \
+                      "read as near-neutral grey with a hint of warmth, not a tinted brown field."
     end
   end
 end

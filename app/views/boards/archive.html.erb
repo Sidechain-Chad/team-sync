@@ -16,16 +16,30 @@
       </div>
     </div>
 
-    <%# Empty state %>
+    <%# Empty state. border-2 (not the plain 1px border every other panel in
+        this app uses), same --color-line token — see the block comment
+        below the populated branch for why: at the flat nav-matching dark
+        background, a single hairline border is nearly invisible, and an
+        otherwise-empty panel like this one has nothing else (no card rows)
+        to signal "there's a container here" instead. %>
     <% if @archived_cards.empty? %>
-      <div class="bg-surface-0 rounded-lg shadow-sm border border-line text-center py-12">
+      <div class="bg-surface-0 rounded-lg shadow-sm border-2 border-line text-center py-12">
         <i class="fa-solid fa-box-archive text-5xl text-ink-300 mb-4"></i>
         <p class="text-ink-500">Nothing has been archived yet.</p>
         <p class="text-sm text-ink-300 mt-1">Archived cards will appear here.</p>
       </div>
     <% else %>
 
-      <div class="bg-surface-0 rounded-lg shadow-sm border border-line p-4">
+      <%# Same border-2 border-line strengthening as the empty state above —
+          kept consistent between both branches rather than only fixing the
+          one the screenshot happened to show. border-2 is an established
+          pattern in this app for a panel that needs to read as more
+          prominent than the plain 1px border (see the checkbox circles in
+          cards/_card.html.erb and account/_card_row.html.erb, and the
+          "create new board" dashed tile on boards/index.html.erb) — same
+          --color-line token, just doubled in width, not a new token and
+          not a token value change. %>
+      <div class="bg-surface-0 rounded-lg shadow-sm border-2 border-line p-4">
         <div class="text-xs text-ink-500 uppercase font-bold mb-3">
           Cards (<%= @archived_cards.size %>)
         </div>

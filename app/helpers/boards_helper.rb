@@ -23,6 +23,18 @@ module BoardsHelper
     BOARD_COVER_GRADIENTS[board.id % BOARD_COVER_GRADIENTS.size]
   end
 
+  # Which .board-canvas-rich-N class (application.css) gives the dark-mode
+  # board canvas its per-board radial-highlight/radial-shadow/linear-base
+  # treatment. Index-aligned with BOARD_COVER_GRADIENTS so a board's tile,
+  # its light-mode canvas gradient, and its dark-mode rich canvas all come
+  # from the same palette entry. Added unconditionally alongside
+  # board_cover_gradient_classes in boards/show.html.erb — inert in light
+  # mode, since .board-canvas-gradient's light-mode rule never references
+  # the --rich-* variables this class sets.
+  def board_canvas_rich_class(board)
+    "board-canvas-rich-#{board.id % BOARD_COVER_GRADIENTS.size}"
+  end
+
   # Tile thumbnail for board cards/switcher. :tile is a named variant (see
   # Board) — no `.processed` here; see MediaHelper#media_transform_url for
   # why Cloudinary needs its own transformation URL instead. An uploaded

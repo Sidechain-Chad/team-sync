@@ -8,8 +8,12 @@
 <% on_boards_index = controller_name == "boards" && action_name == "index" %>
 <nav aria-label="Workspace" class="hidden lg:flex flex-col w-60 flex-shrink-0 gap-1 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
 
+  <%# Active state is colour + weight on the icon and label, not a filled
+      pill — a rounded bg-brand-100 chip here read as heavy for something
+      that's just "which page am I on". aria-current carries the same fact
+      to assistive tech regardless of how this is styled. %>
   <%= link_to boards_path,
-      class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{on_boards_index ? "bg-brand-100 text-brand-fg" : "text-ink-700 hover:bg-surface-100"}",
+      class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{on_boards_index ? "font-semibold text-brand-fg" : "font-medium text-ink-700 hover:bg-surface-100"}",
       "aria-current": (on_boards_index ? "page" : nil) do %>
     <i class="fa-solid fa-table-columns w-4 text-center <%= on_boards_index ? "text-brand-fg" : "text-ink-300" %>" aria-hidden="true"></i>
     Boards
@@ -31,7 +35,7 @@
       lives with the real destinations above rather than being tucked away. %>
   <% closed_here = controller_name == "boards" && action_name == "closed" %>
   <%= link_to closed_boards_path,
-      class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{closed_here ? "bg-brand-100 text-brand-fg" : "text-ink-700 hover:bg-surface-100"}",
+      class: "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 #{closed_here ? "font-semibold text-brand-fg" : "font-medium text-ink-700 hover:bg-surface-100"}",
       "aria-current": (closed_here ? "page" : nil) do %>
     <i class="fa-solid fa-box-archive w-4 text-center <%= closed_here ? "text-brand-fg" : "text-ink-300" %>" aria-hidden="true"></i>
     Closed boards

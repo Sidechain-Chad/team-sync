@@ -48,7 +48,23 @@ class Comment < ApplicationRecord
     candidates.select { |u| body_mentions?(u) } - [user]
   end
 
-  private
+  # HTML-escaped body with each real mention wrapped in <mark>. Highlight
+  # only, no link — there are no user profile pages to link to.
+  #
+  # Built from mentioned_users itself, not a second copy of the pattern: the
+  # set of names highlighted here IS the set of people who got a "mention"
+  # notification, by construction, so the two cannot drift apart. Escape
+  # first, then insert the <mark> markup — never the other way round, or a
+  # comment body containing "<mark>" would inject real markup.
+  def highlighted_content
+    escaped = ERB::Util.html_escape(content.to_s)
+    mentioned_users.each do |mentioned_user|
+      escaped = escaped.gsub(self.class.mention_pattern(mentioned_user.display_name)) do |match|
+        %(<mark class="bg-warn-100 text-ink-900 rounded px-0.5">#{match}</mark>)
+      end
+    end
+    escaped.html_safe
+  end
 
   # Case-insensitive match — a mention is hand-typed, and requiring exact
   # case would silently drop notifications over a capitalization slip.
@@ -59,7 +75,16 @@ class Comment < ApplicationRecord
   # phantom-mention a member named "Bob". Known v1 limitation: two board
   # members sharing a display_name are ambiguous and would both match —
   # acceptable without a real username field.
+  #
+  # Class-level so highlighted_content can reuse the exact same pattern
+  # instead of a second, potentially-diverging regex.
+  def self.mention_pattern(name)
+    /(?<![[:word:]])@#{Regexp.escape(name)}(?![[:word:]])/i
+  end
+
+  private
+
   def body_mentions?(user)
-    content.to_s.match?(/(?<![[:word:]])@#{Regexp.escape(user.display_name)}(?![[:word:]])/i)
+    content.to_s.match?(self.class.mention_pattern(user.display_name))
   end
 end

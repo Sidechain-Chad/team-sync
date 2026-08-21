@@ -8,7 +8,7 @@ class UserThemeTest < ActiveSupport::TestCase
     assert_equal "light", user.reload.theme, "the default must come from the column, not just the object"
   end
 
-  test "accepts exactly the three offered options" do
+  test "accepts exactly the two offered options" do
     user = users(:one)
 
     User::THEMES.each do |theme|
@@ -16,16 +16,17 @@ class UserThemeTest < ActiveSupport::TestCase
       assert user.valid?, "#{theme} should be a valid theme but got #{user.errors[:theme]}"
     end
 
-    assert_equal %w[light dark system], User::THEMES
+    assert_equal %w[light dark], User::THEMES
   end
 
   test "rejects anything else" do
     user = users(:one)
 
-    # "auto" and "" are the plausible near-misses; the last two are the reason
+    # "system" is the plausible near-miss now that "Match system" is gone;
+    # "auto" and "" are the other near-misses; the last two are the reason
     # this validation exists at all — the value is interpolated into an HTML
     # attribute by the layout.
-    ["auto", "", "LIGHT", "Dark", nil, %{light" onload="alert(1)}].each do |bad|
+    ["system", "auto", "", "LIGHT", "Dark", nil, %{light" onload="alert(1)}].each do |bad|
       user.theme = bad
       assert_not user.valid?, "#{bad.inspect} should be rejected"
       assert_includes user.errors.attribute_names, :theme
@@ -38,8 +39,8 @@ class UserThemeTest < ActiveSupport::TestCase
     assert user.update(theme: "dark")
     assert_equal "dark", user.reload.theme
 
-    assert user.update(theme: "system")
-    assert_equal "system", user.reload.theme
+    assert user.update(theme: "light")
+    assert_equal "light", user.reload.theme
   end
 
   test "an invalid update is refused and leaves the stored value alone" do

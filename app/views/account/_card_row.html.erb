@@ -21,10 +21,12 @@
       <% end %>
       <span class="sr-only">Completed.</span>
     <% else %>
-      <%# Hover/focus-only reveal — same width-expansion timing as the
-          board-card toggle (250ms, w-0 -> 18px to match this page's
-          smaller h-4.5 badge). At rest: no marker, no reserved space. %>
-      <div class="shrink-0 overflow-hidden transition-[width] duration-[250ms] ease-in-out w-0 group-hover:w-[18px] group-focus-within:w-[18px]">
+      <%# Hover/focus-only reveal — opacity ONLY, same fix as
+          cards/_card.html.erb's board-tile toggle (see its comment for
+          why): the column is a fixed 18px always, so revealing the button
+          never changes how much width the title link next to it gets,
+          and the truncated title's ellipsis point can't shift on hover. %>
+      <div class="shrink-0 w-[18px]">
         <%= button_to toggle_complete_card_path(card),
             method: :patch,
             params: { from_account: true, sort: sort },

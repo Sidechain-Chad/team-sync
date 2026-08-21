@@ -1,0 +1,39 @@
+<%# Lower-left flanking graphic: a board column with two cards (one of
+    them mid-checklist) and a couple of member avatars overlapping its
+    corner — this product's own vocabulary, not stock shapes. Every fill/
+    stroke is a design-system token via var(--color-...), never a literal
+    hex, so it repaints for free in dark mode from this one markup. Static:
+    the only thing that ever moves is the avatar pair, and only under
+    .auth-graphic-drift (see application.css), which is itself gated on
+    prefers-reduced-motion. %>
+<svg viewBox="0 0 288 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <%# Board column %>
+  <rect x="36" y="16" width="144" height="208" rx="12" fill="var(--color-surface-200)" stroke="var(--color-line)" stroke-width="1.5" />
+
+  <%# Card 1 — plain, with a persimmon label bar and two text-line stand-ins %>
+  <rect x="52" y="40" width="112" height="60" rx="8" fill="var(--color-surface-0)" stroke="var(--color-line)" stroke-width="1.5" />
+  <rect x="62" y="50" width="32" height="6" rx="3" fill="var(--color-brand-400)" />
+  <rect x="62" y="64" width="84" height="4" rx="2" fill="var(--color-line)" />
+  <rect x="62" y="72" width="60" height="4" rx="2" fill="var(--color-line)" />
+
+  <%# Card 2 — a leaf-green label bar and a small checklist, two ticked rows and one not %>
+  <rect x="52" y="112" width="112" height="80" rx="8" fill="var(--color-surface-0)" stroke="var(--color-line)" stroke-width="1.5" />
+  <rect x="62" y="122" width="24" height="6" rx="3" fill="var(--color-success-600)" />
+
+  <circle cx="68" cy="144" r="5" fill="var(--color-success-600)" />
+  <path d="M65.5 144 L67.5 146.5 L71 141.5" stroke="var(--color-surface-0)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="80" y="141.5" width="66" height="4" rx="2" fill="var(--color-line)" />
+
+  <circle cx="68" cy="158" r="5" fill="var(--color-success-600)" />
+  <path d="M65.5 158 L67.5 160.5 L71 155.5" stroke="var(--color-surface-0)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="80" y="155.5" width="50" height="4" rx="2" fill="var(--color-line)" />
+
+  <circle cx="68" cy="172" r="5" fill="var(--color-surface-0)" stroke="var(--color-line)" stroke-width="1.5" />
+  <rect x="80" y="169.5" width="58" height="4" rx="2" fill="var(--color-line)" />
+
+  <%# Member avatars, overlapping the column's bottom-right corner %>
+  <g class="auth-graphic-drift">
+    <circle cx="176" cy="196" r="14" fill="var(--color-brand-100)" stroke="var(--color-surface-50)" stroke-width="3" />
+    <circle cx="196" cy="204" r="12" fill="var(--color-surface-200)" stroke="var(--color-surface-50)" stroke-width="3" />
+  </g>
+</svg>

@@ -164,8 +164,8 @@ class BoardsController < ApplicationController
     @board = current_user.boards.new(board_params)
 
     if @board.save
-      @board.invite_users(params[:emails], current_user)
-      redirect_to @board, notice: "Board created successfully!"
+      unmatched = @board.invite_users(params[:emails], current_user)
+      redirect_to @board, notice: creation_notice(unmatched)
     else
       # formats: [:html] — boards/new exists only as HTML, and a bare `render
       # :new` resolves the template against the REQUEST's formats, so a
@@ -385,5 +385,16 @@ class BoardsController < ApplicationController
     # Allow name, avatar, and background. remove_background is handled
     # separately in #update — it's not a model attribute.
     params.require(:board).permit(:name, :avatar, :background)
+  end
+
+  # Wording matches BoardUsersController#create's single-add flash
+  # ("User not found. Check the email.") rather than inventing a second
+  # phrasing for the same failure.
+  def creation_notice(unmatched_emails)
+    return "Board created successfully!" if unmatched_emails.empty?
+
+    plural = unmatched_emails.size > 1
+    "Board created successfully! User#{"s" if plural} not found for " \
+      "#{unmatched_emails.join(", ")}. Check the email#{"s" if plural}."
   end
 end

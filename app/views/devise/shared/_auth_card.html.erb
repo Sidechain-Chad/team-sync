@@ -1,20 +1,46 @@
-<%# Shared frame for sign-in / sign-up / forgot-password screens.
-    Centers a single card on a TeamSync-blue background, mirrors the
-    look of the rest of the app instead of dropping the user onto a
-    bare white page. %>
-<div class="min-h-screen bg-gradient-to-br from-scrim via-brand-700 to-brand-600 flex items-center justify-center px-4 py-12">
-  <div class="w-full max-w-md">
+<%# Centred auth card, flanked by decorative vector graphics that bleed
+    past the left/right viewport edges. Replaces the earlier split-screen
+    layout with an auto-cycling, slowly-scaling RASTER screenshot panel:
+    continuously scaling a bitmap resamples every pixel every frame, and a
+    screenshot full of 1px grid lines and 8px text is close to the worst
+    possible subject for that — it shimmers, and no amount of slowing the
+    animation down fixes a resampling artifact. Vector doesn't have this
+    problem at all: a <rect> or <circle> just re-renders its path at
+    whatever transform is asked of it, so motion on the graphics below
+    (see .auth-graphic-drift in application.css) is safe by construction,
+    not just "slowed down until it's tolerable."
+
+    The graphics are pure decoration: aria-hidden, pointer-events-none, and
+    stacked behind the card (z-0 vs the card's z-10). Hidden below lg: —
+    at phone widths they would crowd a form that already has to stack the
+    whole page, and the "flanking" composition only makes sense with room
+    on both sides. Each graphic is negatively offset past the edge of its
+    own wrapper, and the page wrapper's overflow-hidden crops it there —
+    that combination is what makes them read as a scene continuing past
+    the page rather than as two centred stickers. Sized and positioned so
+    the visible remainder stays inside the gutter beside the card even at
+    the lg breakpoint's narrowest width (1024px): the card never has
+    anything sitting under it. %>
+<div class="relative min-h-screen overflow-hidden bg-surface-50 flex items-center justify-center px-4 py-12">
+  <div class="hidden lg:block absolute -bottom-8 -left-8 w-72 h-60 z-0 opacity-70 pointer-events-none" aria-hidden="true">
+    <%= render "devise/shared/auth_graphic_left" %>
+  </div>
+  <div class="hidden lg:block absolute -bottom-8 -right-8 w-72 h-60 z-0 opacity-70 pointer-events-none" data-auth-graphic="right" aria-hidden="true">
+    <%= render "devise/shared/auth_graphic_right" %>
+  </div>
+
+  <div class="relative z-10 w-full max-w-md">
     <%# Brand header %>
     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-14 h-14 bg-white/10 backdrop-blur-sm rounded-2xl mb-4 ring-1 ring-white/20">
-        <i class="fa-solid fa-bolt-lightning text-white text-2xl"></i>
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-brand-100 rounded-2xl mb-4">
+        <i class="fa-solid fa-bolt-lightning text-brand-fg text-2xl" aria-hidden="true"></i>
       </div>
-      <h1 class="font-display text-3xl font-bold text-white">TeamSync</h1>
-      <p class="text-brand-100 text-sm mt-1"><%= local_assigns[:tagline] || "Plan, track, ship together." %></p>
+      <h1 class="font-display text-3xl font-bold text-ink-900">TeamSync</h1>
+      <p class="text-ink-500 text-sm mt-1"><%= local_assigns[:tagline] || "Plan, track, ship together." %></p>
     </div>
 
     <%# Card body %>
-    <div class="bg-surface-0 rounded-2xl shadow-2xl p-8">
+    <div class="bg-surface-0 rounded-2xl shadow-2xl border border-line p-8">
       <h2 class="text-xl font-bold text-ink-900 mb-1"><%= title %></h2>
       <% if local_assigns[:subtitle].present? %>
         <p class="text-sm text-ink-500 mb-6"><%= subtitle %></p>
@@ -27,7 +53,7 @@
 
     <%# Footer links %>
     <% if local_assigns[:footer_links].present? %>
-      <div class="text-center mt-6 text-sm text-brand-100 space-x-4">
+      <div class="text-center mt-6 text-sm text-ink-500 space-x-4">
         <%= footer_links %>
       </div>
     <% end %>

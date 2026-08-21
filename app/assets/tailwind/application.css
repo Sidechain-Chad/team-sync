@@ -1,6 +1,70 @@
 @import "tailwindcss";
 
 /* ============================================================
+   Self-hosted type — Instrument Sans (body/UI) + Bricolage Grotesque
+   (display). Both were loaded from the Google Fonts CDN (a <link> in
+   layouts/application.html.erb); that link is gone entirely and both
+   families are served from public/fonts, the same "plain static file,
+   no Sprockets fingerprinting" approach already used for the help
+   centre's screenshots in public/help-images — application.css is
+   compiled by the standalone Tailwind CLI, not through Sprockets, so
+   it has no ERB/asset-url() available to it and needs a path that
+   works unmodified in dev and prod. (Instrument Serif briefly stood in
+   for Bricolage as the display face here; it's gone, files included —
+   see git history for that pass if you're looking for it.)
+
+   Weights match ACTUAL usage, audited across the app, not copied from
+   the old CDN link (which was already missing 700 for Instrument Sans
+   — font-bold text in Sans was silently asking the browser to
+   synthesize a bold weight that was never loaded):
+     Instrument Sans:     400, 500, 600, 700 (font-normal/medium/
+                           semibold/bold, all used outside font-display).
+     Bricolage Grotesque:  600, 700 (font-semibold/bold — the only two
+                           weights font-display is ever paired with).
+
+   Both families are variable fonts on Google's own end, declared with
+   a font-weight RANGE rather than one discrete block per weight — each
+   is genuinely one variable file covering its whole axis, and a range
+   is what tells the browser it can pick the exact weight requested
+   instead of only ever landing on one of a few fixed points. Split
+   into latin / latin-ext per family (4 files total) rather than one
+   combined file per family, so a page with no accented characters
+   never fetches the latin-ext file at all — the browser only
+   downloads a unicode-range block it actually needs glyphs from. */
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/instrument-sans-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/instrument-sans-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 600 700;
+  font-display: swap;
+  src: url("/fonts/bricolage-grotesque-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 600 700;
+  font-display: swap;
+  src: url("/fonts/bricolage-grotesque-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ============================================================
    Golden Hour — warm rebrand tokens.
    Design thesis: workshop at golden hour — espresso wood,
    terracotta, late-afternoon light. Persimmon is rationed:
@@ -286,23 +350,12 @@
    the compiled output, not assumed: grep app/assets/builds/tailwind.css for
    `.bg-surface-0{` and you should see `var(--color-surface-0)`.
 
-   WHY THE MEDIA QUERY IS ARRANGED LIKE THIS: "Match system" has to be pure
-   CSS. If JS resolved it, the server could not know which palette to stamp
-   into <html> and every system-mode page load would flash the wrong theme
-   before the script ran. Gating `[data-theme="system"]` on
-   prefers-color-scheme means the browser resolves it during the first style
-   pass — no JS, no flash, and flipping the OS setting re-resolves live with
-   no reload.
-
-   THE ONE DUPLICATION, and why it is safe: the dark VALUES are defined exactly
-   once, as the --dark-* set below. What repeats is the mapping list, because
-   CSS cannot apply a set of declarations conditionally — `[data-theme="dark"]`
-   must be unconditional while `[data-theme="system"]` must live inside the
-   media query, and no selector list spans both. Space toggles, style queries
-   and `revert-layer` were all considered; each either breaks custom-property
-   fallback or cannot target the root element. Instead the two mappings are
-   pinned identical by a test (ThemeTokensTest), so drifting one without the
-   other fails the suite rather than shipping a half-dark theme.
+   Light and dark only — a "Match system"/prefers-color-scheme option used to
+   exist here, gated in a media query with its own copy of the whole mapping.
+   It was removed by design (light/dark cover the need, and a stored
+   preference the user picked beats one the OS picked for them), which is why
+   there is now exactly one mapping block below instead of two kept in
+   lockstep. See git history for the media-query shape if you need it.
    ============================================================ */
 :root {
   /* The dark palette. Defined here as inert --dark-* names so the values live
@@ -313,37 +366,78 @@
      relative luminance) against the surface each token actually sits on, not
      eyeballed. */
 
-  /* Surfaces. NOTE the ordering flips relative to light mode, on purpose: in
-     light mode a higher number is DARKER (a chip recessed into a white card);
-     in dark mode a higher number is LIGHTER, because dark UIs signal elevation
-     by getting lighter, not darker. surface-0 stays "the raised card" in both,
-     which is what keeps `bg-surface-0` meaning the same thing semantically. */
-  --dark-surface-50:  #16120F;  /* page floor — the darkest thing on screen  */
-  --dark-surface-100: #1C1714;  /* modal canvas, sits under cards            */
-  --dark-surface-0:   #241D18;  /* cards + panels, raised off the floor      */
-  --dark-surface-200: #322822;  /* chips, wells, hover fills ON a card       */
-  --dark-surface-300: #40342B;  /* the deeper hover step above surface-200   */
-  --dark-surface-muted: #1E1814; /* dimmed cells — darker than a card        */
-  --dark-line:        #3A2F27;  /* borders, visible on surface-0 without shouting */
+  /* Surfaces, SECOND PASS. The first pass kept the light-mode saturation
+     (~19-20%) and only inverted lightness, which produced two compounding
+     problems visible on a real screen recording: every surface sat within
+     2-5 points of L of its neighbour (surface-50 to surface-300 spanned just
+     7.25%-20.98%), and at that saturation and that low a lightness, the
+     espresso hue read as an undifferentiated brown field rather than a
+     neutral dark UI. Trello's dark surfaces are near-neutral greys with
+     clearly stepped lightness, and get their identity from persimmon/labels
+     instead — that is the model this pass follows.
 
-  /* Text ramp, inverted. ink-900 is the strongest, as in light mode. */
-  --dark-ink-900: #FAF6F2;      /* 15.45:1 on surface-0 */
-  --dark-ink-700: #EDE4DB;      /* 13.23:1 on surface-0 — body + headings */
-  --dark-ink-500: #B3A498;      /*  6.87:1 on surface-0,  5.94:1 on surface-200 */
-  --dark-ink-300: #8A7A6D;      /*  4.02:1 — placeholders/disabled. Compare
-                                    LIGHT mode's ink-300, which is 2.29:1 on
-                                    white: this is the same role, measurably
-                                    better, so it is not a regression. */
+     Fix: saturation cut to 5-7% (down from ~19-20%) — "a hint of warmth" per
+     the brief, not brown — and the lightness ramp widened, UNEVENLY on
+     purpose, not by a uniform step. surface-0 (cards) is the surface with the
+     most fixed-hex text sitting on it (ink-*, and the -fg foregrounds used for
+     links/destructive actions), so its lightening is capped, not chosen freely:
+     16% is the highest L this hue/saturation can reach before
+     --dark-danger-fg-muted (a real destructive-link colour, not a token this
+     pass is allowed to touch) drops below 4.5:1 AA. surface-200/300 (chips,
+     hover fills) only ever pair with ink-700 or brighter in the views — never
+     ink-500/ink-300 — so they had far more contrast margin to spend and moved
+     the most (+16% and +24% respectively vs. the ~+5% available to surface-0).
+     NOTE the ordering still flips relative to light mode, on purpose: in light
+     mode a higher number is DARKER (a chip recessed into a white card); in
+     dark mode a higher number is LIGHTER, because dark UIs signal elevation by
+     getting lighter, not darker. surface-0 stays "the raised card" in both,
+     which is what keeps `bg-surface-0` meaning the same thing semantically. */
+  --dark-surface-50:  #0D0D0C;  /* page floor — the darkest thing on screen. L=5%,  was #16120F (L=7.25%, S=18.9%) */
+  --dark-surface-muted: #151413; /* dimmed cells — darker than a card.       L=8%,  was #1E1814 (L=9.80%, S=20.0%) */
+  --dark-surface-100: #1D1C1B;  /* modal canvas, sits under cards.           L=11%, was #1C1714 (L=9.41%, S=16.7%) */
+  --dark-surface-0:   #2B2927;  /* cards + panels, raised off the floor.     L=16%, was #241D18 (L=11.76%, S=20.0%) —
+                                    capped here, see the block comment above. */
+  --dark-surface-200: #413D3A;  /* chips, wells, hover fills ON a card.      L=24%, was #322822 (L=16.47%, S=19.0%) */
+  --dark-surface-300: #56524D;  /* the deeper hover step above surface-200.  L=32%, was #40342B (L=20.98%, S=19.6%) */
+  --dark-line:        #68615A;  /* borders — now the brightest neutral step, L=38%, was #3A2F27 (L=19.02%, S=19.6%).
+                                    Shadows can't theme (see the note at the bottom of this
+                                    block), so with the ramp above widened, the border is
+                                    what has to carry elevation on its own — 2.4-3.2:1 against
+                                    surface-50 through surface-0, 2.38:1 against surface-0
+                                    specifically, down to 1.27:1 against surface-300 (the one
+                                    step it sits closest to). */
+
+  /* Text ramp, inverted. ink-900 is the strongest, as in light mode. Values
+     unchanged by the surface pass above; contrast figures below are
+     RECOMPUTED against the new surfaces (previous figures are in git
+     history). Every real ink/surface pairing in the views stays >= 4.5:1
+     except ink-300, which already ran below AA before this pass (see its own
+     note) and is documented as exempt for that reason. */
+  --dark-ink-900: #FAF6F2;      /* 13.48:1 on surface-0 (was 15.45:1) */
+  --dark-ink-700: #EDE4DB;      /* 11.54:1 on surface-0 (was 13.23:1) — body + headings.
+                                    6.17:1 on surface-300, the lightest surface it's ever
+                                    paired with (buttons/links) — still clears AA there. */
+  --dark-ink-500: #B3A498;      /*  5.99:1 on surface-0 (was 6.87:1) — the conversation
+                                    column and its nested comment text. Not actually paired
+                                    with surface-200/300 in the views (those pair with
+                                    ink-700 only), so its margin there is not load-bearing. */
+  --dark-ink-300: #8A7A6D;      /*  3.51:1 on surface-0 (was 4.02:1) — placeholders/disabled,
+                                    already below the 4.5:1 AA floor before this pass (LIGHT
+                                    mode's ink-300 is 2.29:1 on white for the same reason: this
+                                    token has never been AA-critical body text, by design). */
 
   /* Foregrounds — LIGHTENED. This is the deliberate deviation from "same hues,
      inverted lightness": brand-600 (#BE451A) on a near-black surface is a
      3.0:1 accent, which is not a link colour. Each of these is the lightest
      step of its own hue already in the palette where one existed. */
-  --dark-brand-fg:       #F9906B;  /* == the existing brand-400. 7.30:1 */
-  --dark-brand-fg-hover: #FCBCA6;  /* a lighter step above it. 10.19:1   */
-  --dark-danger-fg:      #F0918B;  /* 7.22:1 on surface-0, 6.80:1 on the danger tint */
-  --dark-danger-fg-muted:#E0736C;  /* 5.41:1 — the de-emphasised destructive link */
-  --dark-success-fg:     #A9CC63;  /* 9.10:1 on surface-0, 7.79:1 on the success tint */
+  --dark-brand-fg:       #F9906B;  /* == the existing brand-400. 6.37:1 on surface-0 (was 7.30:1) */
+  --dark-brand-fg-hover: #FCBCA6;  /* a lighter step above it. 8.89:1 on surface-0 (was 10.19:1) */
+  --dark-danger-fg:      #F0918B;  /* 6.30:1 on surface-0 (was 7.22:1), 6.80:1 on the danger tint (unchanged) */
+  --dark-danger-fg-muted:#E0736C;  /* 4.72:1 on surface-0 (was 5.41:1) — the de-emphasised destructive
+                                       link. The tightest margin in this file post-pass: surface-0's L
+                                       was capped specifically so this stays >= 4.5:1 AA. Do not lighten
+                                       surface-0 further without rechecking this number first. */
+  --dark-success-fg:     #A9CC63;  /* 7.94:1 on surface-0 (was 9.10:1), 7.79:1 on the success tint (unchanged) */
   --dark-warn-700:       #EDB45F;  /* 7.43:1 on the warn tint. warn-700 has no fill
                                       role, so unlike the others it lightens in
                                       place with no split needed. */
@@ -351,13 +445,19 @@
   /* Boundaries that used to be baked opacity modifiers. Still translucent —
      see the long note in @theme for why that is required and not laziness.
      The hairline REVERSES DIRECTION here: espresso-at-5% darkened its backdrop,
-     which is invisible on a dark page, so dark mode uses white-at-12% and
-     lightens it instead. Because all three keep an alpha they stay correct over
-     any backdrop, including the board wallpaper a popover can open on top of.
-     Composites below are against the surface each one actually sits on. */
-  --dark-hairline:           #FFFFFF1F;  /* white 12% — 1.44:1 on surface-0; line is 1.28:1 */
-  --dark-danger-line:        #F0918BA6;  /* 3.70:1 on danger-50, 3.84:1 on surface-0 */
-  --dark-danger-line-strong: #F0918BB3;  /* 4.23:1 on surface-0 — the heavier 2px edge */
+     which is invisible on a dark page, so dark mode uses white and lightens it
+     instead. Because all three keep an alpha they stay correct over any
+     backdrop, including the board wallpaper a popover can open on top of.
+     Composites below are against the surface each one actually sits on.
+
+     hairline's alpha DOUBLED in this pass, from white-12% to white-25% —
+     "roughly 12% white and nearly invisible" was the exact complaint, and with
+     shadows unable to theme (see the note at the bottom of this block),
+     hairline and line are the ONLY elevation cues left in dark mode, so this
+     one had to move a lot, not a little. */
+  --dark-hairline:           #FFFFFF40;  /* white 25% — 2.27:1 on surface-0 (was 1.44:1); line is 2.38:1 (was 1.28:1) */
+  --dark-danger-line:        #F0918BA6;  /* 3.70:1 on danger-50 (unchanged), 3.53:1 on surface-0 (was 3.84:1) */
+  --dark-danger-line-strong: #F0918BB3;  /* 3.86:1 on surface-0 (was 4.23:1) — the heavier 2px edge */
 
   /* Tints — the soft fills those foregrounds sit on. Inverted from washes into
      shadows, same hue. */
@@ -424,38 +524,6 @@
   --color-danger-line-strong: var(--dark-danger-line-strong);
 }
 
-/* Match system — identical mapping, gated on the OS preference. Keep in lockstep
-   with the block above; ThemeTokensTest fails if they diverge. */
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] {
-    color-scheme: dark;
-    --color-surface-0: var(--dark-surface-0);
-    --color-surface-50: var(--dark-surface-50);
-    --color-surface-100: var(--dark-surface-100);
-    --color-surface-200: var(--dark-surface-200);
-    --color-surface-300: var(--dark-surface-300);
-    --color-surface-muted: var(--dark-surface-muted);
-    --color-line: var(--dark-line);
-    --color-ink-900: var(--dark-ink-900);
-    --color-ink-700: var(--dark-ink-700);
-    --color-ink-500: var(--dark-ink-500);
-    --color-ink-300: var(--dark-ink-300);
-    --color-brand-fg: var(--dark-brand-fg);
-    --color-brand-fg-hover: var(--dark-brand-fg-hover);
-    --color-danger-fg: var(--dark-danger-fg);
-    --color-danger-fg-muted: var(--dark-danger-fg-muted);
-    --color-success-fg: var(--dark-success-fg);
-    --color-warn-700: var(--dark-warn-700);
-    --color-brand-100: var(--dark-brand-100);
-    --color-danger-50: var(--dark-danger-50);
-    --color-warn-100: var(--dark-warn-100);
-    --color-success-100: var(--dark-success-100);
-    --color-hairline: var(--dark-hairline);
-    --color-danger-line: var(--dark-danger-line);
-    --color-danger-line-strong: var(--dark-danger-line-strong);
-  }
-}
-
 body {
   font-family: var(--font-sans);
   /* Floor so no page can ever show pure white below short content — pages
@@ -482,6 +550,7 @@ body {
       rgb(245 158 11 / 0.08), transparent 55%),    /* faint amber counter-glow, top-left */
     linear-gradient(180deg, var(--color-surface-50) 0%, var(--canvas-golden-stop) 100%);
 }
+:root { --canvas-golden-stop: #F1E6DA; }
 
 /* INTERPRETATION, flagged because the brief's "warm gradients stay unchanged"
    could be read either way. What stays untouched is BOARD backgrounds — the
@@ -489,14 +558,196 @@ body {
    board_cover_gradient_classes. .canvas-golden is neither of those: it is the
    page wrapper behind the boards index, planner and archive, i.e. app chrome,
    and the block comment above has always said so ("Excludes the board show
-   page"). Leaving it at cream would have left those three pages a bright canvas
-   with dark cards floating on it — the one combination dark mode exists to
-   avoid. So it darkens, keeping the same two warm glows, which now read as a
-   faint bloom instead of daylight. */
-:root { --canvas-golden-stop: #F1E6DA; }
-[data-theme="dark"] { --canvas-golden-stop: #221A15; }
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] { --canvas-golden-stop: #221A15; }
+   page").
+
+   SECOND PASS: the first pass went flat, dropping both radial glows, because
+   a diagonal gradient plus glows read as a smudge against a near-black
+   backdrop. Flat fixed the smudge but over-corrected: the flat fill was
+   #0A0908 (L=3.5%), which read as near-black and "too dark". This pass kept
+   dark mode a GRADIENT but made it fully neutral (S=0%) and shared with the
+   board canvas, which then turned out to be its own over-correction: the
+   "brown mush" failure mode was never caused by a rich or warm background,
+   it was caused by BROWN SURFACES sitting on a brown background (proven by
+   boards/1 — a photo background, rich and saturated, reads beautifully
+   under neutral dark cards). App chrome and the board canvas are different
+   surfaces doing different jobs, so THIRD PASS gives them different
+   treatments instead of one shared token: app chrome (here) gets a subtle
+   warm undertone, hue-only — the board canvas (see .board-canvas-gradient
+   further down) gets its own much richer, per-board treatment. Light mode's
+   three-layer background is untouched. */
+
+/* FIFTH PASS — match the nav exactly, not "two steps lighter" above it.
+   Every earlier pass (including the fourth, immediately above) treated the
+   page background as its own surface with its own lightness budget,
+   lighter than the nav on purpose so the nav read as a distinct band of
+   chrome. This pass drops that: the page background is now the SAME fill
+   as --color-nav-bg (#2A211C, L=13.7%), flat, no gradient — a gradient
+   between two stops of the nav's own colour would just be the nav's colour
+   with extra steps.
+
+   TWO CONSEQUENCES, both deliberately handled rather than left as a side
+   effect:
+
+   1. The nav/page boundary. Made deliberately SEAMLESS, not hairlined: the
+      top nav already carries `ring-1 ring-white/10` (shared/_top_nav.html.erb)
+      on all four edges, which still fires along its bottom edge against
+      this new identical-coloured page — a nav that visually continues into
+      the page it sits above reads as intentional (the same fill, no seam)
+      rather than a missing border, and every interactive nav element still
+      has its own hover/focus treatment independent of the page behind it.
+      Verified on screen: the existing ring is enough to keep the nav
+      readable as chrome; no additional --color-line hairline was added.
+      (If that ring is ever removed, this decision needs revisiting.)
+
+   2. Separation from surfaces sitting ON this background got tighter, and
+      was measured rather than assumed (real rendered pixels, not just the
+      tokens' own hex): nav-bg (L=13.7%) against:
+        The PLANNER GRID (--dark-surface-0, L=16.1%): 1.09:1 fill-to-fill —
+          effectively no contrast — but the grid reads clearly anyway,
+          because it isn't one panel edge doing the work, it's a dense
+          lattice of --dark-line strokes (the gap-px/bg-line grid technique)
+          between every cell. Plenty of edges to carry it.
+        BOARD INDEX TILES (sampled ~L=17-27% depending on hue, board-cover-
+          gradient's dark scrim over the 8-hue palette): stay clearly
+          distinct — hue does the work here (persimmon/moss/teal/etc. vs a
+          neutral nav-coloured page), the same reason the 8 tile hues stay
+          distinguishable from EACH OTHER at this scrim strength.
+        The ARCHIVE PANEL (--dark-surface-0, L=16.1%, same 1.09:1): this is
+          the one that's genuinely marginal. Unlike the grid it has only
+          ONE boundary doing the work — the panel's own outer border-line
+          rectangle — and when it holds few items (the common case: most
+          boards archive a handful of cards) there's no internal texture
+          backing that border up. Said plainly, as asked, rather than
+          patched: it still reads as a panel on screen, but it is the
+          thinnest margin of the three, and it is a --color-line contrast
+          question (2.59:1 against this background), not something raising
+          --dark-surface-0's own lightness would even fix cleanly — that
+          would just reopen the surface-vs-surface compression this pass
+          was explicitly told not to solve by changing a surface token. */
+[data-theme="dark"] .canvas-golden {
+  background: var(--color-nav-bg);
+}
+
+/* Dark treatment for the GENERATED board-cover gradients
+   (board_cover_gradient_classes). Two call sites share the same 8-entry
+   palette but need OPPOSITE dark-mode treatments, so they get two classes:
+
+   .board-cover-gradient — the small tile previews (boards index, switcher,
+   starred sidebar, recently-viewed, account row). Nothing is drawn on top of
+   these, and their whole job is letting someone tell their boards apart at a
+   glance, so dark mode only darkens+desaturates the warm gradient underneath
+   (a translucent scrim) rather than replacing it — the 8 hues stay
+   distinguishable from each other, just dimmer.
+
+   .board-canvas-gradient — the board SHOW page's full-height canvas
+   (boards/show.html.erb only), the surface lists and cards actually float
+   on. Two earlier passes both over-corrected: the first read as
+   brown-on-brown (warm gradient behind warm-toned dark lists/cards); the
+   second fixed that by going fully neutral, plus a wash so faint it read as
+   flat next to a photo background. boards/1 (an actual uploaded photo)
+   proved the real fix: SURFACES stay neutral — that's the whole reason a
+   genuinely rich background is safe — while the background itself can be as
+   rich as it wants. So THIS pass makes the canvas itself as rich as a photo:
+   see .board-canvas-rich-0 through -7 further down, rather than a scrim/wash
+   on .board-canvas-gradient's own tint variable.
+
+   Photo backgrounds already carry their own dark scrim (see the inline
+   style in boards/show.html.erb) and are untouched by any of this.
+
+   .board-cover-gradient is kept to ONE token so it stays trivially
+   revertible: delete the rule block and the class from the view(s) that add
+   it. The Ruby helper (BOARD_COVER_GRADIENTS, board_cover_gradient_classes)
+   is NOT touched by any of this — the palette a board ID maps to is
+   unchanged — and gating through a CSS custom property (rather than in the
+   helper) is what keeps it working the same way as every other themed
+   token here: the helper runs server-side and this is resolved purely by
+   the `[data-theme="dark"]` attribute.
+
+   Layered onto Tailwind's own --tw-gradient-stops rather than reimplementing
+   the 8-entry palette in CSS — confirmed present in the compiled output
+   (`.bg-gradient-to-br{background-image:linear-gradient(var(--tw-gradient-stops))}`)
+   before relying on it. A second background-image LAYER (not a filter, not a
+   positioned overlay) was chosen deliberately: `.board-canvas` has real
+   content (the header, the lists) as normal-flow children, so a `filter` on
+   the element would desaturate that content too, not just its background;
+   and `.board-canvas` is the horizontally-scrolling element itself, so an
+   absolutely-positioned overlay child would scroll out of alignment with it.
+   A second `background-image` layer has neither problem — it is the same
+   property as the gradient it sits on top of, so it always moves and clips
+   exactly like the layer beneath it. */
+.board-cover-gradient {
+  --board-cover-gradient-scrim: transparent;
+  background-image:
+    linear-gradient(var(--board-cover-gradient-scrim), var(--board-cover-gradient-scrim)),
+    linear-gradient(var(--tw-gradient-stops));
+}
+[data-theme="dark"] .board-cover-gradient {
+  /* Near-neutral, matching --dark-surface-50 — desaturates AND darkens the
+     gradient underneath at once, at an opacity heavy enough to be the
+     dominant read but not so heavy the 8 palette hues stop being
+     distinguishable from each other (boards must stay visually distinct). */
+  --board-cover-gradient-scrim: rgb(13 13 12 / 62%);
+}
+
+.board-canvas-gradient {
+  --board-canvas-gradient-tint: transparent;
+  background-image:
+    linear-gradient(var(--board-canvas-gradient-tint), var(--board-canvas-gradient-tint)),
+    linear-gradient(var(--tw-gradient-stops));
+}
+
+/* THIRD PASS — as rich as a photo, not a wash on a neutral base.
+   db/seed_assets/board_background.jpg (boards/1's actual photo) was
+   measured directly rather than eyeballed: an off-centre bright point at
+   roughly (23%, 27%) of the image, L=79.6% S=96.9%; a darker patch at
+   roughly (80%, 82%), L=30.3% raw / L=21.7% after the board show page's
+   own inline .28-alpha scrim; a diagonal linear base beneath both running
+   from L=59.2% (top) to L=39.6% (bottom); average across the whole image
+   H=23.7deg S=75.3% L=50.9%. That is a ~49-point lightness SPAN with real
+   saturation throughout — nothing like the previous pass's L=25.9-34.1%,
+   S=6% wash.
+
+   .board-canvas-rich-0 through -7 (one rule per BOARD_COVER_GRADIENTS
+   entry, same index, set via board_canvas_rich_class in BoardsHelper)
+   rebuild that structure per board: a radial highlight at 25%/20% (matching
+   the photo's off-centre glow), a radial shadow at 78%/82% (matching its
+   dark patch), and a diagonal linear base between them filling in where
+   both radials fade to transparent — the exact 2-radials-plus-1-linear
+   layering .canvas-golden already uses in light mode, recoloured per board
+   and given a much wider range: L=72% (highlight) down to L=18% (shadow),
+   full per-anchor saturation (each anchor's own character preserved: the
+   two "cool counterpoint" anchors, plum and slate, stay less saturated by
+   design, same as their tile gradients already are).
+
+   Verified at the DARK end, not just the bright one: --dark-surface-200
+   (the list column, L=24.1%) stays 6.1-6.3pt above every rich-N shadow
+   colour's L=18% — wider than the actual photo board's own real-world gap
+   (measured 2.4pt, list column against its scrimmed darkest point) and
+   above ThemeTokensTest's 2.5pt "visible amount" precedent for adjacent
+   surface tokens, deliberately wider since a flat generated colour has no
+   photographic texture to help the eye separate the two the way a real
+   photo does.
+
+   SURFACES ARE NOT TOUCHED — no --dark-surface-* value changed, and none of
+   the --rich-* variables below are added to ThemeTokensTest's saturation
+   guard: they are not surface tokens, and the guard's threshold was not
+   raised to accommodate them. This supersedes the previous pass entirely:
+   --board-canvas-dark-tint, --charcoal-canvas-from/-to and
+   board_canvas_tint_classes are removed, not layered under. */
+.board-canvas-rich-0 { --rich-glow: #F79778; --rich-shadow: #4D1E0F; --rich-base-top: #CF481B; --rich-base-bot: #6E301C; } /* ember */
+.board-canvas-rich-1 { --rich-glow: #F9C876; --rich-shadow: #50370C; --rich-base-top: #D78E14; --rich-base-bot: #715018; } /* honey */
+.board-canvas-rich-2 { --rich-glow: #E3A68C; --rich-shadow: #432519; --rich-base-top: #B25C38; --rich-base-bot: #613929; } /* clay */
+.board-canvas-rich-3 { --rich-glow: #DC9793; --rich-shadow: #401E1C; --rich-base-top: #A94742; --rich-base-bot: #5C302D; } /* rosewood */
+.board-canvas-rich-4 { --rich-glow: #CBA5BE; --rich-shadow: #372531; --rich-base-top: #905B7E; --rich-base-bot: #513949; } /* plum */
+.board-canvas-rich-5 { --rich-glow: #CAD996; --rich-shadow: #373E1D; --rich-base-top: #90A546; --rich-base-bot: #515B2F; } /* moss */
+.board-canvas-rich-6 { --rich-glow: #99D6D2; --rich-shadow: #1F3D3B; --rich-base-top: #4BA09B; --rich-base-bot: #315856; } /* dusk teal */
+.board-canvas-rich-7 { --rich-glow: #A5B1CB; --rich-shadow: #252B37; --rich-base-top: #5B6C90; --rich-base-bot: #394051; } /* slate blue */
+
+[data-theme="dark"] .board-canvas-gradient {
+  background-image:
+    radial-gradient(1400px 900px at 25% 20%, var(--rich-glow), transparent 60%),
+    radial-gradient(1300px 850px at 78% 82%, var(--rich-shadow), transparent 55%),
+    linear-gradient(160deg, var(--rich-base-top), var(--rich-base-bot));
 }
 
 /* ============================================================
@@ -555,6 +806,63 @@ body {
 
 ::selection {
   background-color: var(--color-brand-100);
+  color: var(--color-ink-900);
+}
+
+/* ============================================================
+   Browser autofill override.
+
+   The pale fill that shows up on the sign-in email/password fields once
+   the browser autofills them is the browser's OWN styling, not an app
+   token — confirmed by forcing the :-webkit-autofill pseudo-class on an
+   otherwise-untouched input (DevTools/CDP) and watching the fill change
+   colour with zero change to this stylesheet. Changing an input token
+   would do nothing here: the browser paints its autofill fill on top of
+   the normal background, so the override has to target the autofill
+   pseudo-class itself, not bg-surface-50.
+
+   WebKit/Blink treat that fill as something a plain `background-color`
+   cannot beat — the UA style wins regardless of specificity — so the
+   standard workaround is an inset box-shadow large enough to cover the
+   whole field; a box-shadow isn't the property the UA is fighting over,
+   so it paints cleanly on top. `-webkit-text-fill-color` has to come
+   with it: these browsers also pin the autofilled text itself to a UA
+   colour that a plain `color` cannot override.
+
+   The values match this field's own un-autofilled states — surface-50
+   idle, surface-0 + the brand-700 ring on focus — so an autofilled
+   field looks identical to one the user actually typed into, in both
+   themes. The focused rule restates the ring as a literal box-shadow
+   rather than composing with Tailwind's --tw-ring-shadow plumbing,
+   because it has to out-specificity `.focus\:ring-2:focus`'s own
+   box-shadow declaration: `input:-webkit-autofill:focus` and
+   `.focus\:ring-2:focus` both count 2 pseudo-classes/classes, so the
+   tie goes to the extra `input` element selector, which only the
+   autofill rule has.
+
+   Firefox implements the standard, unprefixed :autofill and honours
+   `background-color`/`color` directly, but has historically kept
+   painting its own background-image underneath unless that is
+   explicitly cleared. Written as its own separate rule (not merged
+   with the -webkit- one into one comma list) so a browser that
+   doesn't understand :autofill can't invalidate the -webkit- rule it
+   would otherwise share a selector list with. */
+input:-webkit-autofill {
+  box-shadow: 0 0 0 1000px var(--color-surface-50) inset;
+  -webkit-text-fill-color: var(--color-ink-900);
+}
+input:-webkit-autofill:focus {
+  box-shadow: 0 0 0 1000px var(--color-surface-0) inset, 0 0 0 2px var(--color-brand-700);
+  -webkit-text-fill-color: var(--color-ink-900);
+}
+
+input:autofill {
+  background-image: none !important;
+  background-color: var(--color-surface-50);
+  color: var(--color-ink-900);
+}
+input:autofill:focus {
+  background-color: var(--color-surface-0);
   color: var(--color-ink-900);
 }
 
@@ -739,6 +1047,40 @@ body {
 }
 
 /* ============================================================
+   Sign-in / sign-up flanking graphics (devise/shared/_auth_graphic_left,
+   _auth_graphic_right) — inline SVG, built from vector shapes only.
+
+   The thing this replaced (a looping, slowly-scaling RASTER screenshot
+   panel) shimmered: scaling a bitmap resamples every pixel every frame,
+   and a screenshot full of 1px grid lines and 8px text is close to the
+   worst possible subject for that. No amount of slowing it down fixed it,
+   because the problem was never the speed — it was scaling a raster at
+   all. Vector has no equivalent failure mode: a <rect>/<circle> re-renders
+   its own path at whatever transform is applied, so motion here is safe
+   by construction rather than "slow enough to hide the artifact."
+
+   Static by default and in reduced motion: only .auth-graphic-drift (the
+   two small member-avatar clusters in each graphic) ever moves, and only
+   under prefers-reduced-motion: no-preference, same convention as
+   .animate-complete-pop above. Kept deliberately subtle — a few pixels,
+   over many seconds — since this sits behind a login form, not in front
+   of one, and two DIFFERENT delays desync the two graphics' drift so
+   they don't read as one mirrored asset moving in lockstep. */
+@media (prefers-reduced-motion: no-preference) {
+  .auth-graphic-drift {
+    animation: auth-graphic-drift 13s ease-in-out infinite;
+  }
+  [data-auth-graphic="right"] .auth-graphic-drift {
+    animation-delay: -6.5s;
+  }
+}
+
+@keyframes auth-graphic-drift {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(3px, -4px); }
+}
+
+/* ============================================================
    Account "My Cards" page — ONE grid template shared by the header row
    (account/cards.html.erb) and every data row (account/_card_row.html.erb).
    They used to each declare their own `md:grid-cols-[1fr_auto_auto_auto_auto]`
@@ -838,9 +1180,7 @@ span.flatpickr-weekday {
    attribute selector, so they already win on specificity. Keep it that way —
    !important on the theme layer would make the light-mode rules unoverridable.
 
-   Selectors matched 1:1 against vendor/flatpickr's actual rules. Both theme
-   selectors are listed on every rule for the same reason as the token blocks:
-   "system" is resolved by CSS, so it needs its own gated copy. */
+   Selectors matched 1:1 against vendor/flatpickr's actual rules. */
 [data-theme="dark"] .flatpickr-calendar,
 [data-theme="dark"] .flatpickr-calendar.arrowTop:after,
 [data-theme="dark"] .flatpickr-calendar.arrowBottom:after {
@@ -928,83 +1268,96 @@ span.flatpickr-weekday {
   color: var(--color-ink-900);
 }
 
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] .flatpickr-calendar,
-  [data-theme="system"] .flatpickr-calendar.arrowTop:after,
-  [data-theme="system"] .flatpickr-calendar.arrowBottom:after {
-    background: var(--color-surface-0);
-    border-bottom-color: var(--color-surface-0);
-    border-top-color: var(--color-surface-0);
-    box-shadow:
-      1px 0 0 var(--color-line), -1px 0 0 var(--color-line),
-      0 1px 0 var(--color-line), 0 -1px 0 var(--color-line),
-      0 3px 13px rgb(0 0 0 / 0.5);
-  }
-
-  [data-theme="system"] .flatpickr-day {
-    color: var(--color-ink-700);
-  }
-
-  [data-theme="system"] .flatpickr-day.prevMonthDay,
-  [data-theme="system"] .flatpickr-day.nextMonthDay,
-  [data-theme="system"] .flatpickr-day.flatpickr-disabled,
-  [data-theme="system"] .flatpickr-day.flatpickr-disabled:hover,
-  [data-theme="system"] .flatpickr-day.notAllowed {
-    color: var(--color-ink-300);
-  }
-
-  [data-theme="system"] .flatpickr-months .flatpickr-month,
-  [data-theme="system"] .flatpickr-months .flatpickr-prev-month,
-  [data-theme="system"] .flatpickr-months .flatpickr-next-month {
-    color: var(--color-ink-700);
-    fill: var(--color-ink-700);
-  }
-
-  [data-theme="system"] .flatpickr-months .flatpickr-prev-month svg,
-  [data-theme="system"] .flatpickr-months .flatpickr-next-month svg {
-    fill: var(--color-ink-700);
-  }
-
-  [data-theme="system"] .flatpickr-current-month .numInputWrapper span.arrowUp:after {
-    border-bottom-color: var(--color-ink-500);
-  }
-  [data-theme="system"] .flatpickr-current-month .numInputWrapper span.arrowDown:after {
-    border-top-color: var(--color-ink-500);
-  }
-  [data-theme="system"] .numInputWrapper:hover {
-    background: var(--color-surface-200);
-  }
-
-  [data-theme="system"] .flatpickr-monthDropdown-months,
-  [data-theme="system"] .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
-    background: var(--color-surface-0);
-    color: var(--color-ink-700);
-  }
-
-  /* The TIME row (hour : minute AM/PM). Its own block because it is the one part
-     of the picker the day/month rules do not reach: the vendor styles the inputs
-     as `color:#393939` and separates the row with a `border-top:1px solid #e6e6e6`.
-     On the dark surface that measured 1.4:1 — the time was there and unreadable,
-     and the hairline was the brightest thing in the modal. `background:transparent`
-     on the inputs means they inherit the calendar fill, so only colour is needed.
-     The `:hover`/`:focus` fills are set too, or hovering an input flashes the
-     vendor's near-black `rgba(0,0,0,0.05)` wash. */
-  [data-theme="system"] .flatpickr-time,
-  [data-theme="system"] .flatpickr-calendar.hasTime .flatpickr-time {
-    border-top-color: var(--color-line);
-  }
-
-  [data-theme="system"] .flatpickr-time input,
-  [data-theme="system"] .flatpickr-time .flatpickr-time-separator,
-  [data-theme="system"] .flatpickr-time .flatpickr-am-pm {
-    color: var(--color-ink-700);
-  }
-
-  [data-theme="system"] .flatpickr-time input:hover,
-  [data-theme="system"] .flatpickr-time input:focus,
-  [data-theme="system"] .flatpickr-time .flatpickr-am-pm:hover,
-  [data-theme="system"] .flatpickr-time .flatpickr-am-pm:focus {
-    background: var(--color-surface-200);
-    color: var(--color-ink-900);
-  }
+/* ============================================================
+   Help centre — article prose + theme-swapped screenshots.
+   ============================================================
+   Kramdown renders plain HTML (h1-h3, p, ul/ol, a, code, blockquote, img,
+   strong/em) with no classes on any of it, so it needs element selectors
+   rather than utilities — written ONCE here, using the same tokens as
+   everything else, rather than per-article Tailwind classes an ERB-based
+   approach would need repeated in all fifteen articles. Scoped under
+   .help-article so nothing here leaks onto the rest of the app. */
+.help-article h1 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--color-ink-900);
+  margin: 0 0 0.75rem;
 }
+.help-article h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--color-ink-900);
+  margin: 2rem 0 0.75rem;
+}
+/* h3 stays on the sans, not the display serif: 15+ articles each nest
+   several of these, and at 17px they're exactly the "dense, frequent,
+   small" context the serif reads badly in — h1/h2 above are the
+   sparse, large, one-or-two-per-article case it's kept for. */
+.help-article h3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.0625rem;
+  color: var(--color-ink-900);
+  margin: 1.5rem 0 0.5rem;
+}
+.help-article p {
+  color: var(--color-ink-700);
+  line-height: 1.7;
+  margin: 0 0 1rem;
+}
+.help-article ul,
+.help-article ol {
+  color: var(--color-ink-700);
+  line-height: 1.7;
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+}
+.help-article ul { list-style-type: disc; }
+.help-article ol { list-style-type: decimal; }
+.help-article li { margin: 0 0 0.375rem; }
+.help-article a {
+  color: var(--color-brand-fg);
+  text-decoration: underline;
+  text-decoration-color: var(--color-line);
+}
+.help-article a:hover { color: var(--color-brand-fg-hover); }
+.help-article strong { color: var(--color-ink-900); font-weight: 600; }
+.help-article code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.875em;
+  background: var(--color-surface-200);
+  color: var(--color-ink-900);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+.help-article blockquote {
+  border-left: 3px solid var(--color-line);
+  color: var(--color-ink-500);
+  margin: 1rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+}
+.help-article hr {
+  border: none;
+  border-top: 1px solid var(--color-line);
+  margin: 2rem 0;
+}
+
+/* Screenshots: one <img> per theme, swapped by CSS alone — same
+   [data-theme] selector the rest of the token system already uses, so this
+   needs no JavaScript either. Kept in this file rather than the article
+   prose it lives next to, since a dark-mode display rule belongs with the
+   other theme mechanics. */
+.help-shot {
+  margin: 1.5rem 0;
+}
+.help-shot__img {
+  display: block;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-lg);
+}
+.help-shot__img--dark { display: none; }
+
+[data-theme="dark"] .help-shot__img--light { display: none; }
+[data-theme="dark"] .help-shot__img--dark { display: block; }

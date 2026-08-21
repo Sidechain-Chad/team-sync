@@ -26,13 +26,13 @@ class ThemeSwitchingTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "unauthenticated pages default to system" do
+  test "unauthenticated pages default to light" do
     get new_user_session_path
 
     assert_response :success
-    assert_match(/<html data-theme="system"/, response.body,
-                 "a signed-out visitor has no stored preference; system is the only " \
-                 "answer that can't be deliberately wrong, and CSS resolves it for free")
+    assert_match(/<html data-theme="light"/, response.body,
+                 "a signed-out visitor has no stored preference; light is the safe, " \
+                 "non-surprising default now that Match system is gone")
   end
 
   test "a stored value that somehow bypassed validation falls back to light, not into the attribute" do
@@ -49,16 +49,15 @@ class ThemeSwitchingTest < ActionDispatch::IntegrationTest
 
   # ---- The switcher renders, with the current option indicated ----
 
-  test "the account menu renders all three options with the current one checked" do
+  test "the account menu renders both options with the current one checked" do
     @user.update!(theme: "dark")
     sign_in @user
     get root_path
 
     assert_select "[data-controller=theme] [role=radiogroup]" do
-      assert_select "[role=radio]", 3
+      assert_select "[role=radio]", 2
       assert_select "[data-theme-theme-param=light]",  1
       assert_select "[data-theme-theme-param=dark]",   1
-      assert_select "[data-theme-theme-param=system]", 1
 
       # Exactly one checked, and it is the stored one.
       assert_select "[role=radio][aria-checked=true]", 1
@@ -85,20 +84,20 @@ class ThemeSwitchingTest < ActionDispatch::IntegrationTest
     get root_path
 
     # The controller toggles `invisible` on these; they must all exist up front.
-    assert_select "[data-theme-check]", 3
-    assert_select "[data-theme-check].invisible", 2, "the two unselected options start hidden"
+    assert_select "[data-theme-check]", 2
+    assert_select "[data-theme-check].invisible", 1, "the one unselected option starts hidden"
   end
 
-  # The radiogroup contract, rendered server-side. If all three were tabbable,
-  # tabbing past the account menu would cost three key presses instead of one.
+  # The radiogroup contract, rendered server-side. If both were tabbable,
+  # tabbing past the account menu would cost two key presses instead of one.
   test "only the checked option is in the tab order" do
-    @user.update!(theme: "system")
+    @user.update!(theme: "dark")
     sign_in @user
     get root_path
 
     assert_select "[role=radio][tabindex='0']", 1
-    assert_select "[data-theme-theme-param=system][tabindex='0']", 1
-    assert_select "[role=radio][tabindex='-1']", 2
+    assert_select "[data-theme-theme-param=dark][tabindex='0']", 1
+    assert_select "[role=radio][tabindex='-1']", 1
   end
 
   # The roles have to be ones this codebase actually implements. DropdownAriaTest
@@ -126,7 +125,7 @@ class ThemeSwitchingTest < ActionDispatch::IntegrationTest
     assert_equal "dark", @user.reload.theme
   end
 
-  test "each of the three values is accepted" do
+  test "each of the two values is accepted" do
     sign_in @user
 
     User::THEMES.each do |theme|
@@ -155,6 +154,18 @@ class ThemeSwitchingTest < ActionDispatch::IntegrationTest
     assert_equal "light", @user.reload.theme
   end
 
+  # "system" used to be a valid value (Match system); removed by design, so it
+  # must now be rejected exactly like any other unrecognised theme.
+  test "system is no longer an accepted theme" do
+    @user.update!(theme: "dark")
+    sign_in @user
+
+    patch account_theme_path, params: { theme: "system" }, as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal "dark", @user.reload.theme
+  end
+
   test "the endpoint requires authentication" do
     # 401, not a redirect: the switcher calls this as JSON, and Devise's failure
     # app only redirects navigational formats. A redirect here would be worse
@@ -171,10 +182,10 @@ class ThemeSwitchingTest < ActionDispatch::IntegrationTest
     sign_in @user
     get board_path(boards(:one))
 
-    patch account_theme_path, params: { theme: "system" }, as: :json
+    patch account_theme_path, params: { theme: "dark" }, as: :json
 
     assert_response :no_content
-    assert_equal "system", @user.reload.theme
+    assert_equal "dark", @user.reload.theme
   end
 
   # ---- The mailer layout must stay unthemed ----
