@@ -512,32 +512,56 @@ body {
    further down) gets its own much richer, per-board treatment. Light mode's
    three-layer background is untouched. */
 
-/* FOURTH PASS — proper espresso, not grey with a hint. 4% saturation still
-   read as grey; the complaint was hue, not brightness, so lightness is
-   UNCHANGED here (still L=25.9%/33.9% — same as the previous pass) and only
-   hue+saturation move, matched directly to --color-nav-bg (#2A211C) rather
-   than to the dark surface ramp: same hue family (21.4deg vs the previous
-   pass's 30deg) and comparable saturation (20%, vs nav-bg's own 20.0% — vs
-   the previous pass's 4.5%). That is what makes this read as a genuine
-   espresso sitting above the nav instead of a tinted grey.
+/* FIFTH PASS — match the nav exactly, not "two steps lighter" above it.
+   Every earlier pass (including the fourth, immediately above) treated the
+   page background as its own surface with its own lightness budget,
+   lighter than the nav on purpose so the nav read as a distinct band of
+   chrome. This pass drops that: the page background is now the SAME fill
+   as --color-nav-bg (#2A211C, L=13.7%), flat, no gradient — a gradient
+   between two stops of the nav's own colour would just be the nav's colour
+   with extra steps.
 
-   Separation re-measured after the saturation increase, since a hue/
-   saturation change (not lightness) can still move perceived contrast: the
-   board index tile, the planner grid and the archive panel all sit on the
-   same token, bg-surface-0 (--dark-surface-0: #2B2927). WCAG contrast ratio
-   against that surface:
-     from vs surface-0: 1.43:1 (previous pass: 1.45:1)
-     to   vs surface-0: 1.99:1 (previous pass: 2.02:1)
-   Both within a rounding step of the previous pass's own measurements —
-   lightness didn't move, so the separation the last pass already verified
-   holds. Neither collapsed, so saturation did not need to be backed off. */
-:root {
-  --app-canvas-from: #4F3E35; /* L=25.9%, S=20% (was #45423F, H=30deg S=4%) */
-  --app-canvas-to:   #685245; /* L=33.9%, S=20% (was #5A5753, H=34deg S=4%) */
-}
+   TWO CONSEQUENCES, both deliberately handled rather than left as a side
+   effect:
 
+   1. The nav/page boundary. Made deliberately SEAMLESS, not hairlined: the
+      top nav already carries `ring-1 ring-white/10` (shared/_top_nav.html.erb)
+      on all four edges, which still fires along its bottom edge against
+      this new identical-coloured page — a nav that visually continues into
+      the page it sits above reads as intentional (the same fill, no seam)
+      rather than a missing border, and every interactive nav element still
+      has its own hover/focus treatment independent of the page behind it.
+      Verified on screen: the existing ring is enough to keep the nav
+      readable as chrome; no additional --color-line hairline was added.
+      (If that ring is ever removed, this decision needs revisiting.)
+
+   2. Separation from surfaces sitting ON this background got tighter, and
+      was measured rather than assumed (real rendered pixels, not just the
+      tokens' own hex): nav-bg (L=13.7%) against:
+        The PLANNER GRID (--dark-surface-0, L=16.1%): 1.09:1 fill-to-fill —
+          effectively no contrast — but the grid reads clearly anyway,
+          because it isn't one panel edge doing the work, it's a dense
+          lattice of --dark-line strokes (the gap-px/bg-line grid technique)
+          between every cell. Plenty of edges to carry it.
+        BOARD INDEX TILES (sampled ~L=17-27% depending on hue, board-cover-
+          gradient's dark scrim over the 8-hue palette): stay clearly
+          distinct — hue does the work here (persimmon/moss/teal/etc. vs a
+          neutral nav-coloured page), the same reason the 8 tile hues stay
+          distinguishable from EACH OTHER at this scrim strength.
+        The ARCHIVE PANEL (--dark-surface-0, L=16.1%, same 1.09:1): this is
+          the one that's genuinely marginal. Unlike the grid it has only
+          ONE boundary doing the work — the panel's own outer border-line
+          rectangle — and when it holds few items (the common case: most
+          boards archive a handful of cards) there's no internal texture
+          backing that border up. Said plainly, as asked, rather than
+          patched: it still reads as a panel on screen, but it is the
+          thinnest margin of the three, and it is a --color-line contrast
+          question (2.59:1 against this background), not something raising
+          --dark-surface-0's own lightness would even fix cleanly — that
+          would just reopen the surface-vs-surface compression this pass
+          was explicitly told not to solve by changing a surface token. */
 [data-theme="dark"] .canvas-golden {
-  background: linear-gradient(135deg, var(--app-canvas-from), var(--app-canvas-to));
+  background: var(--color-nav-bg);
 }
 
 /* Dark treatment for the GENERATED board-cover gradients
