@@ -8,7 +8,7 @@
     <%= render "boards/cover", board: board, height_class: "h-24" %>
 
     <div class="px-3 py-2.5">
-      <h3 class="font-display text-sm font-semibold text-ink-700 truncate"><%= board.name %></h3>
+      <h3 class="text-sm font-semibold text-ink-700 truncate"><%= board.name %></h3>
       <p class="text-xs text-ink-500 mt-0.5">Updated <%= time_ago_in_words(board.updated_at) %> ago</p>
     </div>
   <% end %>

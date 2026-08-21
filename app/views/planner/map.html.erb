@@ -22,7 +22,7 @@
           <span>Boards</span>
         <% end %>
       <% end %>
-      <h1 class="font-display text-2xl font-bold text-ink-700"><%= @first_of_month.strftime("%B %Y") %></h1>
+      <h1 class="font-display text-2xl text-ink-700"><%= @first_of_month.strftime("%B %Y") %></h1>
       <span class="text-xs text-ink-500 px-2 py-0.5 bg-surface-200 rounded-full">
         <%= pluralize(@located_cards.size, "card") %> with location
       </span>
