@@ -28,7 +28,7 @@
           modal header. w-full + the wrapper's min-w-0 keep it inside the modal
           at 375px. %>
       <%= f.text_field :title,
-          class: "w-full text-xl font-bold text-ink-700 leading-tight bg-surface-0 border-2 border-brand-700 rounded-md px-2 py-1 focus:outline-none focus:ring-0",
+          class: "w-full font-display text-xl font-bold text-ink-700 leading-tight bg-surface-0 border-2 border-brand-700 rounded-md px-2 py-1 focus:outline-none focus:ring-0",
           autofocus: true,
           data: { action: "blur->autosubmit#submit keydown.enter->autosubmit#submit:prevent" } %>
     <% end %>

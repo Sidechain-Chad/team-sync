@@ -1,6 +1,6 @@
 <%= render "help/shell", articles_by_category: @articles_by_category, active_slug: @article.slug do %>
   <p class="text-xs font-bold text-ink-500 uppercase tracking-wider mb-1"><%= @article.category %></p>
-  <h1 class="font-display text-2xl text-ink-900 mb-6"><%= @article.title %></h1>
+  <h1 class="font-display text-2xl font-bold text-ink-900 mb-6"><%= @article.title %></h1>
 
   <%# The article body is markdown rendered server-side to plain HTML — see
       HelpArticle#to_html. Content is authored in this repo, not user input,

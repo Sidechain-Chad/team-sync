@@ -1,40 +1,36 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Self-hosted type — Instrument Sans (body/UI) + Instrument Serif
-   (display). Previously both Bricolage Grotesque and Instrument Sans
-   were loaded from the Google Fonts CDN (a <link> in
-   layouts/application.html.erb); that link is now gone entirely and
-   both families are served from public/fonts, the same "plain static
-   file, no Sprockets fingerprinting" approach already used for the
-   help centre's screenshots in public/help-images — application.css is
+   Self-hosted type — Instrument Sans (body/UI) + Bricolage Grotesque
+   (display). Both were loaded from the Google Fonts CDN (a <link> in
+   layouts/application.html.erb); that link is gone entirely and both
+   families are served from public/fonts, the same "plain static file,
+   no Sprockets fingerprinting" approach already used for the help
+   centre's screenshots in public/help-images — application.css is
    compiled by the standalone Tailwind CLI, not through Sprockets, so
    it has no ERB/asset-url() available to it and needs a path that
-   works unmodified in dev and prod.
+   works unmodified in dev and prod. (Instrument Serif briefly stood in
+   for Bricolage as the display face here; it's gone, files included —
+   see git history for that pass if you're looking for it.)
 
    Weights match ACTUAL usage, audited across the app, not copied from
    the old CDN link (which was already missing 700 for Instrument Sans
    — font-bold text in Sans was silently asking the browser to
    synthesize a bold weight that was never loaded):
-     Instrument Sans:   400, 500, 600, 700 (font-normal/medium/
-                         semibold/bold, all used outside font-display).
-     Instrument Serif:  400 only — it doesn't ship a bold weight at
-                         all, which is exactly why every heading that
-                         stays on font-display below has its
-                         font-bold/font-semibold removed rather than
-                         left to fall back to a synthesized (and
-                         visibly poor) faux-bold serif.
+     Instrument Sans:     400, 500, 600, 700 (font-normal/medium/
+                           semibold/bold, all used outside font-display).
+     Bricolage Grotesque:  600, 700 (font-semibold/bold — the only two
+                           weights font-display is ever paired with).
 
-   Both families are variable fonts on Google's own end. Instrument
-   Sans is declared with a font-weight RANGE (400 700) rather than
-   four discrete blocks per subset — it's genuinely one variable file
-   covering that whole axis, and a range is what tells the browser it
-   can pick the exact weight requested instead of only ever landing on
-   one of four fixed points. Split into latin / latin-ext per family
-   (4 files total) rather than one combined file per family, so a page
-   with no accented characters never fetches the latin-ext file at all
-   — the browser only downloads a unicode-range block it actually
-   needs glyphs from. */
+   Both families are variable fonts on Google's own end, declared with
+   a font-weight RANGE rather than one discrete block per weight — each
+   is genuinely one variable file covering its whole axis, and a range
+   is what tells the browser it can pick the exact weight requested
+   instead of only ever landing on one of a few fixed points. Split
+   into latin / latin-ext per family (4 files total) rather than one
+   combined file per family, so a page with no accented characters
+   never fetches the latin-ext file at all — the browser only
+   downloads a unicode-range block it actually needs glyphs from. */
 @font-face {
   font-family: "Instrument Sans";
   font-style: normal;
@@ -52,19 +48,19 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: "Instrument Serif";
+  font-family: "Bricolage Grotesque";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 600 700;
   font-display: swap;
-  src: url("/fonts/instrument-serif-latin.woff2") format("woff2");
+  src: url("/fonts/bricolage-grotesque-latin.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Instrument Serif";
+  font-family: "Bricolage Grotesque";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 600 700;
   font-display: swap;
-  src: url("/fonts/instrument-serif-latin-ext.woff2") format("woff2");
+  src: url("/fonts/bricolage-grotesque-latin-ext.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
@@ -277,13 +273,8 @@
   --color-success-600: #4D7C0F; /* warm leaf green (completes, checkmarks) */
   --color-success-100: #EBF3D8;
 
-  /* Type. Instrument Serif has no bold weight (see the @font-face block
-     at the top of this file) — every font-display use is expected to
-     carry hierarchy through size, not weight, and the ui-serif/serif
-     fallback tail is deliberate (a genuine serif fallback, unlike
-     font-sans's fallback which is only ever a stand-in until the real
-     face loads). */
-  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  /* Type */
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
 
   /* Warm shadows — espresso-tinted instead of pure black, at a touch
