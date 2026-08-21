@@ -721,6 +721,63 @@ body {
   color: var(--color-ink-900);
 }
 
+/* ============================================================
+   Browser autofill override.
+
+   The pale fill that shows up on the sign-in email/password fields once
+   the browser autofills them is the browser's OWN styling, not an app
+   token — confirmed by forcing the :-webkit-autofill pseudo-class on an
+   otherwise-untouched input (DevTools/CDP) and watching the fill change
+   colour with zero change to this stylesheet. Changing an input token
+   would do nothing here: the browser paints its autofill fill on top of
+   the normal background, so the override has to target the autofill
+   pseudo-class itself, not bg-surface-50.
+
+   WebKit/Blink treat that fill as something a plain `background-color`
+   cannot beat — the UA style wins regardless of specificity — so the
+   standard workaround is an inset box-shadow large enough to cover the
+   whole field; a box-shadow isn't the property the UA is fighting over,
+   so it paints cleanly on top. `-webkit-text-fill-color` has to come
+   with it: these browsers also pin the autofilled text itself to a UA
+   colour that a plain `color` cannot override.
+
+   The values match this field's own un-autofilled states — surface-50
+   idle, surface-0 + the brand-700 ring on focus — so an autofilled
+   field looks identical to one the user actually typed into, in both
+   themes. The focused rule restates the ring as a literal box-shadow
+   rather than composing with Tailwind's --tw-ring-shadow plumbing,
+   because it has to out-specificity `.focus\:ring-2:focus`'s own
+   box-shadow declaration: `input:-webkit-autofill:focus` and
+   `.focus\:ring-2:focus` both count 2 pseudo-classes/classes, so the
+   tie goes to the extra `input` element selector, which only the
+   autofill rule has.
+
+   Firefox implements the standard, unprefixed :autofill and honours
+   `background-color`/`color` directly, but has historically kept
+   painting its own background-image underneath unless that is
+   explicitly cleared. Written as its own separate rule (not merged
+   with the -webkit- one into one comma list) so a browser that
+   doesn't understand :autofill can't invalidate the -webkit- rule it
+   would otherwise share a selector list with. */
+input:-webkit-autofill {
+  box-shadow: 0 0 0 1000px var(--color-surface-50) inset;
+  -webkit-text-fill-color: var(--color-ink-900);
+}
+input:-webkit-autofill:focus {
+  box-shadow: 0 0 0 1000px var(--color-surface-0) inset, 0 0 0 2px var(--color-brand-700);
+  -webkit-text-fill-color: var(--color-ink-900);
+}
+
+input:autofill {
+  background-image: none !important;
+  background-color: var(--color-surface-50);
+  color: var(--color-ink-900);
+}
+input:autofill:focus {
+  background-color: var(--color-surface-0);
+  color: var(--color-ink-900);
+}
+
 .ProseMirror {
   outline: none;
   min-height: 120px;
