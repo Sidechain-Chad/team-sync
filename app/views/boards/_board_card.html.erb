@@ -2,7 +2,7 @@
     + compact footer with name/updated-at. Star and gear float above the
     cover as siblings of the link — not nested inside it — so clicking
     either never triggers navigation into the board. %>
-<div class="group relative bg-surface-0 rounded-lg shadow-sm hover:shadow-lg border border-line overflow-hidden transition-all duration-300 ease-out hover:-translate-y-0.5">
+<div class="group relative bg-surface-0 rounded-lg shadow-sm hover:shadow-lg border border-line hover:outline-2 hover:outline-brand-600 hover:-outline-offset-2 focus-within:outline-2 focus-within:outline-brand-600 focus-within:-outline-offset-2 overflow-hidden transition-all duration-300 ease-out">
 
   <%= link_to board_path(board), class: "block" do %>
     <%= render "boards/cover", board: board, height_class: "h-24" %>
